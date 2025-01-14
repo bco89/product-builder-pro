@@ -11,19 +11,42 @@ const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
   apiVersion: ApiVersion.October24,
-  scopes: process.env.SCOPES?.split(","),
+  scopes: ["write_products"],
   appUrl: process.env.SHOPIFY_APP_URL || "",
   authPathPrefix: "/auth",
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,
+  isEmbeddedApp: true,
+  hooks: {
+    afterAuth: async ({ session }) => {
+      console.log("[afterAuth] Session created:", session);
+      await shopify.registerWebhooks({ session });
+    },
+  },
   future: {
     unstable_newEmbeddedAuthStrategy: true,
-    removeRest: true,
   },
-  ...(process.env.SHOP_CUSTOM_DOMAIN
-    ? { customShopDomains: [process.env.SHOP_CUSTOM_DOMAIN] }
-    : {}),
 });
+
+// Add logging to authenticate function
+const originalAuthenticate = shopify.authenticate;
+shopify.authenticate = {
+  ...originalAuthenticate,
+  admin: async (request) => {
+    console.log("[authenticate.admin] Request URL:", request.url);
+    try {
+      const result = await originalAuthenticate.admin(request);
+      console.log("[authenticate.admin] Authentication successful:", {
+        hasSession: !!result.session,
+        hasAdmin: !!result.admin
+      });
+      return result;
+    } catch (error) {
+      console.error("[authenticate.admin] Authentication failed:", error);
+      throw error;
+    }
+  }
+};
 
 export default shopify;
 export const apiVersion = ApiVersion.October24;

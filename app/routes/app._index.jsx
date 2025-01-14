@@ -1,24 +1,25 @@
-import { useEffect } from "react";
-import { useFetcher } from "@remix-run/react";
-import {
-  Page,
-  Layout,
-  Text,
-  Card,
-  Button,
-  BlockStack,
-  Box,
-  List,
-  Link,
-  InlineStack,
-} from "@shopify/polaris";
-import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
+import { redirect } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
+  
+  // Get the URL with all query parameters
+  const url = new URL(request.url);
+  const params = new URLSearchParams(url.search);
+  
+  // Add required parameters for embedded app
+  params.set("shop", session.shop);
+  params.set("embedded", "1");
+  if (url.searchParams.has("host")) {
+    params.set("host", url.searchParams.get("host"));
+  }
 
-  return null;
+  return redirect(`/app/product-builder?${params.toString()}`, {
+    headers: {
+      "X-Shopify-Api-Request-Failure-Reauthorize": "1",
+    },
+  });
 };
 
 export const action = async ({ request }) => {

@@ -1,91 +1,148 @@
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Card,
+  FormLayout,
   TextField,
+  Button,
+  ButtonGroup,
+  Text,
   DropZone,
-  BlockStack,
-  InlineStack,
+  InlineGrid,
   Thumbnail,
-  Banner,
-  List,
-  Text
+  Banner
 } from '@shopify/polaris';
 
 interface StepProductDetailsProps {
   formData: {
     title: string;
     description: string;
-    images: Array<File>;
+    images: File[];
   };
-  onChange: (updates: Partial<StepProductDetailsProps['formData']>) => void;
+  onChange: (updates: Partial<typeof formData>) => void;
+  onNext: () => void;
+  onBack: () => void;
 }
 
-export default function StepProductDetails({ formData, onChange }: StepProductDetailsProps) {
+export default function StepProductDetails({ formData, onChange, onNext, onBack }: StepProductDetailsProps) {
+  const [rejectedFiles, setRejectedFiles] = useState<File[]>([]);
+
   const handleDropZoneDrop = useCallback(
-    (_dropFiles: File[], acceptedFiles: File[], _rejectedFiles: File[]) => {
-      onChange({ images: [...formData.images, ...acceptedFiles] });
+    (_dropFiles: File[], acceptedFiles: File[], rejectedFiles: File[]) => {
+      setRejectedFiles(rejectedFiles);
+      onChange({ 
+        images: [...formData.images, ...acceptedFiles].slice(0, 5) // Limit to 5 images
+      });
     },
     [formData.images, onChange]
   );
 
-  const handleRemoveImage = useCallback(
-    (index: number) => {
-      const newImages = [...formData.images];
-      newImages.splice(index, 1);
-      onChange({ images: newImages });
-    },
-    [formData.images, onChange]
+  const handleRemoveImage = useCallback((indexToRemove: number) => {
+    onChange({
+      images: formData.images.filter((_, index) => index !== indexToRemove)
+    });
+  }, [formData.images, onChange]);
+
+  const validImageTypes = ['image/jpeg', 'image/png', 'image/gif'];
+  
+  const fileUpload = !formData.images.length && (
+    <DropZone.FileUpload actionHint="or drop files to upload" />
   );
+
+  const uploadedFiles = formData.images.length > 0 && (
+    <InlineGrid gap="400" columns={2}>
+      {formData.images.map((file, index) => (
+        <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {validImageTypes.includes(file.type) ? (
+            <Thumbnail
+              size="small"
+              alt={file.name}
+              source={window.URL.createObjectURL(file)}
+            />
+          ) : (
+            <div style={{ 
+              width: '40px', 
+              height: '40px', 
+              background: '#f1f2f3', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              borderRadius: '4px'
+            }}>
+              File
+            </div>
+          )}
+          <div>
+            {file.name} <Button plain onClick={() => handleRemoveImage(index)}>Remove</Button>
+          </div>
+        </div>
+      ))}
+    </InlineGrid>
+  );
+
+  const errorMessage = rejectedFiles.length > 0 && (
+    <Banner status="critical">
+      <p>The following images couldn't be uploaded:</p>
+      <ul>
+        {rejectedFiles.map((file, index) => (
+          <li key={index}>{file.name}</li>
+        ))}
+      </ul>
+    </Banner>
+  );
+
+  const handleSubmit = () => {
+    if (formData.title && formData.description) {
+      onNext();
+    }
+  };
 
   return (
     <Card>
-      <Card.Section>
-        <BlockStack gap="4">
-          <TextField
-            label="Product Title"
-            value={formData.title}
-            onChange={(value) => onChange({ title: value })}
-            autoComplete="off"
-          />
+      <FormLayout>
+        <Text variant="headingMd" as="h2">Product Details</Text>
 
-          <TextField
-            label="Product Description"
-            value={formData.description}
-            onChange={(value) => onChange({ description: value })}
-            multiline={4}
-            autoComplete="off"
-          />
+        <TextField
+          label="Title"
+          value={formData.title}
+          onChange={(value) => onChange({ title: value })}
+          autoComplete="off"
+          required
+        />
 
-          <DropZone onDrop={handleDropZoneDrop} allowMultiple>
-            <DropZone.FileUpload />
-          </DropZone>
+        <TextField
+          label="Description"
+          value={formData.description}
+          onChange={(value) => onChange({ description: value })}
+          multiline={4}
+          autoComplete="off"
+          required
+        />
 
-          {formData.images.length > 0 && (
-            <InlineStack gap="4">
-              {formData.images.map((image, index) => (
-                <Thumbnail
-                  key={index}
-                  source={URL.createObjectURL(image)}
-                  alt={image.name}
-                  onError={() => handleRemoveImage(index)}
-                />
-              ))}
-            </InlineStack>
-          )}
+        <DropZone
+          accept="image/*"
+          type="image"
+          onDrop={handleDropZoneDrop}
+          allowMultiple
+          label="Product Images"
+          errorOverlayText="File type must be image/*"
+        >
+          {uploadedFiles}
+          {fileUpload}
+        </DropZone>
 
-          {formData.images.length > 0 && (
-            <Banner title="Uploaded Images" status="info">
-              <List>
-                {formData.images.map((image, index) => (
-                  <List.Item key={index}>
-                    {image.name} ({Math.round(image.size / 1024)} KB)
-                  </List.Item>
-                ))}
-              </List>
-            </Banner>
-          )}
-        </BlockStack>
-      </Card.Section>
+        {errorMessage}
+
+        <ButtonGroup>
+          <Button onClick={onBack}>Back</Button>
+          <Button 
+            primary 
+            onClick={handleSubmit}
+            disabled={!formData.title || !formData.description}
+          >
+            Next
+          </Button>
+        </ButtonGroup>
+      </FormLayout>
     </Card>
   );
 } 

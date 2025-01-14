@@ -28,6 +28,10 @@ module.exports = {
         "api/shopify/vendors",
         "routes/api.shopify.vendors.ts"
       );
+      route(
+        "app/product-builder",
+        "routes/app.product-builder.tsx"
+      );
     });
   },
 };

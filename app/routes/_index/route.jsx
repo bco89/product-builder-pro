@@ -4,12 +4,18 @@ import { login } from "../../shopify.server";
 import styles from "./styles.module.css";
 
 export const loader = async ({ request }) => {
+  console.log("[_index loader] Request URL:", request.url);
   const url = new URL(request.url);
-
-  if (url.searchParams.get("shop")) {
+  const shop = url.searchParams.get("shop");
+  
+  console.log("[_index loader] Shop param:", shop);
+  
+  if (shop) {
+    console.log("[_index loader] Redirecting to /app");
     throw redirect(`/app?${url.searchParams.toString()}`);
   }
 
+  console.log("[_index loader] Showing login form");
   return { showForm: Boolean(login) };
 };
 

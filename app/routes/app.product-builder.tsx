@@ -3,14 +3,10 @@ import {
   Page,
   Layout,
   ProgressBar,
-  Button,
-  Banner,
-  Frame,
-  Loading,
-  Toast,
   BlockStack
 } from '@shopify/polaris';
-import { useNavigate } from '@remix-run/react';
+import { json } from "@remix-run/node";
+import { useLoaderData } from "@remix-run/react";
 import { authenticate } from '../shopify.server';
 
 // Step Components
@@ -23,11 +19,15 @@ import StepTags from './product-builder/steps/StepTags';
 import StepReview from './product-builder/steps/StepReview';
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
-  return null;
+  const { admin, session } = await authenticate.admin(request);
+  return json({
+    shop: session.shop,
+    apiKey: process.env.SHOPIFY_API_KEY
+  });
 };
 
 export default function ProductBuilder() {
+  const { shop, apiKey } = useLoaderData();
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
     vendor: '',

@@ -1,38 +1,29 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-import { CacheService } from "../services/cacheService";
-import { GET_VENDORS } from "~/graphql/queries";
-import type { VendorsResponse } from "../types/shopify";
 
 export const loader = async ({ request }) => {
-  const { admin, session } = await authenticate.admin(request);
+  const { admin } = await authenticate.admin(request);
 
   try {
-    // Try to get from cache first
-    const cachedVendors = await CacheService.get<string[]>(session.shop, 'vendors');
-    if (cachedVendors) {
-      return json({ vendors: cachedVendors });
-    }
+    const response = await admin.graphql(
+      `#graphql
+      query getVendors {
+        shop {
+          productVendors(first: 250) {
+            edges {
+              node
+            }
+          }
+        }
+      }`
+    );
 
-    // If not in cache, fetch from Shopify
-    const response = await admin.graphql<VendorsResponse>(GET_VENDORS);
     const data = await response.json();
-    
     const vendors = data.data.shop.productVendors.edges.map(edge => edge.node);
 
-    // Cache the results
-    await CacheService.set(session.shop, 'vendors', vendors);
-
     return json({ vendors });
-
   } catch (error) {
     console.error("Failed to fetch vendors:", error);
-    return json(
-      { 
-        message: "Failed to fetch vendors",
-        error: error.message 
-      }, 
-      { status: 500 }
-    );
+    return json({ vendors: [] });
   }
 }; 
