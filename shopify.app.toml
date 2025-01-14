@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "a584fd28cd63a66d60fb6fe599f5c747"
-application_url = "https://her-dresses-blocks-radiation.trycloudflare.com"
+application_url = "https://encouraged-concepts-austin-styles.trycloudflare.com"
 embedded = true
 name = "Product Builder Pro"
 handle = "product-builder-pro"
@@ -23,9 +23,9 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://her-dresses-blocks-radiation.trycloudflare.com/auth/callback",
-  "https://her-dresses-blocks-radiation.trycloudflare.com/auth/shopify/callback",
-  "https://her-dresses-blocks-radiation.trycloudflare.com/api/auth/callback"
+  "https://encouraged-concepts-austin-styles.trycloudflare.com/auth/callback",
+  "https://encouraged-concepts-austin-styles.trycloudflare.com/auth/shopify/callback",
+  "https://encouraged-concepts-austin-styles.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

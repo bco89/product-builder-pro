@@ -17,4 +17,17 @@ module.exports = {
   serverModuleFormat: "cjs",
   dev: { port: process.env.HMR_SERVER_PORT || 8002 },
   future: {},
+  serverBuildPath: "build/index.js",
+  routes(defineRoutes) {
+    return defineRoutes((route) => {
+      route(
+        "api/shopify/product-types",
+        "routes/api.shopify.product-types.ts"
+      );
+      route(
+        "api/shopify/vendors",
+        "routes/api.shopify.vendors.ts"
+      );
+    });
+  },
 };

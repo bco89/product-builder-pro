@@ -5,28 +5,74 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
-// enough when changing adapters.
-// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
-  provider = "sqlite"
-  url      = "file:dev.sqlite"
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
 model Session {
-  id            String    @id
-  shop          String
-  state         String
+  id            String    @id @db.VarChar(255)
+  shop          String    @db.VarChar(255)
+  state         String    @db.VarChar(255)
   isOnline      Boolean   @default(false)
-  scope         String?
+  scope         String?   @db.Text
   expires       DateTime?
-  accessToken   String
+  accessToken   String    @db.Text
   userId        BigInt?
-  firstName     String?
-  lastName      String?
-  email         String?
+  firstName     String?   @db.VarChar(255)
+  lastName      String?   @db.VarChar(255)
+  email         String?   @db.VarChar(255)
   accountOwner  Boolean   @default(false)
-  locale        String?
+  locale        String?   @db.VarChar(50)
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relationship with ProductDraft
+  productDrafts ProductDraft[]
+
+  @@index([shop])
+  @@index([expires])
+}
+
+model ProductDraft {
+  id            String    @id @default(uuid()) @db.VarChar(36)
+  shop          String    @db.VarChar(255)
+  sessionId     String    @db.VarChar(255)
+  title         String    @db.VarChar(255)
+  description   String?   @db.Text
+  vendor        String    @db.VarChar(255)
+  productType   String    @db.VarChar(255)
+  tags          String?   @db.Text
+  status        String    @db.VarChar(50) @default("draft")
+  variants      String?   @db.Text
+  images        String?   @db.Text
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  expiresAt     DateTime?
+
+  // Relationship with Session
+  session       Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([shop])
+  @@index([sessionId])
+  @@index([expiresAt])
+}
+
+model StoreCache {
+  id            String    @id @default(uuid()) @db.VarChar(36)
+  shop          String    @db.VarChar(255)
+  dataType      String    @db.VarChar(50)
+  data          String    @db.Text
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  expiresAt     DateTime
+
+  @@unique([shop, dataType])
+  @@index([shop])
+  @@index([expiresAt])
 }
