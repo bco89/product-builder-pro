@@ -14,6 +14,11 @@ import {
 interface ReviewFormData {
   vendor: string;
   productType: string;
+  category: {
+    id: string;
+    name: string;
+  } | null;
+  googleCategory: string;
   title: string;
   description: string;
   images: File[];

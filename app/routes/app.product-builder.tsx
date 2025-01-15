@@ -36,6 +36,8 @@ export default function ProductBuilder() {
   const [formData, setFormData] = useState({
     vendor: '',
     productType: '',
+    category: null as { id: string; name: string; } | null,
+    googleCategory: '',
     title: '',
     description: '',
     images: [],
