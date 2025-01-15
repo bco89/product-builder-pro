@@ -19,13 +19,15 @@ interface StepTagsProps {
     tags: string[];
   };
   onChange: (updates: Partial<StepTagsProps['formData']>) => void;
+  onNext: () => void;
+  onBack: () => void;
 }
 
 interface TagsResponse {
   tags: string[];
 }
 
-export default function StepTags({ formData, onChange }: StepTagsProps) {
+export default function StepTags({ formData, onChange, onNext, onBack }: StepTagsProps) {
   const [inputValue, setInputValue] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>(formData.tags || []);
 
@@ -136,6 +138,13 @@ export default function StepTags({ formData, onChange }: StepTagsProps) {
             </Banner>
           )}
         </BlockStack>
+
+        <InlineStack gap="300" align="end">
+          <Button onClick={onBack}>Back</Button>
+          <Button primary onClick={onNext}>
+            Next
+          </Button>
+        </InlineStack>
       </BlockStack>
     </Card>
   );

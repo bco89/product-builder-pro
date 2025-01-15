@@ -3,10 +3,11 @@ import {
   Page,
   Layout,
   ProgressBar,
-  BlockStack
+  BlockStack,
+  Toast
 } from '@shopify/polaris';
 import { json } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData, useNavigate } from "@remix-run/react";
 import { authenticate } from '../shopify.server';
 
 // Step Components
@@ -28,7 +29,10 @@ export const loader = async ({ request }) => {
 
 export default function ProductBuilder() {
   const { shop, apiKey } = useLoaderData();
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   const [formData, setFormData] = useState({
     vendor: '',
     productType: '',
@@ -54,8 +58,31 @@ export default function ProductBuilder() {
     { title: 'Review', component: StepReview }
   ];
 
+  const handleSubmit = useCallback(async () => {
+    setIsSubmitting(true);
+    try {
+      // TODO: Implement the actual product creation logic here
+      console.log('Submitting product:', formData);
+      
+      // For now, just show a success message
+      setToastMessage('Product created successfully!');
+      
+      // Navigate back to the app home or products list
+      // navigate('/app');
+    } catch (error) {
+      console.error('Error creating product:', error);
+      setToastMessage('Error creating product. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [formData]);
+
   const handleStepChange = useCallback((updates) => {
     setFormData(prev => ({ ...prev, ...updates }));
+  }, []);
+
+  const handleEditStep = useCallback((stepIndex: number) => {
+    setCurrentStep(stepIndex);
   }, []);
 
   const CurrentStepComponent = steps[currentStep].component;
@@ -68,15 +95,32 @@ export default function ProductBuilder() {
         
         <Layout>
           <Layout.Section>
-            <CurrentStepComponent 
-              formData={formData}
-              onChange={handleStepChange}
-              onNext={() => setCurrentStep(prev => Math.min(prev + 1, steps.length - 1))}
-              onBack={() => setCurrentStep(prev => Math.max(prev - 1, 0))}
-            />
+            {currentStep === steps.length - 1 ? (
+              <StepReview
+                formData={formData}
+                onSubmit={handleSubmit}
+                onEdit={handleEditStep}
+                onBack={() => setCurrentStep(prev => prev - 1)}
+                isSubmitting={isSubmitting}
+              />
+            ) : (
+              <CurrentStepComponent 
+                formData={formData}
+                onChange={handleStepChange}
+                onNext={() => setCurrentStep(prev => Math.min(prev + 1, steps.length - 1))}
+                onBack={() => setCurrentStep(prev => Math.max(prev - 1, 0))}
+              />
+            )}
           </Layout.Section>
         </Layout>
       </BlockStack>
+      {toastMessage && (
+        <Toast
+          content={toastMessage}
+          onDismiss={() => setToastMessage('')}
+          duration={4000}
+        />
+      )}
     </Page>
   );
 } 

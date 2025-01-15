@@ -5,16 +5,8 @@ import {
   BlockStack,
   InlineStack,
   Text,
-  Banner,
   Button,
 } from '@shopify/polaris';
-
-interface Variant {
-  id: string;
-  title: string;
-  sku: string;
-  barcode: string;
-}
 
 interface StepSKUBarcodeProps {
   formData: {
@@ -23,12 +15,38 @@ interface StepSKUBarcodeProps {
     barcodes: string[];
   };
   onChange: (updates: Partial<StepSKUBarcodeProps['formData']>) => void;
+  onNext: () => void;
+  onBack: () => void;
 }
 
-export default function StepSKUBarcode({ formData, onChange }: StepSKUBarcodeProps) {
-  // Generate variants based on options
+export default function StepSKUBarcode({ formData, onChange, onNext, onBack }: StepSKUBarcodeProps) {
+  const hasVariants = formData.options.length > 0;
+
+  const handleSKUChange = useCallback((value: string) => {
+    const newSkus = [value];
+    onChange({ skus: newSkus });
+  }, [onChange]);
+
+  const handleBarcodeChange = useCallback((value: string) => {
+    const newBarcodes = [value];
+    onChange({ barcodes: newBarcodes });
+  }, [onChange]);
+
+  const handleVariantSKUChange = useCallback((index: number, value: string) => {
+    const newSkus = [...(formData.skus || [])];
+    newSkus[index] = value;
+    onChange({ skus: newSkus });
+  }, [formData.skus, onChange]);
+
+  const handleVariantBarcodeChange = useCallback((index: number, value: string) => {
+    const newBarcodes = [...(formData.barcodes || [])];
+    newBarcodes[index] = value;
+    onChange({ barcodes: newBarcodes });
+  }, [formData.barcodes, onChange]);
+
+  // Generate variants if they exist
   const generateVariants = useCallback(() => {
-    if (!formData.options.length) return [];
+    if (!hasVariants) return [];
 
     const cartesian = (...arrays: string[][]): string[][] => {
       return arrays.reduce<string[][]>(
@@ -43,41 +61,25 @@ export default function StepSKUBarcode({ formData, onChange }: StepSKUBarcodePro
     const optionValues = formData.options.map(option => option.values);
     const combinations = cartesian(...optionValues);
 
-    return combinations.map((combination, index) => {
-      const title = combination.join(' / ');
-      return {
-        id: index.toString(),
-        title,
-        sku: formData.skus[index] || '',
-        barcode: formData.barcodes[index] || '',
-      };
-    });
-  }, [formData.options, formData.skus, formData.barcodes]);
+    return combinations.map((combination, index) => ({
+      id: index.toString(),
+      title: combination.join(' / '),
+      sku: formData.skus[index] || '',
+      barcode: formData.barcodes[index] || '',
+    }));
+  }, [formData.options, formData.skus, formData.barcodes, hasVariants]);
 
   const variants = generateVariants();
 
-  const handleSKUChange = useCallback((index: number, value: string) => {
-    const newSkus = [...(formData.skus || [])];
-    newSkus[index] = value;
-    onChange({ skus: newSkus });
-  }, [formData.skus, onChange]);
-
-  const handleBarcodeChange = useCallback((index: number, value: string) => {
-    const newBarcodes = [...(formData.barcodes || [])];
-    newBarcodes[index] = value;
-    onChange({ barcodes: newBarcodes });
-  }, [formData.barcodes, onChange]);
-
-  const generateSKUs = useCallback(() => {
-    const baseSkus = variants.map((variant, index) => {
-      const variantParts = variant.title.split(' / ');
-      const sku = variantParts
-        .map(part => part.substring(0, 3).toUpperCase())
-        .join('-');
-      return `${sku}-${(index + 1).toString().padStart(3, '0')}`;
-    });
-    onChange({ skus: baseSkus });
-  }, [variants, onChange]);
+  const handleSubmit = () => {
+    if (hasVariants) {
+      if (variants.every(v => v.sku)) {
+        onNext();
+      }
+    } else if (formData.skus[0]) {
+      onNext();
+    }
+  };
 
   return (
     <Card>
@@ -86,22 +88,32 @@ export default function StepSKUBarcode({ formData, onChange }: StepSKUBarcodePro
           SKU & Barcode Assignment
         </Text>
 
-        {variants.length === 0 ? (
-          <Banner tone="info">
-            <Text as="p">
-              No variants have been created yet. Please go back to the Variants step
-              to create product variants first.
-            </Text>
-          </Banner>
-        ) : (
-          <BlockStack gap="500">
-            <InlineStack gap="300">
-              <Button onClick={generateSKUs}>Generate SKUs</Button>
-            </InlineStack>
+        {!hasVariants ? (
+          // Single product SKU/Barcode form
+          <BlockStack gap="400">
+            <TextField
+              label="SKU"
+              value={formData.skus[0] || ''}
+              onChange={handleSKUChange}
+              autoComplete="off"
+              required
+              helpText="Stock Keeping Unit - unique identifier for this product"
+            />
 
+            <TextField
+              label="Barcode (ISBN, UPC, GTIN, etc.)"
+              value={formData.barcodes[0] || ''}
+              onChange={handleBarcodeChange}
+              autoComplete="off"
+              helpText="Optional - Enter a valid barcode or leave blank"
+            />
+          </BlockStack>
+        ) : (
+          // Variant SKUs/Barcodes form
+          <BlockStack gap="500">
             {variants.map((variant, index) => (
               <Card key={variant.id}>
-                <BlockStack gap="500">
+                <BlockStack gap="400">
                   <Text variant="headingSm" as="h3">
                     {variant.title}
                   </Text>
@@ -109,16 +121,17 @@ export default function StepSKUBarcode({ formData, onChange }: StepSKUBarcodePro
                   <BlockStack gap="300">
                     <TextField
                       label="SKU"
-                      value={formData.skus[index] || ''}
-                      onChange={(value) => handleSKUChange(index, value)}
+                      value={variant.sku}
+                      onChange={(value) => handleVariantSKUChange(index, value)}
                       autoComplete="off"
+                      required
                       helpText="Stock Keeping Unit - unique identifier for this variant"
                     />
 
                     <TextField
                       label="Barcode (ISBN, UPC, GTIN, etc.)"
-                      value={formData.barcodes[index] || ''}
-                      onChange={(value) => handleBarcodeChange(index, value)}
+                      value={variant.barcode}
+                      onChange={(value) => handleVariantBarcodeChange(index, value)}
                       autoComplete="off"
                       helpText="Optional - Enter a valid barcode or leave blank"
                     />
@@ -128,6 +141,20 @@ export default function StepSKUBarcode({ formData, onChange }: StepSKUBarcodePro
             ))}
           </BlockStack>
         )}
+
+        <InlineStack gap="300" align="end">
+          <Button onClick={onBack}>Back</Button>
+          <Button 
+            primary 
+            onClick={handleSubmit}
+            disabled={hasVariants ? 
+              variants.some(v => !v.sku) : 
+              !formData.skus[0]
+            }
+          >
+            Next
+          </Button>
+        </InlineStack>
       </BlockStack>
     </Card>
   );

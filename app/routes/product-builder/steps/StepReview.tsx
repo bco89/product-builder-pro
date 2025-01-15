@@ -25,7 +25,6 @@ interface ReviewFormData {
     compareAtPrice: string;
     cost: string;
   }>;
-  currency: string;
   tags: string[];
 }
 
@@ -33,10 +32,24 @@ interface StepReviewProps {
   formData: ReviewFormData;
   onSubmit: () => void;
   onEdit: (step: number) => void;
+  onBack: () => void;
   isSubmitting: boolean;
 }
 
-export default function StepReview({ formData, onSubmit, onEdit, isSubmitting }: StepReviewProps) {
+export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmitting }: StepReviewProps) {
+  const STEPS = {
+    VENDOR_TYPE: 0,
+    PRODUCT_DETAILS: 1,
+    VARIANTS: 2,
+    SKU_BARCODE: 3,
+    PRICING: 4,
+    TAGS: 5
+  } as const;
+
+  const handleEdit = (step: number) => {
+    onEdit(step);
+  };
+
   const generateVariants = () => {
     if (!formData.options.length) return [];
 
@@ -64,17 +77,7 @@ export default function StepReview({ formData, onSubmit, onEdit, isSubmitting }:
   };
 
   const variants = generateVariants();
-
-  const getCurrencySymbol = (currency: string) => {
-    switch (currency) {
-      case 'USD': return '$';
-      case 'EUR': return '€';
-      case 'GBP': return '£';
-      case 'CAD': return 'C$';
-      case 'AUD': return 'A$';
-      default: return '$';
-    }
-  };
+  const hasVariants = formData.options.length > 0;
 
   return (
     <Card>
@@ -86,7 +89,7 @@ export default function StepReview({ formData, onSubmit, onEdit, isSubmitting }:
         <Banner tone="warning">
           <Text as="p">
             Please review all information carefully before creating the product.
-            You can go back to any step to make changes.
+            Click 'Edit' on any section to make changes.
           </Text>
         </Banner>
 
@@ -96,7 +99,7 @@ export default function StepReview({ formData, onSubmit, onEdit, isSubmitting }:
             <BlockStack gap="400">
               <InlineStack align="space-between">
                 <Text variant="headingSm" as="h3">Basic Information</Text>
-                <Button variant="plain" onClick={() => onEdit(0)}>Edit</Button>
+                <Button plain onClick={() => handleEdit(STEPS.VENDOR_TYPE)}>Edit</Button>
               </InlineStack>
               <List type="bullet">
                 <List.Item>Vendor: {formData.vendor}</List.Item>
@@ -110,11 +113,11 @@ export default function StepReview({ formData, onSubmit, onEdit, isSubmitting }:
             <BlockStack gap="400">
               <InlineStack align="space-between">
                 <Text variant="headingSm" as="h3">Product Details</Text>
-                <Button variant="plain" onClick={() => onEdit(1)}>Edit</Button>
+                <Button plain onClick={() => handleEdit(STEPS.PRODUCT_DETAILS)}>Edit</Button>
               </InlineStack>
-              <BlockStack gap="400">
-                <Text as="p" fontWeight="bold">{formData.title}</Text>
-                <Text as="p">{formData.description}</Text>
+              <BlockStack gap="300">
+                <Text as="p">Title: {formData.title}</Text>
+                <Text as="p">Description: {formData.description}</Text>
                 {formData.images.length > 0 && (
                   <InlineStack gap="300">
                     {formData.images.map((image, index) => (
@@ -131,43 +134,54 @@ export default function StepReview({ formData, onSubmit, onEdit, isSubmitting }:
           </Card>
 
           {/* Variants */}
-          <Card>
-            <BlockStack gap="400">
-              <InlineStack align="space-between">
-                <Text variant="headingSm" as="h3">Variants</Text>
-                <Button variant="plain" onClick={() => onEdit(2)}>Edit</Button>
-              </InlineStack>
-              {formData.options.map((option, index) => (
-                <BlockStack key={index} gap="200">
-                  <Text as="p" fontWeight="bold">{option.name}</Text>
-                  <InlineStack gap="200">
-                    {option.values.map((value, vIndex) => (
-                      <Badge key={vIndex}>{value}</Badge>
-                    ))}
-                  </InlineStack>
-                </BlockStack>
-              ))}
-            </BlockStack>
-          </Card>
+          {hasVariants && (
+            <Card>
+              <BlockStack gap="400">
+                <InlineStack align="space-between">
+                  <Text variant="headingSm" as="h3">Variants</Text>
+                  <Button plain onClick={() => handleEdit(STEPS.VARIANTS)}>Edit</Button>
+                </InlineStack>
+                {formData.options.map((option, index) => (
+                  <BlockStack key={index} gap="200">
+                    <Text as="p" fontWeight="bold">{option.name}</Text>
+                    <InlineStack gap="200">
+                      {option.values.map((value, vIndex) => (
+                        <Badge key={vIndex}>{value}</Badge>
+                      ))}
+                    </InlineStack>
+                  </BlockStack>
+                ))}
+              </BlockStack>
+            </Card>
+          )}
 
-          {/* SKUs and Barcodes */}
+          {/* SKU & Barcode */}
           <Card>
             <BlockStack gap="400">
               <InlineStack align="space-between">
-                <Text variant="headingSm" as="h3">SKUs & Barcodes</Text>
-                <Button variant="plain" onClick={() => onEdit(3)}>Edit</Button>
+                <Text variant="headingSm" as="h3">SKU & Barcode</Text>
+                <Button plain onClick={() => handleEdit(STEPS.SKU_BARCODE)}>Edit</Button>
               </InlineStack>
-              {variants.map((variant, index) => (
-                <BlockStack key={index} gap="200">
-                  <Text as="p" fontWeight="bold">{variant.title}</Text>
-                  <List type="bullet">
-                    <List.Item>SKU: {variant.sku}</List.Item>
-                    {variant.barcode && (
-                      <List.Item>Barcode: {variant.barcode}</List.Item>
-                    )}
-                  </List>
-                </BlockStack>
-              ))}
+              {hasVariants ? (
+                variants.map((variant, index) => (
+                  <BlockStack key={index} gap="200">
+                    <Text as="p" fontWeight="bold">{variant.title}</Text>
+                    <List type="bullet">
+                      <List.Item>SKU: {variant.sku}</List.Item>
+                      {variant.barcode && (
+                        <List.Item>Barcode: {variant.barcode}</List.Item>
+                      )}
+                    </List>
+                  </BlockStack>
+                ))
+              ) : (
+                <List type="bullet">
+                  <List.Item>SKU: {formData.skus[0]}</List.Item>
+                  {formData.barcodes[0] && (
+                    <List.Item>Barcode: {formData.barcodes[0]}</List.Item>
+                  )}
+                </List>
+              )}
             </BlockStack>
           </Card>
 
@@ -175,23 +189,35 @@ export default function StepReview({ formData, onSubmit, onEdit, isSubmitting }:
           <Card>
             <BlockStack gap="400">
               <InlineStack align="space-between">
-                <Text variant="headingSm" as="h3">Pricing ({formData.currency})</Text>
-                <Button variant="plain" onClick={() => onEdit(4)}>Edit</Button>
+                <Text variant="headingSm" as="h3">Pricing</Text>
+                <Button plain onClick={() => handleEdit(STEPS.PRICING)}>Edit</Button>
               </InlineStack>
-              {variants.map((variant, index) => (
-                <BlockStack key={index} gap="200">
-                  <Text as="p" fontWeight="bold">{variant.title}</Text>
-                  <List type="bullet">
-                    <List.Item>Price: {getCurrencySymbol(formData.currency)}{variant.price}</List.Item>
-                    {variant.compareAtPrice && (
-                      <List.Item>Compare at: {getCurrencySymbol(formData.currency)}{variant.compareAtPrice}</List.Item>
-                    )}
-                    {variant.cost && (
-                      <List.Item>Cost: {getCurrencySymbol(formData.currency)}{variant.cost}</List.Item>
-                    )}
-                  </List>
-                </BlockStack>
-              ))}
+              {hasVariants ? (
+                variants.map((variant, index) => (
+                  <BlockStack key={index} gap="200">
+                    <Text as="p" fontWeight="bold">{variant.title}</Text>
+                    <List type="bullet">
+                      <List.Item>Price: ${variant.price}</List.Item>
+                      {variant.compareAtPrice && (
+                        <List.Item>Compare at: ${variant.compareAtPrice}</List.Item>
+                      )}
+                      {variant.cost && (
+                        <List.Item>Cost: ${variant.cost}</List.Item>
+                      )}
+                    </List>
+                  </BlockStack>
+                ))
+              ) : (
+                <List type="bullet">
+                  <List.Item>Price: ${formData.pricing[0]?.price}</List.Item>
+                  {formData.pricing[0]?.compareAtPrice && (
+                    <List.Item>Compare at: ${formData.pricing[0].compareAtPrice}</List.Item>
+                  )}
+                  {formData.pricing[0]?.cost && (
+                    <List.Item>Cost: ${formData.pricing[0].cost}</List.Item>
+                  )}
+                </List>
+              )}
             </BlockStack>
           </Card>
 
@@ -200,7 +226,7 @@ export default function StepReview({ formData, onSubmit, onEdit, isSubmitting }:
             <BlockStack gap="400">
               <InlineStack align="space-between">
                 <Text variant="headingSm" as="h3">Tags</Text>
-                <Button variant="plain" onClick={() => onEdit(5)}>Edit</Button>
+                <Button plain onClick={() => handleEdit(STEPS.TAGS)}>Edit</Button>
               </InlineStack>
               <InlineStack gap="200" wrap>
                 {formData.tags.map((tag, index) => (
@@ -213,9 +239,10 @@ export default function StepReview({ formData, onSubmit, onEdit, isSubmitting }:
 
         <Divider />
 
-        <InlineStack align="end">
+        <InlineStack gap="300" align="end">
+          <Button onClick={onBack}>Back</Button>
           <Button
-            variant="primary"
+            primary
             loading={isSubmitting}
             onClick={onSubmit}
           >

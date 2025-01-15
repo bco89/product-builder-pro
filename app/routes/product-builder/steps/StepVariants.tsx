@@ -21,9 +21,11 @@ interface StepVariantsProps {
     variants: any[]; // Will be generated based on options
   };
   onChange: (updates: Partial<StepVariantsProps['formData']>) => void;
+  onNext: () => void;
+  onBack: () => void;
 }
 
-export default function StepVariants({ formData, onChange }: StepVariantsProps) {
+export default function StepVariants({ formData, onChange, onNext, onBack }: StepVariantsProps) {
   const [newOptionName, setNewOptionName] = useState('');
   const [newOptionValue, setNewOptionValue] = useState('');
   const [currentOptionIndex, setCurrentOptionIndex] = useState<number | null>(null);
@@ -64,15 +66,20 @@ export default function StepVariants({ formData, onChange }: StepVariantsProps) 
     setCurrentOptionIndex(null);
   }, [formData.options, onChange]);
 
+  const handleNoVariants = useCallback(() => {
+    onChange({ options: [] });
+    onNext();
+  }, [onChange, onNext]);
+
   return (
     <Card>
-      <BlockStack gap="4">
+      <BlockStack gap="500">
         <Text variant="headingMd" as="h2">
           Product Variants
         </Text>
 
-        <BlockStack gap="4">
-          <InlineStack gap="2">
+        <BlockStack gap="500">
+          <InlineStack gap="300">
             <div style={{ flexGrow: 1 }}>
               <TextField
                 label="Option Name"
@@ -88,17 +95,16 @@ export default function StepVariants({ formData, onChange }: StepVariantsProps) 
           </InlineStack>
 
           {formData.options.length > 0 && (
-            <BlockStack gap="4">
+            <BlockStack gap="500">
               {formData.options.map((option, optionIndex) => (
                 <Card key={optionIndex}>
-                  <BlockStack gap="4">
+                  <BlockStack gap="500">
                     <InlineStack align="space-between">
                       <Text variant="headingSm" as="h3">
                         {option.name}
                       </Text>
                       <Button
-                        plain
-                        destructive
+                        tone="critical"
                         onClick={() => handleRemoveOption(optionIndex)}
                       >
                         Remove
@@ -106,7 +112,7 @@ export default function StepVariants({ formData, onChange }: StepVariantsProps) 
                     </InlineStack>
 
                     {currentOptionIndex === optionIndex && (
-                      <InlineStack gap="2">
+                      <InlineStack gap="300">
                         <div style={{ flexGrow: 1 }}>
                           <TextField
                             label="Value"
@@ -123,7 +129,7 @@ export default function StepVariants({ formData, onChange }: StepVariantsProps) 
                       </InlineStack>
                     )}
 
-                    <InlineStack gap="2" wrap>
+                    <InlineStack gap="300" wrap>
                       {option.values.map((value, valueIndex) => (
                         <Tag
                           key={valueIndex}
@@ -136,7 +142,6 @@ export default function StepVariants({ formData, onChange }: StepVariantsProps) 
 
                     {currentOptionIndex !== optionIndex && (
                       <Button
-                        plain
                         onClick={() => setCurrentOptionIndex(optionIndex)}
                       >
                         Add Values
@@ -148,14 +153,33 @@ export default function StepVariants({ formData, onChange }: StepVariantsProps) 
             </BlockStack>
           )}
 
-          {formData.options.length === 0 && (
-            <Banner status="info">
-              <Text as="p">
-                Add options like Size, Color, or Material to create product variants.
-                Each option can have multiple values (e.g., Size: S, M, L).
-              </Text>
-            </Banner>
-          )}
+          <BlockStack gap="300">
+            {formData.options.length === 0 ? (
+              <Banner tone="info">
+                <BlockStack gap="200">
+                  <Text as="p">
+                    Add options like Size, Color, or Material to create product variants.
+                    Each option can have multiple values (e.g., Size: S, M, L).
+                  </Text>
+                  <Text as="p">
+                    If your product doesn't need variants, you can skip this step.
+                  </Text>
+                </BlockStack>
+              </Banner>
+            ) : null}
+
+            <InlineStack gap="300" align="center">
+              <Button onClick={onBack}>Back</Button>
+              <Button onClick={handleNoVariants}>
+                This product has no variants
+              </Button>
+              {formData.options.length > 0 && (
+                <Button primary onClick={onNext}>
+                  Continue with variants
+                </Button>
+              )}
+            </InlineStack>
+          </BlockStack>
         </BlockStack>
       </BlockStack>
     </Card>

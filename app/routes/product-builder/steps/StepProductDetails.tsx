@@ -9,7 +9,8 @@ import {
   DropZone,
   InlineGrid,
   Thumbnail,
-  Banner
+  Banner,
+  InlineStack
 } from '@shopify/polaris';
 
 interface StepProductDetailsProps {
@@ -132,7 +133,7 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack 
 
         {errorMessage}
 
-        <ButtonGroup>
+        <InlineStack gap="300" align="end">
           <Button onClick={onBack}>Back</Button>
           <Button 
             primary 
@@ -141,7 +142,7 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack 
           >
             Next
           </Button>
-        </ButtonGroup>
+        </InlineStack>
       </FormLayout>
     </Card>
   );
