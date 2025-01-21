@@ -1,9 +1,11 @@
 export const GET_VENDORS = `#graphql
   query GetVendors {
     shop {
-      productVendors(first: 250) {
+      metafields(first: 250, namespace: "custom", keys: ["vendors"]) {
         edges {
-          node
+          node {
+            value
+          }
         }
       }
     }
@@ -12,10 +14,11 @@ export const GET_VENDORS = `#graphql
 
 export const GET_PRODUCT_TYPES = `#graphql
   query GetProductTypes {
-    shop {
-      productTypes(first: 250) {
-        edges {
-          node
+    collections(first: 250) {
+      edges {
+        node {
+          handle
+          title
         }
       }
     }
@@ -24,10 +27,16 @@ export const GET_PRODUCT_TYPES = `#graphql
 
 export const GET_PRODUCT_TAGS = `#graphql
   query GetProductTags {
-    shop {
-      productTags(first: 250) {
-        edges {
-          node
+    collections(first: 250) {
+      edges {
+        node {
+          products(first: 250) {
+            edges {
+              node {
+                tags
+              }
+            }
+          }
         }
       }
     }
@@ -35,8 +44,8 @@ export const GET_PRODUCT_TAGS = `#graphql
 `;
 
 export const GET_PRODUCT_OPTIONS = `#graphql
-  query GetProductOptions($type: String!) {
-    products(first: 250, query: "product_type:$type") {
+  query GetProductOptions($productType: String!) {
+    products(first: 250, query: $productType) {
       edges {
         node {
           options {
