@@ -31,12 +31,13 @@ export default function StepPricing({ formData, onChange, onNext, onBack }: Step
 
   // Initialize pricing array when component mounts
   useEffect(() => {
-    if (!formData.pricing || formData.pricing.length === 0) {
+    const shouldInitialize = !formData.pricing || formData.pricing.length === 0;
+    if (shouldInitialize) {
       if (hasVariants) {
         const variantCount = formData.options.reduce((acc, option) => 
           acc * option.values.length, 1);
         
-        const initialPricing = Array(variantCount).fill().map(() => ({
+        const initialPricing = Array(variantCount).fill(null).map(() => ({
           price: '',
           compareAtPrice: '',
           cost: ''
@@ -44,7 +45,6 @@ export default function StepPricing({ formData, onChange, onNext, onBack }: Step
         
         onChange({ pricing: initialPricing });
       } else {
-        // Initialize single product pricing
         onChange({ 
           pricing: [{
             price: '',
@@ -54,7 +54,7 @@ export default function StepPricing({ formData, onChange, onNext, onBack }: Step
         });
       }
     }
-  }, [hasVariants, formData.options, formData.pricing, onChange]);
+  }, [hasVariants, formData.options.length]); // Only depend on these values
 
   const handleSingleProductPriceChange = useCallback((field: keyof PricingData, value: string) => {
     const newPricing = [{ 
