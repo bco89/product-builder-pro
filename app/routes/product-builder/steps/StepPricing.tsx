@@ -87,7 +87,6 @@ export default function StepPricing({ formData, onChange, onNext, onBack }: Step
               value={formData.pricing[0]?.price || ''}
               onChange={(value) => handleSingleProductPriceChange('price', value)}
               autoComplete="off"
-              required
             />
 
             <TextField
@@ -128,7 +127,6 @@ export default function StepPricing({ formData, onChange, onNext, onBack }: Step
                       value={variant.pricing.price}
                       onChange={(value) => handleVariantPriceChange(index, 'price', value)}
                       autoComplete="off"
-                      required
                     />
 
                     <TextField
@@ -160,7 +158,7 @@ export default function StepPricing({ formData, onChange, onNext, onBack }: Step
         <InlineStack gap="300" align="end">
           <Button onClick={onBack}>Back</Button>
           <Button 
-            primary 
+            variant="primary"
             onClick={onNext}
             disabled={hasVariants ? 
               variants.some(v => !v.pricing.price) : 

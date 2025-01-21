@@ -104,7 +104,7 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
             <BlockStack gap="400">
               <InlineStack align="space-between">
                 <Text variant="headingSm" as="h3">Basic Information</Text>
-                <Button plain onClick={() => handleEdit(STEPS.VENDOR_TYPE)}>Edit</Button>
+                <Button variant="plain" onClick={() => handleEdit(STEPS.VENDOR_TYPE)}>Edit</Button>
               </InlineStack>
               <List type="bullet">
                 <List.Item>Vendor: {formData.vendor}</List.Item>
@@ -118,7 +118,7 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
             <BlockStack gap="400">
               <InlineStack align="space-between">
                 <Text variant="headingSm" as="h3">Product Details</Text>
-                <Button plain onClick={() => handleEdit(STEPS.PRODUCT_DETAILS)}>Edit</Button>
+                <Button variant="plain" onClick={() => handleEdit(STEPS.PRODUCT_DETAILS)}>Edit</Button>
               </InlineStack>
               <BlockStack gap="300">
                 <Text as="p">Title: {formData.title}</Text>
@@ -144,7 +144,7 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
               <BlockStack gap="400">
                 <InlineStack align="space-between">
                   <Text variant="headingSm" as="h3">Variants</Text>
-                  <Button plain onClick={() => handleEdit(STEPS.VARIANTS)}>Edit</Button>
+                  <Button variant="plain" onClick={() => handleEdit(STEPS.VARIANTS)}>Edit</Button>
                 </InlineStack>
                 {formData.options.map((option, index) => (
                   <BlockStack key={index} gap="200">
@@ -165,7 +165,7 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
             <BlockStack gap="400">
               <InlineStack align="space-between">
                 <Text variant="headingSm" as="h3">SKU & Barcode</Text>
-                <Button plain onClick={() => handleEdit(STEPS.SKU_BARCODE)}>Edit</Button>
+                <Button variant="plain" onClick={() => handleEdit(STEPS.SKU_BARCODE)}>Edit</Button>
               </InlineStack>
               {hasVariants ? (
                 variants.map((variant, index) => (
@@ -195,7 +195,7 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
             <BlockStack gap="400">
               <InlineStack align="space-between">
                 <Text variant="headingSm" as="h3">Pricing</Text>
-                <Button plain onClick={() => handleEdit(STEPS.PRICING)}>Edit</Button>
+                <Button variant="plain" onClick={() => handleEdit(STEPS.PRICING)}>Edit</Button>
               </InlineStack>
               {hasVariants ? (
                 variants.map((variant, index) => (
@@ -231,7 +231,7 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
             <BlockStack gap="400">
               <InlineStack align="space-between">
                 <Text variant="headingSm" as="h3">Tags</Text>
-                <Button plain onClick={() => handleEdit(STEPS.TAGS)}>Edit</Button>
+                <Button variant="plain" onClick={() => handleEdit(STEPS.TAGS)}>Edit</Button>
               </InlineStack>
               <InlineStack gap="200" wrap>
                 {formData.tags.map((tag, index) => (
@@ -247,7 +247,7 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
         <InlineStack gap="300" align="end">
           <Button onClick={onBack}>Back</Button>
           <Button
-            primary
+            variant="primary"
             loading={isSubmitting}
             onClick={onSubmit}
           >

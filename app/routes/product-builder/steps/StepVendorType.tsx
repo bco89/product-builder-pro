@@ -23,16 +23,18 @@ interface ProductType {
   } | null;
 }
 
+interface FormDataType {
+  vendor: string;
+  productType: string;
+  category: {
+    id: string;
+    name: string;
+  } | null;
+}
+
 interface StepVendorTypeProps {
-  formData: {
-    vendor: string;
-    productType: string;
-    category: {
-      id: string;
-      name: string;
-    } | null;
-  };
-  onChange: (updates: Partial<typeof formData>) => void;
+  formData: FormDataType;
+  onChange: (updates: Partial<FormDataType>) => void;
   onNext: () => void;
   onBack: () => void;
 }
@@ -92,7 +94,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack }: S
     });
   }, [onChange]);
 
-  const vendorOptions = (vendorsData || []).map(vendor => ({ 
+  const vendorOptions = (vendorsData || []).map((vendor: string) => ({ 
     label: vendor, 
     value: vendor 
   }));
@@ -182,7 +184,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack }: S
         <ButtonGroup>
           <Button onClick={onBack}>Back</Button>
           <Button 
-            primary 
+            variant="primary"
             onClick={handleSubmit} 
             disabled={!formData.vendor || !formData.productType}
           >

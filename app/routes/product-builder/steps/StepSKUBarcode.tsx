@@ -96,7 +96,6 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack }: S
               value={formData.skus[0] || ''}
               onChange={handleSKUChange}
               autoComplete="off"
-              required
               helpText="Stock Keeping Unit - unique identifier for this product"
             />
 
@@ -124,7 +123,6 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack }: S
                       value={variant.sku}
                       onChange={(value) => handleVariantSKUChange(index, value)}
                       autoComplete="off"
-                      required
                       helpText="Stock Keeping Unit - unique identifier for this variant"
                     />
 
@@ -145,7 +143,7 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack }: S
         <InlineStack gap="300" align="end">
           <Button onClick={onBack}>Back</Button>
           <Button 
-            primary 
+            variant="primary"
             onClick={handleSubmit}
             disabled={hasVariants ? 
               variants.some(v => !v.sku) : 

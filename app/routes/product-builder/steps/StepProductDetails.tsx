@@ -13,13 +13,15 @@ import {
   InlineStack
 } from '@shopify/polaris';
 
+interface FormDataType {
+  title: string;
+  description: string;
+  images: File[];
+}
+
 interface StepProductDetailsProps {
-  formData: {
-    title: string;
-    description: string;
-    images: File[];
-  };
-  onChange: (updates: Partial<typeof formData>) => void;
+  formData: FormDataType;
+  onChange: (updates: Partial<FormDataType>) => void;
   onNext: () => void;
   onBack: () => void;
 }
@@ -73,7 +75,7 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack 
             </div>
           )}
           <div>
-            {file.name} <Button plain onClick={() => handleRemoveImage(index)}>Remove</Button>
+            {file.name} <Button variant="plain" onClick={() => handleRemoveImage(index)}>Remove</Button>
           </div>
         </div>
       ))}
@@ -81,7 +83,7 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack 
   );
 
   const errorMessage = rejectedFiles.length > 0 && (
-    <Banner status="critical">
+    <Banner tone="critical">
       <p>The following images couldn't be uploaded:</p>
       <ul>
         {rejectedFiles.map((file, index) => (
@@ -107,7 +109,6 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack 
           value={formData.title}
           onChange={(value) => onChange({ title: value })}
           autoComplete="off"
-          required
         />
 
         <TextField
@@ -116,7 +117,6 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack 
           onChange={(value) => onChange({ description: value })}
           multiline={4}
           autoComplete="off"
-          required
         />
 
         <DropZone
@@ -136,7 +136,7 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack 
         <InlineStack gap="300" align="end">
           <Button onClick={onBack}>Back</Button>
           <Button 
-            primary 
+            variant="primary"
             onClick={handleSubmit}
             disabled={!formData.title || !formData.description}
           >

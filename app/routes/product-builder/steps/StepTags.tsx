@@ -12,7 +12,6 @@ import {
   Listbox,
 } from '@shopify/polaris';
 import { useQuery } from '@tanstack/react-query';
-import type { KeyboardEvent } from 'react';
 
 interface StepTagsProps {
   formData: {
@@ -62,13 +61,6 @@ export default function StepTags({ formData, onChange, onNext, onBack }: StepTag
     setInputValue('');
   }, [inputValue, selectedTags, updateTags]);
 
-  const handleKeyPress = useCallback((event: KeyboardEvent) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      handleAddTag();
-    }
-  }, [handleAddTag]);
-
   const filteredTags = existingTags.filter((tag: string) => 
     tag.toLowerCase().includes(inputValue.toLowerCase()) &&
     !selectedTags.includes(tag)
@@ -87,10 +79,14 @@ export default function StepTags({ formData, onChange, onNext, onBack }: StepTag
               <Combobox.TextField
                 label="Add tags"
                 value={inputValue}
-                onChange={setInputValue}
+                onChange={(value) => {
+                  setInputValue(value);
+                  if (value.endsWith('\n')) {
+                    handleAddTag();
+                  }
+                }}
                 placeholder="Search or enter new tag"
                 autoComplete="off"
-                onKeyDown={handleKeyPress}
               />
             }
           >
@@ -141,7 +137,10 @@ export default function StepTags({ formData, onChange, onNext, onBack }: StepTag
 
         <InlineStack gap="300" align="end">
           <Button onClick={onBack}>Back</Button>
-          <Button primary onClick={onNext}>
+          <Button 
+            variant="primary" 
+            onClick={onNext}
+          >
             Next
           </Button>
         </InlineStack>
