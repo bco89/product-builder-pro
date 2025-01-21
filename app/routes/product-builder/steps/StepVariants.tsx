@@ -31,8 +31,9 @@ interface StepVariantsProps {
 }
 
 export default function StepVariants({ formData, onChange, onNext, onBack }: StepVariantsProps) {
-  const [newOptionName, setNewOptionName] = useState('');
-  const [newOptionValue, setNewOptionValue] = useState('');
+  const [showOptionsForm, setShowOptionsForm] = useState(false);
+  const [selectedOptionName, setSelectedOptionName] = useState('');
+  const [selectedOptionValue, setSelectedOptionValue] = useState('');
   const [currentOptionIndex, setCurrentOptionIndex] = useState<number | null>(null);
 
   // Fetch existing option names for the selected product type
@@ -49,28 +50,42 @@ export default function StepVariants({ formData, onChange, onNext, onBack }: Ste
     }
   });
 
-  const handleAddOption = useCallback(() => {
-    if (!newOptionName) return;
+  const handleAddOptionsClick = useCallback(() => {
+    setShowOptionsForm(true);
+  }, []);
+
+  const handleOptionNameChange = useCallback((value: string) => {
+    setSelectedOptionName(value);
+    setSelectedOptionValue(''); // Reset value when option name changes
+  }, []);
+
+  const handleOptionValueChange = useCallback((value: string) => {
+    setSelectedOptionValue(value);
+  }, []);
+
+  const handleAddOptionWithValue = useCallback(() => {
+    if (!selectedOptionName || !selectedOptionValue) return;
     
-    const updatedOptions = [
-      ...formData.options,
-      { name: newOptionName, values: [] }
-    ];
-    onChange({ options: updatedOptions });
-    setNewOptionName('');
-    setCurrentOptionIndex(updatedOptions.length - 1);
-  }, [formData.options, newOptionName, onChange]);
-
-  const handleAddValue = useCallback(() => {
-    if (currentOptionIndex === null || !newOptionValue) return;
-
-    const updatedOptions = [...formData.options];
-    if (!updatedOptions[currentOptionIndex].values.includes(newOptionValue)) {
-      updatedOptions[currentOptionIndex].values.push(newOptionValue);
+    const existingOptionIndex = formData.options.findIndex(opt => opt.name === selectedOptionName);
+    
+    if (existingOptionIndex >= 0) {
+      // Add value to existing option
+      const updatedOptions = [...formData.options];
+      if (!updatedOptions[existingOptionIndex].values.includes(selectedOptionValue)) {
+        updatedOptions[existingOptionIndex].values.push(selectedOptionValue);
+        onChange({ options: updatedOptions });
+      }
+    } else {
+      // Create new option with value
+      const updatedOptions = [
+        ...formData.options,
+        { name: selectedOptionName, values: [selectedOptionValue] }
+      ];
       onChange({ options: updatedOptions });
     }
-    setNewOptionValue('');
-  }, [currentOptionIndex, formData.options, newOptionValue, onChange]);
+    
+    setSelectedOptionValue('');
+  }, [selectedOptionName, selectedOptionValue, formData.options, onChange]);
 
   const handleRemoveValue = useCallback((optionIndex: number, valueIndex: number) => {
     const updatedOptions = [...formData.options];
@@ -96,6 +111,39 @@ export default function StepVariants({ formData, onChange, onNext, onBack }: Ste
     value: option.name
   })) || [];
 
+  if (!showOptionsForm && formData.options.length === 0) {
+    return (
+      <Card>
+        <BlockStack gap="500">
+          <Text variant="headingMd" as="h2">
+            Product Variants
+          </Text>
+          
+          <Banner tone="info">
+            <Text as="p">
+              Would you like to add variants to your product?
+            </Text>
+          </Banner>
+
+          <InlineStack gap="300" align="center">
+            <Button onClick={onBack}>Back</Button>
+            <Button onClick={handleNoVariants}>
+              This product has no variants
+            </Button>
+            <Button variant="primary" onClick={handleAddOptionsClick}>
+              Add Options and Variants
+            </Button>
+          </InlineStack>
+        </BlockStack>
+      </Card>
+    );
+  }
+
+  // Get available option values for selected option name
+  const availableValues = existingOptions
+    ?.find(opt => opt.name === selectedOptionName)
+    ?.values || [];
+
   return (
     <Card>
       <BlockStack gap="500">
@@ -104,22 +152,36 @@ export default function StepVariants({ formData, onChange, onNext, onBack }: Ste
         </Text>
 
         <BlockStack gap="500">
-          <InlineStack gap="300">
-            <div style={{ flexGrow: 1 }}>
+          {/* Option Selection Form */}
+          <Card>
+            <BlockStack gap="400">
               <Select
                 label="Option Name"
                 options={optionNameOptions}
-                value={newOptionName}
-                onChange={setNewOptionName}
-                placeholder={optionsLoading ? "Loading options..." : "Select or enter an option name"}
-                helpText="Select an existing option name or enter a new one"
+                value={selectedOptionName}
+                onChange={handleOptionNameChange}
+                placeholder={optionsLoading ? "Loading options..." : "Select an option name"}
               />
-            </div>
-            <div style={{ marginTop: 'auto' }}>
-              <Button onClick={handleAddOption}>Add Option</Button>
-            </div>
-          </InlineStack>
 
+              {selectedOptionName && (
+                <Select
+                  label="Option Value"
+                  options={availableValues.map(value => ({ label: value, value }))}
+                  value={selectedOptionValue}
+                  onChange={handleOptionValueChange}
+                  placeholder="Select an option value"
+                />
+              )}
+
+              {selectedOptionName && selectedOptionValue && (
+                <Button onClick={handleAddOptionWithValue}>
+                  Add Option and Value
+                </Button>
+              )}
+            </BlockStack>
+          </Card>
+
+          {/* Existing Options Display */}
           {formData.options.length > 0 && (
             <BlockStack gap="500">
               {formData.options.map((option, optionIndex) => (
@@ -145,8 +207,8 @@ export default function StepVariants({ formData, onChange, onNext, onBack }: Ste
                               <Combobox.TextField
                                 label="Value"
                                 labelHidden
-                                value={newOptionValue}
-                                onChange={setNewOptionValue}
+                                value={selectedOptionValue}
+                                onChange={setSelectedOptionValue}
                                 placeholder={`Enter ${option.name.toLowerCase()} value`}
                                 autoComplete="off"
                               />
@@ -159,7 +221,7 @@ export default function StepVariants({ formData, onChange, onNext, onBack }: Ste
                                   <Listbox.Option
                                     key={index}
                                     value={value}
-                                    selected={newOptionValue === value}
+                                    selected={selectedOptionValue === value}
                                   >
                                     {value}
                                   </Listbox.Option>
@@ -168,7 +230,9 @@ export default function StepVariants({ formData, onChange, onNext, onBack }: Ste
                           </Combobox>
                         </div>
                         <div style={{ marginTop: 'auto' }}>
-                          <Button onClick={handleAddValue}>Add Value</Button>
+                          <Button onClick={handleAddOptionWithValue}>
+                            Add Value
+                          </Button>
                         </div>
                       </InlineStack>
                     )}
@@ -197,33 +261,17 @@ export default function StepVariants({ formData, onChange, onNext, onBack }: Ste
             </BlockStack>
           )}
 
-          <BlockStack gap="300">
-            {formData.options.length === 0 ? (
-              <Banner tone="info">
-                <BlockStack gap="200">
-                  <Text as="p">
-                    Add options like Size, Color, or Material to create product variants.
-                    Each option can have multiple values (e.g., Size: S, M, L).
-                  </Text>
-                  <Text as="p">
-                    If your product doesn't need variants, you can skip this step.
-                  </Text>
-                </BlockStack>
-              </Banner>
-            ) : null}
-
-            <InlineStack gap="300" align="center">
-              <Button onClick={onBack}>Back</Button>
-              <Button onClick={handleNoVariants}>
-                This product has no variants
+          <InlineStack gap="300" align="center">
+            <Button onClick={onBack}>Back</Button>
+            <Button onClick={handleNoVariants}>
+              This product has no variants
+            </Button>
+            {formData.options.length > 0 && (
+              <Button variant="primary" onClick={onNext}>
+                Continue with variants
               </Button>
-              {formData.options.length > 0 && (
-                <Button variant="primary" onClick={onNext}>
-                  Continue with variants
-                </Button>
-              )}
-            </InlineStack>
-          </BlockStack>
+            )}
+          </InlineStack>
         </BlockStack>
       </BlockStack>
     </Card>
