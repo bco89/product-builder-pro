@@ -15,9 +15,11 @@ import { useQuery } from '@tanstack/react-query';
 
 interface StepTagsProps {
   formData: {
+    vendor: string;
+    productType: string;
     tags: string[];
   };
-  onChange: (updates: Partial<StepTagsProps['formData']>) => void;
+  onChange: (updates: Partial<Pick<StepTagsProps['formData'], 'tags'>>) => void;
   onNext: () => void;
   onBack: () => void;
 }
@@ -28,13 +30,23 @@ interface TagsResponse {
 
 export default function StepTags({ formData, onChange, onNext, onBack }: StepTagsProps) {
   const [inputValue, setInputValue] = useState('');
-  const [selectedTags, setSelectedTags] = useState<string[]>(formData.tags || []);
+  const [selectedTags, setSelectedTags] = useState<string[]>(() => {
+    if (formData.tags?.length > 0) return formData.tags;
+    
+    const currentYear = new Date().getFullYear().toString();
+    const defaultTags = [currentYear];
+    if (formData.vendor && formData.vendor !== 'Default Vendor') {
+      defaultTags.push(formData.vendor);
+    }
+    return defaultTags;
+  });
 
-  // Fetch existing tags from Shopify
-  const { data: existingTags = [] } = useQuery({
-    queryKey: ['tags'],
+  // Fetch existing tags from products of the selected type
+  const { data: existingTags = [], isLoading } = useQuery({
+    queryKey: ['tags', formData.productType],
+    enabled: !!formData.productType,
     queryFn: async (): Promise<string[]> => {
-      const response = await fetch('/api/shopify/tags');
+      const response = await fetch(`/api/shopify/products?type=tags&productType=${encodeURIComponent(formData.productType)}`);
       if (!response.ok) {
         throw new Error('Failed to load tags');
       }
@@ -53,17 +65,16 @@ export default function StepTags({ formData, onChange, onNext, onBack }: StepTag
     updateTags(newTags);
   }, [selectedTags, updateTags]);
 
-  const handleAddTag = useCallback(() => {
-    if (!inputValue || selectedTags.includes(inputValue)) return;
-
-    const newTags = [...selectedTags, inputValue];
-    updateTags(newTags);
-    setInputValue('');
-  }, [inputValue, selectedTags, updateTags]);
+  const handleTagToggle = useCallback((tag: string) => {
+    if (selectedTags.includes(tag)) {
+      handleTagRemove(tag);
+    } else {
+      updateTags([...selectedTags, tag]);
+    }
+  }, [selectedTags, updateTags, handleTagRemove]);
 
   const filteredTags = existingTags.filter((tag: string) => 
-    tag.toLowerCase().includes(inputValue.toLowerCase()) &&
-    !selectedTags.includes(tag)
+    tag.toLowerCase().includes(inputValue.toLowerCase())
   );
 
   return (
@@ -74,48 +85,65 @@ export default function StepTags({ formData, onChange, onNext, onBack }: StepTag
         </Text>
 
         <BlockStack gap="300">
-          <Combobox
-            activator={
-              <Combobox.TextField
-                label="Add tags"
-                value={inputValue}
-                onChange={(value) => {
-                  setInputValue(value);
-                  if (value.endsWith('\n')) {
-                    handleAddTag();
-                  }
-                }}
-                placeholder="Search or enter new tag"
-                autoComplete="off"
-              />
-            }
-          >
-            {filteredTags.length > 0 ? (
-              <Listbox onSelect={(value: string) => {
-                updateTags([...selectedTags, value]);
-                setInputValue('');
-              }}>
-                {filteredTags.map((tag: string) => (
-                  <Listbox.Option key={tag} value={tag}>
-                    {tag}
-                  </Listbox.Option>
-                ))}
-              </Listbox>
-            ) : null}
-          </Combobox>
+          <TextField
+            label="Filter existing tags"
+            value={inputValue}
+            onChange={setInputValue}
+            autoComplete="off"
+            placeholder={isLoading ? "Loading tags..." : "Type to filter tags"}
+          />
 
-          <InlineStack gap="300">
-            <Button onClick={handleAddTag}>Add Tag</Button>
-          </InlineStack>
+          <BlockStack gap="200">
+            {isLoading ? (
+              <Text as="p">Loading tags...</Text>
+            ) : filteredTags.length > 0 ? (
+              <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                {filteredTags.map((tag) => {
+                  const isDefaultTag = tag === formData.vendor || tag === new Date().getFullYear().toString();
+                  const isSelected = selectedTags.includes(tag);
+                  
+                  return (
+                    <div key={tag} style={{ padding: '8px 0' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', cursor: isDefaultTag ? 'not-allowed' : 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => !isDefaultTag && handleTagToggle(tag)}
+                          disabled={isDefaultTag}
+                          style={{ marginRight: '8px' }}
+                        />
+                        <span style={{ opacity: isDefaultTag ? 0.7 : 1 }}>
+                          {tag} {isDefaultTag && '(Default)'}
+                        </span>
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : inputValue ? (
+              <Text as="p">No matching tags found</Text>
+            ) : null}
+          </BlockStack>
 
           {selectedTags.length > 0 && (
-            <InlineStack gap="200" wrap>
-              {selectedTags.map((tag) => (
-                <Tag key={tag} onRemove={() => handleTagRemove(tag)}>
-                  {tag}
-                </Tag>
-              ))}
-            </InlineStack>
+            <BlockStack gap="200">
+              <Text as="h3" variant="headingSm">Selected Tags:</Text>
+              <InlineStack gap="200" wrap>
+                {selectedTags.map((tag) => (
+                  <Tag 
+                    key={tag} 
+                    onRemove={
+                      // Prevent removing default tags
+                      tag !== formData.vendor && tag !== new Date().getFullYear().toString() 
+                        ? () => handleTagRemove(tag) 
+                        : undefined
+                    }
+                  >
+                    {tag}
+                  </Tag>
+                ))}
+              </InlineStack>
+            </BlockStack>
           )}
 
           {selectedTags.length === 0 && (

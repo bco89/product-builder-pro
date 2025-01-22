@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "a584fd28cd63a66d60fb6fe599f5c747"
-application_url = "https://agreement-kentucky-teachers-mb.trycloudflare.com"
+application_url = "https://product-eva-ethical-conceptual.trycloudflare.com"
 embedded = true
 name = "Product Builder Pro"
 handle = "product-builder-pro"
@@ -23,9 +23,9 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://agreement-kentucky-teachers-mb.trycloudflare.com/auth/callback",
-  "https://agreement-kentucky-teachers-mb.trycloudflare.com/auth/shopify/callback",
-  "https://agreement-kentucky-teachers-mb.trycloudflare.com/api/auth/callback"
+  "https://product-eva-ethical-conceptual.trycloudflare.com/auth/callback",
+  "https://product-eva-ethical-conceptual.trycloudflare.com/auth/shopify/callback",
+  "https://product-eva-ethical-conceptual.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

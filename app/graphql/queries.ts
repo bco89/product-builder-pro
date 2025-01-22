@@ -56,4 +56,35 @@ export const GET_PRODUCT_OPTIONS = `#graphql
       }
     }
   }
+`;
+
+export const GET_PRODUCT_CATEGORIES = `#graphql
+  query GetProductCategories($productType: String!) {
+    products(first: 250, query: $productType) {
+      edges {
+        node {
+          category {
+            id
+            name
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const SHOP_QUERY = `#graphql
+  query {
+    shop {
+      name
+      metafields(first: 10, namespace: "custom") {
+        edges {
+          node {
+            key
+            value
+          }
+        }
+      }
+    }
+  }
 `; 

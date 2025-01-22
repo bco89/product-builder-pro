@@ -8,19 +8,11 @@ import {
   Button,
   InlineStack,
 } from '@shopify/polaris';
-
-interface PricingData {
-  price: string;
-  compareAtPrice: string;
-  cost: string;
-}
+import type { FormData, PricingData } from '../FormContext';
 
 interface StepPricingProps {
-  formData: {
-    options: Array<{ name: string; values: string[] }>;
-    pricing: PricingData[];
-  };
-  onChange: (updates: Partial<StepPricingProps['formData']>) => void;
+  formData: FormData;
+  onChange: (updates: Partial<FormData>) => void;
   onNext: () => void;
   onBack: () => void;
 }

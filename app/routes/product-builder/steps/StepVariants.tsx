@@ -41,7 +41,7 @@ export default function StepVariants({ formData, onChange, onNext, onBack }: Ste
     queryKey: ['productOptions', formData.productType],
     enabled: !!formData.productType,
     queryFn: async () => {
-      const response = await fetch(`/api/shopify/product-options?productType=${encodeURIComponent(formData.productType)}`);
+      const response = await fetch(`/api/shopify/products?type=options&productType=${encodeURIComponent(formData.productType)}`);
       if (!response.ok) {
         throw new Error('Failed to fetch product options');
       }

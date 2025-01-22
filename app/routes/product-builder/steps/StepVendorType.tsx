@@ -9,6 +9,12 @@ import {
   Spinner,
 } from '@shopify/polaris';
 import { useQuery } from '@tanstack/react-query';
+import { GET_PRODUCT_CATEGORIES } from '~/graphql/queries';
+
+interface Category {
+  id: string;
+  name: string;
+}
 
 interface ProductCategory {
   id: string;
@@ -44,7 +50,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack }: S
   const { data: vendorsData, isLoading: vendorsLoading } = useQuery({
     queryKey: ['vendors'],
     queryFn: async () => {
-      const response = await fetch('/api/shopify/vendors');
+      const response = await fetch('/api/shopify/products?type=vendors');
       const data = await response.json();
       return data.vendors || [];
     }
@@ -55,12 +61,11 @@ export default function StepVendorType({ formData, onChange, onNext, onBack }: S
     queryKey: ['productTypes', formData.vendor],
     enabled: !!formData.vendor,
     queryFn: async () => {
-      const response = await fetch(`/api/shopify/product-types-by-vendor?vendor=${encodeURIComponent(formData.vendor)}`);
+      const response = await fetch(`/api/shopify/products?type=productTypes&vendor=${encodeURIComponent(formData.vendor)}`);
       if (!response.ok) {
         throw new Error('Failed to fetch product types');
       }
       const data = await response.json();
-      console.log('Product types data:', data); // Debug log
       return data.productTypes as ProductType[];
     }
   });
@@ -70,11 +75,12 @@ export default function StepVendorType({ formData, onChange, onNext, onBack }: S
     queryKey: ['categories', formData.vendor, formData.productType],
     enabled: !!formData.vendor && !!formData.productType,
     queryFn: async () => {
-      const response = await fetch(
-        `/api/shopify/categories-by-product-type?vendor=${encodeURIComponent(formData.vendor)}&productType=${encodeURIComponent(formData.productType)}`
-      );
+      const response = await fetch(`/api/shopify/products?type=categories&productType=${encodeURIComponent(formData.productType)}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch categories');
+      }
       const data = await response.json();
-      return data.categories as ProductCategory[];
+      return data.categories || [];
     }
   });
 
@@ -94,6 +100,11 @@ export default function StepVendorType({ formData, onChange, onNext, onBack }: S
     });
   }, [onChange]);
 
+  const handleCategoryChange = useCallback((selected: string) => {
+    const category = productTypeCategories?.find((cat: Category) => cat.id === selected) || null;
+    onChange({ category });
+  }, [onChange, productTypeCategories]);
+
   const vendorOptions = (vendorsData || []).map((vendor: string) => ({ 
     label: vendor, 
     value: vendor 
@@ -109,10 +120,12 @@ export default function StepVendorType({ formData, onChange, onNext, onBack }: S
     }));
   }, [vendorProductTypes]);
 
-  const categoryOptions = (productTypeCategories || []).map(category => ({ 
-    label: category.name,
-    value: category.id
-  }));
+  const categoryOptions = useMemo(() => {
+    return productTypeCategories?.map((cat: Category) => ({
+      label: cat.name,
+      value: cat.id
+    })) || [];
+  }, [productTypeCategories]);
 
   const handleSubmit = () => {
     if (formData.vendor && formData.productType) {
@@ -162,10 +175,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack }: S
           label="Product Category"
           options={categoryOptions}
           value={formData.category?.id || ''}
-          onChange={(value) => {
-            const category = productTypeCategories?.find(cat => cat.id === value);
-            onChange({ category: category || null });
-          }}
+          onChange={handleCategoryChange}
           disabled={categoriesLoading || !formData.productType}
           placeholder={
             !formData.productType 

@@ -1,27 +1,49 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 
-export const loader = async ({ request }) => {
+interface CollectionNode {
+  id: string;
+  title: string;
+  description: string | null;
+}
+
+interface Category {
+  id: string;
+  title: string;
+  description: string | null;
+}
+
+interface ProductNode {
+  collections: {
+    edges: Array<{
+      node: CollectionNode;
+    }>;
+  };
+}
+
+export const loader = async ({ request }: { request: Request }) => {
   const { admin } = await authenticate.admin(request);
   const url = new URL(request.url);
-  const vendor = url.searchParams.get('vendor');
-  const productType = url.searchParams.get('productType');
+  const productType = url.searchParams.get("productType");
 
-  if (!vendor || !productType) {
+  if (!productType) {
     return json({ categories: [] });
   }
 
   try {
     const response = await admin.graphql(
       `#graphql
-      query getCategoriesByProductType($query: String!) {
-        products(first: 250, query: $query) {
+      query getCategories($productType: String!) {
+        products(first: 250, query: $productType) {
           edges {
             node {
-              productCategory {
-                productTaxonomyNode {
-                  id
-                  name
+              collections(first: 10) {
+                edges {
+                  node {
+                    id
+                    title
+                    description
+                  }
                 }
               }
             }
@@ -30,28 +52,28 @@ export const loader = async ({ request }) => {
       }`,
       {
         variables: {
-          query: `vendor:'${vendor}' AND product_type:'${productType}'`
+          productType: `product_type:'${productType}'`
         }
       }
     );
 
     const data = await response.json();
-    const products = data.data.products.edges;
-    
-    // Extract unique categories
-    const categories = new Map();
-    products.forEach(({ node }) => {
-      if (node.productCategory?.productTaxonomyNode) {
-        const { id, name } = node.productCategory.productTaxonomyNode;
-        categories.set(id, { id, name });
-      }
-    });
+    const categories = data.data.products.edges.flatMap((edge: { node: ProductNode }) => 
+      edge.node.collections.edges.map(collectionEdge => ({
+        id: collectionEdge.node.id,
+        title: collectionEdge.node.title,
+        description: collectionEdge.node.description
+      }))
+    );
 
-    return json({ 
-      categories: Array.from(categories.values())
-    });
+    // Remove duplicates based on ID
+    const uniqueCategories = Array.from(
+      new Map(categories.map((item: Category) => [item.id, item])).values()
+    );
+
+    return json({ categories: uniqueCategories });
   } catch (error) {
-    console.error("Failed to fetch categories by product type:", error);
+    console.error("Failed to fetch categories:", error);
     return json({ categories: [] });
   }
 }; 

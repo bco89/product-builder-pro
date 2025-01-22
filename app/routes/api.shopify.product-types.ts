@@ -1,17 +1,17 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 
-export const loader = async ({ request }) => {
+export const loader = async ({ request }: { request: Request }) => {
   const { admin } = await authenticate.admin(request);
 
   try {
     const response = await admin.graphql(
       `#graphql
       query getProductTypes {
-        shop {
-          productTypes(first: 250) {
-            edges {
-              node
+        products(first: 250) {
+          edges {
+            node {
+              productType
             }
           }
         }
@@ -19,7 +19,11 @@ export const loader = async ({ request }) => {
     );
 
     const data = await response.json();
-    const productTypes = data.data.shop.productTypes.edges.map(edge => edge.node);
+    const productTypes = [...new Set(
+      data.data.products.edges
+        .map((edge: { node: { productType: string } }) => edge.node.productType)
+        .filter(Boolean)
+    )];
 
     return json({ productTypes });
   } catch (error) {
