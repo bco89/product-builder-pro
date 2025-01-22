@@ -3,6 +3,7 @@ import { boundary } from "@shopify/shopify-app-remix/server";
 import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { NavMenu } from "@shopify/app-bridge-react";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Frame } from '@shopify/polaris';
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import { authenticate } from "../shopify.server";
 
@@ -27,15 +28,17 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AppProvider isEmbeddedApp apiKey={apiKey} shop={shop} host={host}>
-        <NavMenu
-          navigation={[
-            {
-              label: "Product Builder",
-              destination: "/app/product-builder",
-            },
-          ]}
-        />
-        <Outlet />
+        <Frame>
+          <NavMenu
+            navigation={[
+              {
+                label: "Product Builder",
+                destination: "/app/product-builder",
+              },
+            ]}
+          />
+          <Outlet />
+        </Frame>
       </AppProvider>
     </QueryClientProvider>
   );

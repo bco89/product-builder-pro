@@ -1,14 +1,18 @@
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Page,
   Layout,
   ProgressBar,
   BlockStack,
-  Toast
+  Toast,
+  Banner
 } from '@shopify/polaris';
 import { json } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { authenticate } from '../shopify.server';
+import { useAppBridge } from '@shopify/app-bridge-react';
+import { Redirect } from '@shopify/app-bridge-react';
+import type { PricingData } from './product-builder/FormContext';
 
 // Step Components
 import StepVendorType from './product-builder/steps/StepVendorType';
@@ -19,20 +23,32 @@ import StepPricing from './product-builder/steps/StepPricing';
 import StepTags from './product-builder/steps/StepTags';
 import StepReview from './product-builder/steps/StepReview';
 
-export const loader = async ({ request }) => {
-  const { admin, session } = await authenticate.admin(request);
+export const loader = async ({ request }: { request: Request }) => {
+  const { admin } = await authenticate.admin(request);
+  const response = await admin.graphql(
+    `#graphql
+    query {
+      shop {
+        myshopifyDomain
+      }
+    }`
+  );
+  const shopData = await response.json();
+  
   return json({
-    shop: session.shop,
+    shop: shopData.data.shop.myshopifyDomain,
     apiKey: process.env.SHOPIFY_API_KEY
   });
 };
 
 export default function ProductBuilder() {
-  const { shop, apiKey } = useLoaderData();
+  const { shop, apiKey } = useLoaderData<{ shop: string; apiKey: string }>();
+  const app = useAppBridge();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [errorBanner, setErrorBanner] = useState('');
   const [formData, setFormData] = useState({
     vendor: '',
     productType: '',
@@ -40,14 +56,14 @@ export default function ProductBuilder() {
     googleCategory: '',
     title: '',
     description: '',
-    images: [],
-    options: [],
-    variants: [],
-    skus: [],
-    barcodes: [],
-    pricing: [],
+    images: [] as File[],
+    options: [] as Array<{ name: string; values: string[] }>,
+    variants: [] as any[],
+    skus: [] as string[],
+    barcodes: [] as string[],
+    pricing: [] as PricingData[],
     currency: 'USD',
-    tags: []
+    tags: [] as string[]
   });
 
   const steps = [
@@ -62,60 +78,104 @@ export default function ProductBuilder() {
 
   const handleSubmit = useCallback(async () => {
     setIsSubmitting(true);
+    setErrorBanner('');
     try {
-      // TODO: Implement the actual product creation logic here
-      console.log('Submitting product:', formData);
-      
-      // For now, just show a success message
+      console.log('Submitting product data:', formData);
+      const response = await fetch('/api/shopify/create-product', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+      console.log('Server response:', data);
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create product');
+      }
+
       setToastMessage('Product created successfully!');
       
-      // Navigate back to the app home or products list
-      // navigate('/app');
+      // Navigate to the product in Shopify Admin
+      const productId = data.id.replace('gid://shopify/Product/', '');
+      const adminUrl = `https://${shop}/admin/products/${productId}`;
+      window.open(adminUrl, '_top');
     } catch (error) {
       console.error('Error creating product:', error);
-      setToastMessage('Error creating product. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Error details:', {
+        message: errorMessage,
+        formData: JSON.stringify(formData, null, 2)
+      });
+      setErrorBanner(errorMessage);
+      setToastMessage('Failed to create product. See error details above.');
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData]);
+  }, [formData, shop]);
 
-  const handleStepChange = useCallback((updates) => {
+  const handleStepChange = useCallback((step: number) => {
+    setCurrentStep(step);
+    setErrorBanner('');
+  }, []);
+
+  const handleUpdateForm = useCallback((updates: Partial<typeof formData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
+    setErrorBanner('');
   }, []);
 
-  const handleEditStep = useCallback((stepIndex: number) => {
-    setCurrentStep(stepIndex);
-  }, []);
+  const renderStep = () => {
+    if (currentStep === steps.length - 1) {
+      return (
+        <StepReview
+          formData={formData}
+          onSubmit={handleSubmit}
+          onEdit={handleStepChange}
+          onBack={() => handleStepChange(currentStep - 1)}
+          isSubmitting={isSubmitting}
+        />
+      );
+    }
 
-  const CurrentStepComponent = steps[currentStep].component;
-  const progress = ((currentStep + 1) / steps.length) * 100;
+    const StepComponent = steps[currentStep].component;
+    return (
+      <StepComponent
+        formData={formData}
+        onChange={handleUpdateForm}
+        onNext={() => handleStepChange(currentStep + 1)}
+        onBack={() => handleStepChange(currentStep - 1)}
+        onSubmit={handleSubmit}
+        isSubmitting={isSubmitting}
+      />
+    );
+  };
 
   return (
     <Page>
-      <BlockStack gap="500">
-        <ProgressBar progress={progress} />
-        
-        <Layout>
-          <Layout.Section>
-            {currentStep === steps.length - 1 ? (
-              <StepReview
-                formData={formData}
-                onSubmit={handleSubmit}
-                onEdit={handleEditStep}
-                onBack={() => setCurrentStep(prev => prev - 1)}
-                isSubmitting={isSubmitting}
-              />
-            ) : (
-              <CurrentStepComponent 
-                formData={formData}
-                onChange={handleStepChange}
-                onNext={() => setCurrentStep(prev => Math.min(prev + 1, steps.length - 1))}
-                onBack={() => setCurrentStep(prev => Math.max(prev - 1, 0))}
-              />
+      <Layout>
+        <Layout.Section>
+          <BlockStack gap="500">
+            {errorBanner && (
+              <Banner
+                title="Error Creating Product"
+                tone="critical"
+                onDismiss={() => setErrorBanner('')}
+              >
+                <p>{errorBanner}</p>
+              </Banner>
             )}
-          </Layout.Section>
-        </Layout>
-      </BlockStack>
+            
+            <ProgressBar
+              progress={(currentStep / (steps.length - 1)) * 100}
+              size="small"
+            />
+            
+            {renderStep()}
+          </BlockStack>
+        </Layout.Section>
+      </Layout>
       {toastMessage && (
         <Toast
           content={toastMessage}
