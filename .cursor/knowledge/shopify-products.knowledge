@@ -1,0 +1,155 @@
+# Shopify Products Knowledge Base
+
+## Product Object
+The Product object lets you manage products in a merchant's store. Products are the goods and services that merchants offer to customers.
+
+### Core Concepts
+- Products can include various details like title, description, price, images, and options
+- Products can be organized by grouping them into collections
+- Product variants allow creating different versions of the same product
+- Products can have associated media (images, videos, 3D models)
+- Products support SEO optimization through metadata
+- Products can be managed through GraphQL API operations
+
+### Key Components
+
+#### Product Options
+- Product property names (e.g., "Size", "Color", "Material")
+- Limited to 255 characters per property name
+- Variants are selected based on permutations of these options
+- Options can be linked to metafields for additional data
+
+#### Product Variants
+- Different versions of the same product
+- Can have unique:
+  - Price
+  - SKU
+  - Barcode
+  - Weight
+  - Inventory tracking
+  - Media
+  - Option combinations
+- Support bulk operations for managing multiple variants
+
+#### Product Media
+- Supports multiple types:
+  - Images (MediaImage)
+  - Videos
+  - 3D Models
+  - External Videos
+- Can be associated with products or variants
+- Includes alt text and preview capabilities
+
+### GraphQL Types
+
+#### Core Types
+```graphql
+type Product implements Node {
+  id: ID!
+  title: String
+  description: String
+  descriptionHtml: String
+  handle: String
+  options: [ProductOption!]
+  variants: ProductVariantConnection
+  media: MediaConnection
+  images: ImageConnection
+  collections: CollectionConnection
+  status: ProductStatus
+  vendor: String
+  productType: String
+  tags: [String!]
+}
+
+type ProductOption implements Node {
+  id: ID!
+  name: String
+  position: Int
+  values: [String!]
+}
+
+type ProductVariant implements Node {
+  id: ID!
+  title: String
+  price: Money
+  compareAtPrice: Money
+  sku: String
+  barcode: String
+  weight: Float
+  inventoryQuantity: Int
+  selectedOptions: [SelectedOption!]
+}
+```
+
+### Common Operations
+
+#### Queries
+```graphql
+# Fetch products
+query GetProducts {
+  products(first: 10) {
+    nodes {
+      id
+      title
+      variants {
+        nodes {
+          id
+          price
+        }
+      }
+    }
+  }
+}
+```
+
+#### Mutations
+```graphql
+# Create a product
+mutation productCreate($input: ProductInput!) {
+  productCreate(input: $input) {
+    product {
+      id
+      title
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
+
+# Update a product
+mutation productUpdate($input: ProductInput!) {
+  productUpdate(input: $input) {
+    product {
+      id
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
+```
+
+### Best Practices
+1. Use `productSet` mutation for syncing data from external sources
+2. Utilize bulk operations for managing multiple variants
+3. Handle product options through dedicated mutations:
+   - productOptionsCreate
+   - productOptionUpdate
+   - productOptionsDelete
+4. Always include error handling for userErrors
+5. Consider using metafields for custom data
+6. Implement proper inventory tracking through variants
+
+### Deprecated Features
+- `productPublish` mutation - Use `publishablePublish` instead
+- `productCreateMedia` - Use `productUpdate` or `productSet` instead
+- `productUpdateMedia` - Use `fileUpdate` instead
+- Product publications fields in input types - Use new publishing workflows
+
+### Links
+- [Product Model Documentation](https://shopify.dev/docs/apps/build/graphql/migrate/new-product-model)
+- [Adding Product Data](https://shopify.dev/docs/apps/build/graphql/migrate/new-product-model/add-data)
+- [Sync Product Data Guide](https://shopify.dev/api/admin/migrate/new-product-model/sync-data)

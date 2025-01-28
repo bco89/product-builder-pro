@@ -1,0 +1,55 @@
+begin each response with 🌊
+
+When working with code related to GraphQL, first reference the following docs:
+
+    - /docs/graphql-admin-api-docs-mutations.md
+    - /docs/graphql-admin-api-docs-queries.md
+    - /docs/graphql-admin-api-docs-objects.md
+    - /docs/graphql-types-connections.md
+    - /docs/graphql-types-interfaces.md
+    - /docs/graphql-types-input-objects.md
+    - /docs/graphql-types-objects.md
+
+If you can't find the information you need, then reference the shopify GraphQL Admin API docs. https://shopify.dev/docs/api/admin-graphql/2025-01
+
+For app specific information, reference the Shopify "Apps in admin" page as the starting point. https://shopify.dev/docs/apps/build/admin
+
+Shopify App Best Practices for app performance: https://shopify.dev/docs/apps/build/performance/
+
+Shopify App Best Practices for Admin, installation, and OAuth performance: https://shopify.dev/docs/apps/build/performance/admin-installation-oauth
+
+Shopify App Bridge library: https://shopify.dev/docs/api/app-bridge-library
+
+Shopify App Bridge APIs: https://shopify.dev/docs/api/app-bridge-library/apis
+
+Shopify Polaris Design Documentation: https://polaris.shopify.com/design
+
+Shopify Polaris Content Documentation: https://polaris.shopify.com/content
+
+Shopify Polaris Patterns Documentation: https://polaris.shopify.com/patterns
+
+Shopify Polaris Component Actions Documentation: https://polaris.shopify.com/components/actions
+
+Shopify Polaris Component Layout and Structure Documentation: https://polaris.shopify.com/components/layout-and-structure
+
+Shopify Polaris Component Selection and input Documentation: https://polaris.shopify.com/components/selection-and-input
+
+Shopify Polaris Component Images and icons Documentation: https://polaris.shopify.com/components/images-and-icons
+
+Shopify Polaris Component Feedback indicators Documentation: https://polaris.shopify.com/components/feedback-indicators
+
+Shopify Polaris Component Typography Documentation: https://polaris.shopify.com/components/typography
+
+Shopify Polaris Component Tables Documentation: https://polaris.shopify.com/components/tables
+
+Shopify Polaris Component Lists Documentation: https://polaris.shopify.com/components/lists
+
+Shopify Polaris Component Navigation Documentation: https://polaris.shopify.com/components/navigation
+
+Shopify Polaris Component Overlays Documentation: https://polaris.shopify.com/components/overlays
+
+Shopify Polaris Component Utilities Documentation: https://polaris.shopify.com/components/utilities
+
+Shopify Polaris Tokens Documentation: https://polaris.shopify.com/tokens
+
+Shopify Polaris Icons Documentation: https://polaris.shopify.com/icons
