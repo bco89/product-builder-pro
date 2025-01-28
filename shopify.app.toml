@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "a584fd28cd63a66d60fb6fe599f5c747"
-application_url = "https://coupons-cp-male-tx.trycloudflare.com"
+application_url = "https://betty-employee-hairy-honest.trycloudflare.com"
 embedded = true
 name = "Product Builder Pro"
 handle = "product-builder-pro"
@@ -23,9 +23,9 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://coupons-cp-male-tx.trycloudflare.com/auth/callback",
-  "https://coupons-cp-male-tx.trycloudflare.com/auth/shopify/callback",
-  "https://coupons-cp-male-tx.trycloudflare.com/api/auth/callback"
+  "https://betty-employee-hairy-honest.trycloudflare.com/auth/callback",
+  "https://betty-employee-hairy-honest.trycloudflare.com/auth/shopify/callback",
+  "https://betty-employee-hairy-honest.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
