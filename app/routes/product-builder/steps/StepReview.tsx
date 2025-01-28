@@ -10,6 +10,7 @@ import {
   Thumbnail,
   Badge,
 } from '@shopify/polaris';
+import { useCallback, useState } from 'react';
 
 interface ReviewFormData {
   vendor: string;
@@ -42,6 +43,7 @@ interface StepReviewProps {
 }
 
 export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmitting }: StepReviewProps) {
+  const [errorBanner, setErrorBanner] = useState<string>('');
   const STEPS = {
     VENDOR_TYPE: 0,
     PRODUCT_DETAILS: 1,
@@ -83,6 +85,41 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
 
   const variants = generateVariants();
   const hasVariants = formData.options.length > 0;
+
+  const handleSubmit = useCallback(async () => {
+    onSubmit();
+    try {
+      // Format the data properly for submission
+      const submissionData = {
+        ...formData,
+        pricing: formData.pricing.map(price => ({
+          price: price.price || "0.00",
+          compareAtPrice: price.compareAtPrice || "",
+          cost: price.cost || "0.00"
+        })),
+        skus: formData.skus || [],
+        barcodes: formData.barcodes || [],
+        category: formData.category || null
+      };
+
+      console.log('Submitting product data:', submissionData);
+      const response = await fetch('/api/shopify/create-product', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(submissionData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        setErrorBanner(error.message || 'Failed to create product');
+      }
+    } catch (error) {
+      setErrorBanner('An error occurred while creating the product');
+      console.error('Product creation error:', error);
+    }
+  }, [formData, onSubmit]);
 
   return (
     <Card>
@@ -249,7 +286,7 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
           <Button
             variant="primary"
             loading={isSubmitting}
-            onClick={onSubmit}
+            onClick={handleSubmit}
           >
             Create Product
           </Button>
