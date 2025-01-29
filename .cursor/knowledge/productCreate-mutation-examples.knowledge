@@ -1,0 +1,340 @@
+# productCreate \- mutation
+
+## Explanation
+
+Requires `write_products` access scope. Also: The user must have a permission to create products.  
+Creates a product.
+
+Deprecated field(s)  
+Input [ProductInput](https://shopify.dev/docs/api/admin-graphql/2024-10/input-objects/ProductInput) deprecated  
+The properties of the new product. Deprecated as of `2024-10`.
+
+Use `product` argument instead.
+
+## Code Examples \- GraphQL
+
+### Create a new product
+
+mutation ProductCreate($input: ProductInput\!) {  
+  productCreate(input: $input) {  
+    product {  
+      id  
+      title  
+      options {  
+        id  
+        name  
+        position  
+        optionValues {  
+          id  
+          name  
+          hasVariants  
+        }  
+      }  
+    }  
+    userErrors {  
+      field  
+      message  
+    }  
+  }  
+}
+
+Input variables  
+{  
+  "input": {  
+    "title": "Cool socks",  
+    "productOptions": \[  
+      {  
+        "name": "Color",  
+        "values": \[  
+          {  
+            "name": "Red"  
+          },  
+          {  
+            "name": "Blue"  
+          }  
+        \]  
+      },  
+      {  
+        "name": "Size",  
+        "values": \[  
+          {  
+            "name": "Small"  
+          },  
+          {  
+            "name": "Large"  
+          }  
+        \]  
+      }  
+    \]  
+  }  
+}
+
+Response \- JSON  
+{  
+  "productCreate": {  
+    "product": {  
+      "id": "gid://shopify/Product/1072481053",  
+      "title": "Cool socks",  
+      "options": \[  
+        {  
+          "id": "gid://shopify/ProductOption/1064576495",  
+          "name": "Color",  
+          "position": 1,  
+          "optionValues": \[  
+            {  
+              "id": "gid://shopify/ProductOptionValue/1054672173",  
+              "name": "Red",  
+              "hasVariants": true  
+            },  
+            {  
+              "id": "gid://shopify/ProductOptionValue/1054672174",  
+              "name": "Blue",  
+              "hasVariants": false  
+            }  
+          \]  
+        },  
+        {  
+          "id": "gid://shopify/ProductOption/1064576496",  
+          "name": "Size",  
+          "position": 2,  
+          "optionValues": \[  
+            {  
+              "id": "gid://shopify/ProductOptionValue/1054672175",  
+              "name": "Small",  
+              "hasVariants": true  
+            },  
+            {  
+              "id": "gid://shopify/ProductOptionValue/1054672176",  
+              "name": "Large",  
+              "hasVariants": false  
+            }  
+          \]  
+        }  
+      \]  
+    },  
+    "userErrors": \[\]  
+  }  
+}
+
+### Create a product and return the product ID
+
+mutation {  
+  productCreate(input: {title: "Sweet new product", productType: "Snowboard", vendor: "JadedPixel"}) {  
+    product {  
+      id  
+    }  
+  }  
+}
+
+Response \- JSON  
+{  
+  "productCreate": {  
+    "product": {  
+      "id": "gid://shopify/Product/1072481054"  
+    }  
+  }  
+}
+
+### Create a product with a new media
+
+mutation CreateProductWithNewMedia($input: ProductInput\!, $media: \[CreateMediaInput\!\]) {  
+  productCreate(input: $input, media: $media) {  
+    product {  
+      id  
+      title  
+      media(first: 10\) {  
+        nodes {  
+          alt  
+          mediaContentType  
+          preview {  
+            status  
+          }  
+        }  
+      }  
+    }  
+    userErrors {  
+      field  
+      message  
+    }  
+  }  
+}
+
+Input variables  
+{  
+  "input": {  
+    "title": "Helmet Nova"  
+  },  
+  "media": \[  
+    {  
+      "originalSource": "https://cdn.shopify.com/shopifycloud/brochure/assets/sell/image/image-@artdirection-large-1ba8d5de56c361cec6bc487b747c8774b9ec8203f392a99f53c028df8d0fb3fc.png",  
+      "alt": "Gray helmet for bikers",  
+      "mediaContentType": "IMAGE"  
+    },  
+    {  
+      "originalSource": "https://www.youtube.com/watch?v=4L8VbGRibj8\&list=PLlMkWQ65HlcEoPyG9QayqEaAu0ftj0MMz",  
+      "alt": "Testing helmet resistance against impacts",  
+      "mediaContentType": "EXTERNAL\_VIDEO"  
+    }  
+  \]  
+}
+
+Response \- JSON  
+{  
+  "productCreate": {  
+    "product": {  
+      "id": "gid://shopify/Product/1072481049",  
+      "title": "Helmet Nova",  
+      "media": {  
+        "nodes": \[  
+          {  
+            "alt": "Gray helmet for bikers",  
+            "mediaContentType": "IMAGE",  
+            "preview": {  
+              "status": "UPLOADED"  
+            }  
+          },  
+          {  
+            "alt": "Testing helmet resistance against impacts",  
+            "mediaContentType": "EXTERNAL\_VIDEO",  
+            "preview": {  
+              "status": "UPLOADED"  
+            }  
+          }  
+        \]  
+      }  
+    },  
+    "userErrors": \[\]  
+  }  
+}
+
+### Create a product with product options and option values
+
+mutation CreateProductWithOptions($input: ProductInput\!) {  
+  productCreate(input: $input) {  
+    userErrors {  
+      field  
+      message  
+    }  
+    product {  
+      id  
+      options {  
+        id  
+        name  
+        position  
+        values  
+        optionValues {  
+          id  
+          name  
+          hasVariants  
+        }  
+      }  
+      variants(first: 5\) {  
+        nodes {  
+          id  
+          title  
+          selectedOptions {  
+            name  
+            value  
+          }  
+        }  
+      }  
+    }  
+  }  
+}
+
+Input Variables  
+{  
+  "input": {  
+    "title": "New product",  
+    "productOptions": \[  
+      {  
+        "name": "Color",  
+        "values": \[  
+          {  
+            "name": "Red"  
+          },  
+          {  
+            "name": "Green"  
+          }  
+        \]  
+      },  
+      {  
+        "name": "Size",  
+        "values": \[  
+          {  
+            "name": "Small"  
+          },  
+          {  
+            "name": "Medium"  
+          }  
+        \]  
+      }  
+    \]  
+  }  
+}
+
+Response \- JSON  
+{  
+  "productCreate": {  
+    "userErrors": \[\],  
+    "product": {  
+      "id": "gid://shopify/Product/1072481050",  
+      "options": \[  
+        {  
+          "id": "gid://shopify/ProductOption/1064576491",  
+          "name": "Color",  
+          "position": 1,  
+          "values": \[  
+            "Red"  
+          \],  
+          "optionValues": \[  
+            {  
+              "name": "Red",  
+              "hasVariants": true  
+            },  
+            {  
+              "name": "Green",  
+              "hasVariants": false  
+            }  
+          \]  
+        },  
+        {  
+          "id": "gid://shopify/ProductOption/1064576492",  
+          "name": "Size",  
+          "position": 2,  
+          "values": \[  
+            "Small"  
+          \],  
+          "optionValues": \[  
+            {  
+              "name": "Small",  
+              "hasVariants": true  
+            },  
+            {  
+              "name": "Medium",  
+              "hasVariants": false  
+            }  
+          \]  
+        }  
+      \],  
+      "variants": {  
+        "nodes": \[  
+          {  
+            "id": "gid://shopify/ProductVariant/1070325027",  
+            "title": "Red / Small",  
+            "selectedOptions": \[  
+              {  
+                "name": "Color",  
+                "value": "Red"  
+              },  
+              {  
+                "name": "Size",  
+                "value": "Small"  
+              }  
+            \]  
+          }  
+        \]  
+      }  
+    }  
+  }  
+}  
