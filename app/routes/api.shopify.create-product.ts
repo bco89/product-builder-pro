@@ -77,6 +77,13 @@ export const action = async ({ request }: { request: Request }) => {
             productType
             status
             tags
+            variants(first: 1) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
           }
           userErrors {
             field
@@ -120,54 +127,75 @@ export const action = async ({ request }: { request: Request }) => {
     const product = responseJson.data.productCreate.product;
     
     if (formData.options.length === 0) {
-      const variantResponse = await admin.graphql(
-        `#graphql
-        mutation productVariantsBulkCreate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-          productVariantsBulkCreate(productId: $productId, variants: $variants) {
-            productVariants {
-              id
-              price
-              sku
-              barcode
-              compareAtPrice
-              inventoryItem {
-                tracked
+      // Get the default variant that was automatically created
+      const defaultVariantId = product.variants?.edges?.[0]?.node?.id;
+      
+      if (defaultVariantId) {
+        // Update the default variant with SKU, barcode, and pricing
+        const variantResponse = await admin.graphql(
+          `#graphql
+          mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+            productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+              productVariants {
+                id
+                price
+                sku
+                barcode
+                compareAtPrice
+                inventoryItem {
+                  tracked
+                  sku
+                }
+              }
+              userErrors {
+                field
+                message
               }
             }
-            userErrors {
-              field
-              message
-            }
+          }`,
+          {
+            variables: {
+              productId: product.id,
+              variants: [{
+                id: defaultVariantId,
+                price: formData.pricing[0]?.price || "0.00",
+                compareAtPrice: formData.pricing[0]?.compareAtPrice,
+                barcode: formData.barcodes[0] || "",
+                inventoryItem: {
+                  tracked: true,
+                  sku: formData.skus[0] || "",
+                  cost: formData.pricing[0]?.cost || undefined
+                }
+              }]
+            },
           }
-        }`,
-        {
-          variables: {
-            productId: product.id,
-            variants: [{
-              price: formData.pricing[0]?.price || "0.00",
-              compareAtPrice: formData.pricing[0]?.compareAtPrice,
-              sku: formData.skus[0] || "",
-              barcode: formData.barcodes[0] || "",
-              inventoryItem: {
-                tracked: true
-              }
-            }]
-          },
-        }
-      );
+        );
 
-      const variantResponseJson = await variantResponse.json();
-      console.log("Single variant creation response:", JSON.stringify(variantResponseJson, null, 2));
+        const variantResponseJson = await variantResponse.json();
+        console.log("Single variant update response:", JSON.stringify(variantResponseJson, null, 2));
+        
+        if (variantResponseJson.data?.productVariantsBulkUpdate?.userErrors?.length > 0) {
+          console.error("Variant update errors:", variantResponseJson.data.productVariantsBulkUpdate.userErrors);
+          return json(
+            { error: `Failed to update product variant: ${variantResponseJson.data.productVariantsBulkUpdate.userErrors[0].message}` },
+            { status: 400 }
+          );
+        }
+      }
     } else {
       const variantCombinations = generateVariantCombinations(formData.options);
       const variantInputs = variantCombinations.map((combination: string[], index: number) => ({
-        options: combination.map((value: string) => ({ value })),
+        optionValues: combination.map((value: string, optionIndex: number) => ({
+          optionName: formData.options[optionIndex].name,
+          name: value
+        })),
         price: formData.pricing[index]?.price || "0.00",
         compareAtPrice: formData.pricing[index]?.compareAtPrice,
-        sku: formData.skus[index] || "",
         barcode: formData.barcodes[index] || "",
         inventoryItem: {
-          tracked: true
+          tracked: true,
+          sku: formData.skus[index] || "",
+          cost: formData.pricing[index]?.cost || undefined
         }
       }));
 
@@ -201,6 +229,14 @@ export const action = async ({ request }: { request: Request }) => {
 
       const variantResponseJson = await variantResponse.json();
       console.log("Variant creation response:", JSON.stringify(variantResponseJson, null, 2));
+      
+      if (variantResponseJson.data?.productVariantsBulkCreate?.userErrors?.length > 0) {
+        console.error("Variant creation errors:", variantResponseJson.data.productVariantsBulkCreate.userErrors);
+        return json(
+          { error: `Failed to create product variants: ${variantResponseJson.data.productVariantsBulkCreate.userErrors[0].message}` },
+          { status: 400 }
+        );
+      }
     }
 
     return json({

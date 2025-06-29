@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
   Card,
   TextField,
@@ -41,6 +41,14 @@ export default function StepTags({ formData, onChange, onNext, onBack, productId
     }
     return defaultTags;
   });
+
+  // Ensure default tags are passed to parent component immediately
+  useEffect(() => {
+    // Only update if the parent doesn't already have these tags and we have default tags
+    if ((!formData.tags || formData.tags.length === 0) && selectedTags.length > 0) {
+      onChange({ tags: selectedTags });
+    }
+  }, [formData.tags, selectedTags, onChange]);
 
   // Fetch existing tags from products of the selected type
   const { data: existingTags = [], isLoading } = useQuery({

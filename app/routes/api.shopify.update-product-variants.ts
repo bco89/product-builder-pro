@@ -115,12 +115,13 @@ export const action = async ({ request }: { request: Request }) => {
         // Update existing variant
         variantsToUpdate.push({
           id: existingVariant.node.id,
-          price: basePricing.price || "0.00",
-          compareAtPrice: basePricing.compareAtPrice || undefined,
+          price: pricing[index]?.price || basePricing.price || "0.00",
+          compareAtPrice: pricing[index]?.compareAtPrice || basePricing.compareAtPrice || undefined,
           barcode: barcodes[index] || "",
           inventoryItem: {
             tracked: true,
-            sku: skus[index] || ""
+            sku: skus[index] || "",
+            cost: pricing[index]?.cost || basePricing.cost || undefined
           }
         });
       } else {
@@ -130,12 +131,13 @@ export const action = async ({ request }: { request: Request }) => {
             optionName: options[optionIndex].name,
             name: value
           })),
-          price: basePricing.price || "0.00",
-          compareAtPrice: basePricing.compareAtPrice || undefined,
+          price: pricing[index]?.price || basePricing.price || "0.00",
+          compareAtPrice: pricing[index]?.compareAtPrice || basePricing.compareAtPrice || undefined,
           barcode: barcodes[index] || "",
           inventoryItem: {
             tracked: true,
-            sku: skus[index] || ""
+            sku: skus[index] || "",
+            cost: pricing[index]?.cost || basePricing.cost || undefined
           }
         });
       }
