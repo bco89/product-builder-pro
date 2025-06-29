@@ -20,13 +20,18 @@ interface FormDataType {
 }
 
 interface StepProductDetailsProps {
-  formData: FormDataType;
-  onChange: (updates: Partial<FormDataType>) => void;
+  formData: {
+    title: string;
+    description: string;
+    images: File[];
+  };
+  onChange: (updates: Partial<StepProductDetailsProps['formData']>) => void;
   onNext: () => void;
   onBack: () => void;
+  productId?: string | null;
 }
 
-export default function StepProductDetails({ formData, onChange, onNext, onBack }: StepProductDetailsProps) {
+export default function StepProductDetails({ formData, onChange, onNext, onBack, productId }: StepProductDetailsProps) {
   const [rejectedFiles, setRejectedFiles] = useState<File[]>([]);
 
   const handleDropZoneDrop = useCallback(

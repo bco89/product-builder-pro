@@ -1,0 +1,251 @@
+import { json } from "@remix-run/node";
+import { authenticate } from "../shopify.server";
+
+function generateVariantCombinations(options: any[]): string[][] {
+  const cartesian = (...arrays: string[][]): string[][] => {
+    return arrays.reduce<string[][]>(
+      (results, array) => 
+        results
+          .map(result => array.map(value => [...result, value]))
+          .reduce((subResults, array) => [...subResults, ...array], []),
+      [[]]
+    );
+  };
+
+  const optionValues = options.map(option => option.values);
+  return cartesian(...optionValues);
+}
+
+export const action = async ({ request }: { request: Request }) => {
+  if (request.method !== "POST") {
+    return json({ error: "Method not allowed" }, { status: 405 });
+  }
+
+  const { admin } = await authenticate.admin(request);
+  const { productId, options, skus, barcodes, pricing } = await request.json();
+
+  try {
+    console.log("Updating product with variants:", { productId, options });
+
+    // Step 1: Create product options first
+    console.log("Creating product options");
+    const optionsInput = options.map((option: any, index: number) => ({
+      name: option.name,
+      position: index + 1,
+      values: option.values.map((value: string) => ({ name: value }))
+    }));
+
+    const optionsResponse = await admin.graphql(
+      `#graphql
+      mutation productOptionsCreate($productId: ID!, $options: [OptionCreateInput!]!) {
+        productOptionsCreate(productId: $productId, options: $options) {
+          product {
+            id
+            options {
+              id
+              name
+              position
+              optionValues {
+                id
+                name
+              }
+            }
+            variants(first: 100) {
+              edges {
+                node {
+                  id
+                  title
+                  selectedOptions {
+                    name
+                    value
+                  }
+                }
+              }
+            }
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }`,
+      {
+        variables: {
+          productId: productId,
+          options: optionsInput
+        }
+      }
+    );
+
+    const optionsResponseJson = await optionsResponse.json();
+    console.log("Options creation response:", JSON.stringify(optionsResponseJson, null, 2));
+
+    if (optionsResponseJson.data?.productOptionsCreate?.userErrors?.length > 0) {
+      console.error("Error creating options:", optionsResponseJson.data.productOptionsCreate.userErrors);
+      return json(
+        { error: optionsResponseJson.data.productOptionsCreate.userErrors[0].message },
+        { status: 400 }
+      );
+    }
+
+    // Get existing variants after options are created
+    const existingVariants = optionsResponseJson.data?.productOptionsCreate?.product?.variants?.edges || [];
+    
+    // Step 2: Generate all variant combinations
+    const variantCombinations = generateVariantCombinations(options);
+    const basePricing = pricing[0] || { price: "0.00" };
+    
+    // Step 3: Update existing variants and create new ones
+    const variantsToUpdate: any[] = [];
+    const variantsToCreate: any[] = [];
+    
+    variantCombinations.forEach((combination: string[], index: number) => {
+      // Check if this combination already exists
+      const existingVariant = existingVariants.find((edge: any) => {
+        const variant = edge.node;
+        return combination.every((value, optionIndex) => {
+          const optionName = options[optionIndex].name;
+          return variant.selectedOptions.some((opt: any) => 
+            opt.name === optionName && opt.value === value
+          );
+        });
+      });
+      
+      if (existingVariant) {
+        // Update existing variant
+        variantsToUpdate.push({
+          id: existingVariant.node.id,
+          price: basePricing.price || "0.00",
+          compareAtPrice: basePricing.compareAtPrice || undefined,
+          barcode: barcodes[index] || "",
+          inventoryItem: {
+            tracked: true,
+            sku: skus[index] || ""
+          }
+        });
+      } else {
+        // Create new variant
+        variantsToCreate.push({
+          optionValues: combination.map((value: string, optionIndex: number) => ({
+            optionName: options[optionIndex].name,
+            name: value
+          })),
+          price: basePricing.price || "0.00",
+          compareAtPrice: basePricing.compareAtPrice || undefined,
+          barcode: barcodes[index] || "",
+          inventoryItem: {
+            tracked: true,
+            sku: skus[index] || ""
+          }
+        });
+      }
+    });
+    
+    // Update existing variants if any
+    if (variantsToUpdate.length > 0) {
+      console.log("Updating existing variants:", JSON.stringify(variantsToUpdate, null, 2));
+      
+      const updateResponse = await admin.graphql(
+        `#graphql
+        mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+          productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+            productVariants {
+              id
+              title
+              price
+              sku
+              barcode
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }`,
+        {
+          variables: {
+            productId: productId,
+            variants: variantsToUpdate
+          }
+        }
+      );
+      
+      const updateResponseJson = await updateResponse.json();
+      console.log("Variant update response:", JSON.stringify(updateResponseJson, null, 2));
+      
+      if (updateResponseJson.data?.productVariantsBulkUpdate?.userErrors?.length > 0) {
+        console.error("Error updating variants:", updateResponseJson.data.productVariantsBulkUpdate.userErrors);
+        return json(
+          { error: updateResponseJson.data.productVariantsBulkUpdate.userErrors[0].message },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Create new variants if any
+    let createdVariants = [];
+    if (variantsToCreate.length > 0) {
+      console.log("Creating new variants:", JSON.stringify(variantsToCreate, null, 2));
+      
+      const createResponse = await admin.graphql(
+        `#graphql
+        mutation productVariantsBulkCreate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+          productVariantsBulkCreate(productId: $productId, variants: $variants) {
+            productVariants {
+              id
+              title
+              price
+              sku
+              barcode
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }`,
+        {
+          variables: {
+            productId: productId,
+            variants: variantsToCreate
+          }
+        }
+      );
+      
+      const createResponseJson = await createResponse.json();
+      console.log("Variant creation response:", JSON.stringify(createResponseJson, null, 2));
+      
+      if (createResponseJson.data?.productVariantsBulkCreate?.userErrors?.length > 0) {
+        console.error("Variant creation errors:", createResponseJson.data.productVariantsBulkCreate.userErrors);
+        return json(
+          { error: createResponseJson.data.productVariantsBulkCreate.userErrors[0].message },
+          { status: 400 }
+        );
+      }
+      
+      createdVariants = createResponseJson.data?.productVariantsBulkCreate?.productVariants || [];
+    }
+
+    return json({ 
+      success: true,
+      variants: [...(variantsToUpdate.map(v => ({ id: v.id }))), ...createdVariants]
+    });
+  } catch (error) {
+    console.error("Failed to update product variants:", error);
+    if (error instanceof Error) {
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      return json(
+        { error: `Failed to update product variants: ${error.message}` },
+        { status: 500 }
+      );
+    }
+    return json(
+      { error: "Failed to update product variants: Unknown error" },
+      { status: 500 }
+    );
+  }
+}; 

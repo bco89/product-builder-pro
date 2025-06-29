@@ -22,13 +22,14 @@ interface StepTagsProps {
   onChange: (updates: Partial<Pick<StepTagsProps['formData'], 'tags'>>) => void;
   onNext: () => void;
   onBack: () => void;
+  productId?: string | null;
 }
 
 interface TagsResponse {
   tags: string[];
 }
 
-export default function StepTags({ formData, onChange, onNext, onBack }: StepTagsProps) {
+export default function StepTags({ formData, onChange, onNext, onBack, productId }: StepTagsProps) {
   const [inputValue, setInputValue] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>(() => {
     if (formData.tags?.length > 0) return formData.tags;

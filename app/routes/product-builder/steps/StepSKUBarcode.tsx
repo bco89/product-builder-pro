@@ -17,9 +17,10 @@ interface StepSKUBarcodeProps {
   onChange: (updates: Partial<StepSKUBarcodeProps['formData']>) => void;
   onNext: () => void;
   onBack: () => void;
+  productId?: string | null;
 }
 
-export default function StepSKUBarcode({ formData, onChange, onNext, onBack }: StepSKUBarcodeProps) {
+export default function StepSKUBarcode({ formData, onChange, onNext, onBack, productId }: StepSKUBarcodeProps) {
   const hasVariants = formData.options.length > 0;
 
   const handleSKUChange = useCallback((value: string) => {

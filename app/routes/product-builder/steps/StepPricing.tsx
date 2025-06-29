@@ -15,40 +15,25 @@ interface StepPricingProps {
   onChange: (updates: Partial<FormData>) => void;
   onNext: () => void;
   onBack: () => void;
+  productId?: string | null;
 }
 
-export default function StepPricing({ formData, onChange, onNext, onBack }: StepPricingProps) {
-  const [useIndividualPricing, setUseIndividualPricing] = useState(false);
-  const hasVariants = formData.options.length > 0;
-
+export default function StepPricing({ formData, onChange, onNext, onBack, productId }: StepPricingProps) {
   // Initialize pricing array when component mounts
   useEffect(() => {
     const shouldInitialize = !formData.pricing || formData.pricing.length === 0;
     if (shouldInitialize) {
-      if (hasVariants) {
-        const variantCount = formData.options.reduce((acc, option) => 
-          acc * option.values.length, 1);
-        
-        const initialPricing = Array(variantCount).fill(null).map(() => ({
+      onChange({ 
+        pricing: [{
           price: '',
           compareAtPrice: '',
           cost: ''
-        }));
-        
-        onChange({ pricing: initialPricing });
-      } else {
-        onChange({ 
-          pricing: [{
-            price: '',
-            compareAtPrice: '',
-            cost: ''
-          }]
-        });
-      }
+        }]
+      });
     }
-  }, [hasVariants, formData.options.length]); // Only depend on these values
+  }, []); // Only run once on mount
 
-  const handleSingleProductPriceChange = useCallback((field: keyof PricingData, value: string) => {
+  const handlePriceChange = useCallback((field: keyof PricingData, value: string) => {
     const newPricing = [{ 
       ...(formData.pricing[0] || { price: '', compareAtPrice: '', cost: '' }),
       [field]: value 
@@ -56,183 +41,58 @@ export default function StepPricing({ formData, onChange, onNext, onBack }: Step
     onChange({ pricing: newPricing });
   }, [formData.pricing, onChange]);
 
-  const handleBulkPriceChange = useCallback((field: keyof PricingData, value: string) => {
-    const newPricing = formData.pricing.map(pricing => ({
-      ...pricing,
-      [field]: value
-    }));
-    onChange({ pricing: newPricing });
-  }, [formData.pricing, onChange]);
-
-  const handleVariantPriceChange = useCallback((index: number, field: keyof PricingData, value: string) => {
-    const newPricing = [...(formData.pricing || [])];
-    newPricing[index] = {
-      ...(newPricing[index] || { price: '', compareAtPrice: '', cost: '' }),
-      [field]: value
-    };
-    onChange({ pricing: newPricing });
-  }, [formData.pricing, onChange]);
-
-  const generateVariants = useCallback(() => {
-    if (!hasVariants) return [];
-
-    const cartesian = (...arrays: string[][]): string[][] => {
-      return arrays.reduce<string[][]>(
-        (results, array) => 
-          results
-            .map(result => array.map(value => [...result, value]))
-            .reduce((subResults, array) => [...subResults, ...array], []),
-        [[]]
-      );
-    };
-
-    const optionValues = formData.options.map(option => option.values);
-    const combinations = cartesian(...optionValues);
-
-    return combinations.map((combination, index) => ({
-      id: index.toString(),
-      title: combination.join(' / '),
-      pricing: formData.pricing[index] || { price: '', compareAtPrice: '', cost: '' }
-    }));
-  }, [formData.options, formData.pricing, hasVariants]);
-
-  const variants = generateVariants();
-
   return (
     <Card>
       <BlockStack gap="500">
         <Text variant="headingMd" as="h2">
-          Pricing Information
+          Product Pricing
         </Text>
 
-        {!hasVariants ? (
-          // Single product pricing form
-          <BlockStack gap="400">
-            <TextField
-              label="Price"
-              type="number"
-              prefix="$"
-              value={formData.pricing[0]?.price || ''}
-              onChange={(value) => handleSingleProductPriceChange('price', value)}
-              autoComplete="off"
-            />
+        <Banner tone="info">
+          <Text as="p">
+            Set the base price for your product. This price will be applied to all variants. 
+            You can adjust individual variant prices later in the product catalog.
+          </Text>
+        </Banner>
 
-            <TextField
-              label="Compare at price"
-              type="number"
-              prefix="$"
-              value={formData.pricing[0]?.compareAtPrice || ''}
-              onChange={(value) => handleSingleProductPriceChange('compareAtPrice', value)}
-              autoComplete="off"
-              helpText="Optional - Original price before discount"
-            />
+        <BlockStack gap="400">
+          <TextField
+            label="Price"
+            type="number"
+            prefix="$"
+            value={formData.pricing[0]?.price || ''}
+            onChange={(value) => handlePriceChange('price', value)}
+            autoComplete="off"
+            helpText="This price will be applied to all product variants"
+          />
 
-            <TextField
-              label="Cost per item"
-              type="number"
-              prefix="$"
-              value={formData.pricing[0]?.cost || ''}
-              onChange={(value) => handleSingleProductPriceChange('cost', value)}
-              autoComplete="off"
-              helpText="Optional - Cost of goods for profit calculations"
-            />
-          </BlockStack>
-        ) : (
-          <BlockStack gap="500">
-            {!useIndividualPricing ? (
-              // Bulk pricing form
-              <BlockStack gap="400">
-                <TextField
-                  label="Price for all variants"
-                  type="number"
-                  prefix="$"
-                  value={formData.pricing[0]?.price || ''}
-                  onChange={(value) => handleBulkPriceChange('price', value)}
-                  autoComplete="off"
-                />
+          <TextField
+            label="Compare at price"
+            type="number"
+            prefix="$"
+            value={formData.pricing[0]?.compareAtPrice || ''}
+            onChange={(value) => handlePriceChange('compareAtPrice', value)}
+            autoComplete="off"
+            helpText="Optional - Original price before discount"
+          />
 
-                <TextField
-                  label="Compare at price for all variants"
-                  type="number"
-                  prefix="$"
-                  value={formData.pricing[0]?.compareAtPrice || ''}
-                  onChange={(value) => handleBulkPriceChange('compareAtPrice', value)}
-                  autoComplete="off"
-                  helpText="Optional - Original price before discount"
-                />
-
-                <TextField
-                  label="Cost per item for all variants"
-                  type="number"
-                  prefix="$"
-                  value={formData.pricing[0]?.cost || ''}
-                  onChange={(value) => handleBulkPriceChange('cost', value)}
-                  autoComplete="off"
-                  helpText="Optional - Cost of goods for profit calculations"
-                />
-              </BlockStack>
-            ) : (
-              // Variant pricing form
-              <BlockStack gap="500">
-                {variants.map((variant, index) => (
-                  <Card key={variant.id}>
-                    <BlockStack gap="500">
-                      <Text variant="headingSm" as="h3">
-                        {variant.title}
-                      </Text>
-
-                      <BlockStack gap="300">
-                        <TextField
-                          label="Price"
-                          type="number"
-                          prefix="$"
-                          value={variant.pricing.price}
-                          onChange={(value) => handleVariantPriceChange(index, 'price', value)}
-                          autoComplete="off"
-                        />
-
-                        <TextField
-                          label="Compare at price"
-                          type="number"
-                          prefix="$"
-                          value={variant.pricing.compareAtPrice}
-                          onChange={(value) => handleVariantPriceChange(index, 'compareAtPrice', value)}
-                          autoComplete="off"
-                          helpText="Optional - Original price before discount"
-                        />
-
-                        <TextField
-                          label="Cost per item"
-                          type="number"
-                          prefix="$"
-                          value={variant.pricing.cost}
-                          onChange={(value) => handleVariantPriceChange(index, 'cost', value)}
-                          autoComplete="off"
-                          helpText="Optional - Cost of goods for profit calculations"
-                        />
-                      </BlockStack>
-                    </BlockStack>
-                  </Card>
-                ))}
-              </BlockStack>
-            )}
-          </BlockStack>
-        )}
+          <TextField
+            label="Cost per item"
+            type="number"
+            prefix="$"
+            value={formData.pricing[0]?.cost || ''}
+            onChange={(value) => handlePriceChange('cost', value)}
+            autoComplete="off"
+            helpText="Optional - Cost of goods for profit calculations"
+          />
+        </BlockStack>
 
         <InlineStack gap="300" align="end">
           <Button onClick={onBack}>Back</Button>
-          {hasVariants && (
-            <Button onClick={() => setUseIndividualPricing(!useIndividualPricing)}>
-              {useIndividualPricing ? 'Use same price for all variants' : 'Add pricing to variants individually'}
-            </Button>
-          )}
           <Button 
             variant="primary"
             onClick={onNext}
-            disabled={hasVariants ? 
-              variants.some(v => !v.pricing.price) : 
-              !formData.pricing[0]?.price
-            }
+            disabled={!formData.pricing[0]?.price}
           >
             Next
           </Button>

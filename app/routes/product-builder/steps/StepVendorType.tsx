@@ -43,9 +43,10 @@ interface StepVendorTypeProps {
   onChange: (updates: Partial<FormDataType>) => void;
   onNext: () => void;
   onBack: () => void;
+  productId?: string | null;
 }
 
-export default function StepVendorType({ formData, onChange, onNext, onBack }: StepVendorTypeProps) {
+export default function StepVendorType({ formData, onChange, onNext, onBack, productId }: StepVendorTypeProps) {
   // Fetch all vendors
   const { data: vendorsData, isLoading: vendorsLoading } = useQuery({
     queryKey: ['vendors'],
