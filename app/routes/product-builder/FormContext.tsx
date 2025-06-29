@@ -13,6 +13,11 @@ export interface FormData {
     id: string;
     name: string;
   } | null;
+  title: string;
+  description: string;
+  handle: string;
+  images: File[];
+  addImagesLater: boolean;
   tags: string[];
   options: Array<{ name: string; values: string[] }>;
   pricing: PricingData[];

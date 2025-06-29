@@ -9,6 +9,7 @@ interface ProductOption {
 interface FormData {
   title: string;
   description: string;
+  handle?: string;
   vendor: string;
   productType: string;
   tags: string[];
@@ -96,6 +97,7 @@ export const action = async ({ request }: { request: Request }) => {
           product: {
             title: formData.title,
             descriptionHtml: formData.description,
+            handle: formData.handle,
             vendor: formData.vendor,
             productType: formData.productType,
             tags: formData.tags,

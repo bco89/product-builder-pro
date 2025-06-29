@@ -71,7 +71,9 @@ export default function ProductBuilder() {
     googleCategory: '',
     title: '',
     description: '',
+    handle: '',
     images: [] as File[],
+    addImagesLater: false,
     options: [] as Array<{ name: string; values: string[] }>,
     variants: [] as any[],
     skus: [] as string[],
@@ -151,6 +153,7 @@ export default function ProductBuilder() {
         body: JSON.stringify({
           title: formData.title,
           description: formData.description,
+          handle: formData.handle,
           vendor: formData.vendor,
           productType: formData.productType,
           tags: formData.tags,

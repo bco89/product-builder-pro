@@ -9,7 +9,9 @@ export interface ProductFormData {
   } | null;
   title: string;
   description: string;
+  handle: string;
   images: File[];
+  addImagesLater: boolean;
   options: Array<{ name: string; values: string[] }>;
   skus: {
     [key: string]: string;
@@ -34,7 +36,9 @@ export function useProductBuilderForm(initialData?: Partial<ProductFormData>) {
     category: null,
     title: '',
     description: '',
+    handle: '',
     images: [],
+    addImagesLater: false,
     options: [],
     skus: {},
     barcodes: {},

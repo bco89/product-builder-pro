@@ -39,6 +39,7 @@ export const action = async ({ request }: { request: Request }) => {
           product: {
             title: formData.title,
             descriptionHtml: formData.description,
+            handle: formData.handle,
             vendor: formData.vendor,
             productType: formData.productType,
             tags: formData.tags,

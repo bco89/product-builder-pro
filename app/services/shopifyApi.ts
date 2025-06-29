@@ -13,10 +13,21 @@ interface ProductCategory {
   name: string;
 }
 
+interface HandleValidationResult {
+  available: boolean;
+  handle: string;
+  suggestions: string[];
+  conflictingProduct?: {
+    handle: string;
+    title: string;
+  };
+}
+
 export interface ShopifyApiService {
   getVendors(): Promise<string[]>;
   getProductTypes(vendor: string): Promise<ProductType[]>;
   getCategories(vendor: string, productType: string): Promise<ProductCategory[]>;
+  validateHandle(handle: string): Promise<HandleValidationResult>;
   createProduct(productData: ProductFormData): Promise<any>;
 }
 
@@ -49,6 +60,16 @@ export class ShopifyApiServiceImpl implements ShopifyApiService {
     }
     const data = await response.json();
     return data.categories;
+  }
+
+  async validateHandle(handle: string): Promise<HandleValidationResult> {
+    const response = await fetch(
+      `/api/shopify/validate-handle?handle=${encodeURIComponent(handle)}`
+    );
+    if (!response.ok) {
+      throw new Error('Failed to validate product handle');
+    }
+    return response.json();
   }
 
   async createProduct(productData: ProductFormData): Promise<any> {
