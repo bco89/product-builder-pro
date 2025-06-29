@@ -33,7 +33,7 @@ export default function StepSuccess({ productId, shop, variantCount }: StepSucce
       <BlockStack gap="600">
         <Box paddingBlockEnd="400">
           <BlockStack gap="400" align="center">
-            <Box background="bg-fill-success" padding="400" borderRadius="full">
+            <Box background="bg-surface-secondary" padding="400" borderRadius="full">
               <Icon source={CheckIcon} tone="success" />
             </Box>
             
