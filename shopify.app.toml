@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "a584fd28cd63a66d60fb6fe599f5c747"
-application_url = "https://soldier-johnston-wet-their.trycloudflare.com"
+application_url = "https://tex-occasion-mhz-tab.trycloudflare.com"
 embedded = true
 name = "Product Builder Pro"
 handle = "product-builder-pro"
@@ -23,9 +23,9 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://soldier-johnston-wet-their.trycloudflare.com/auth/callback",
-  "https://soldier-johnston-wet-their.trycloudflare.com/auth/shopify/callback",
-  "https://soldier-johnston-wet-their.trycloudflare.com/api/auth/callback"
+  "https://tex-occasion-mhz-tab.trycloudflare.com/auth/callback",
+  "https://tex-occasion-mhz-tab.trycloudflare.com/auth/shopify/callback",
+  "https://tex-occasion-mhz-tab.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

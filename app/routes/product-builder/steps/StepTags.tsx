@@ -21,6 +21,8 @@ interface StepTagsProps {
   formData: {
     vendor: string;
     productType: string;
+    category: { id: string; name: string; } | null;
+    title: string;
     tags: string[];
   };
   onChange: (updates: Partial<Pick<StepTagsProps['formData'], 'tags'>>) => void;
@@ -52,7 +54,6 @@ export default function StepTags({ formData, onChange, onNext, onBack, productId
   
   const [inputValue, setInputValue] = useState('');
   const [options, setOptions] = useState<OptionDescriptor[]>([]);
-  const [selectedSuggestions, setSelectedSuggestions] = useState<string[]>([]);
 
   // Ensure default tags are passed to parent component immediately
   useEffect(() => {
@@ -194,26 +195,16 @@ export default function StepTags({ formData, onChange, onNext, onBack, productId
   }, [selectedTags, updateSelectedTags]);
 
   const handleSuggestionToggle = useCallback((tag: string, checked: boolean) => {
-    setSelectedSuggestions(prev => {
-      if (checked) {
-        return [...prev, tag];
-      } else {
-        return prev.filter(t => t !== tag);
+    if (checked) {
+      // Immediately add tag when checked
+      if (!selectedTags.includes(tag)) {
+        updateSelectedTags([...selectedTags, tag]);
       }
-    });
-  }, []);
-
-  const handleAddSelectedSuggestions = useCallback(() => {
-    const newTags = selectedSuggestions.filter(tag => !selectedTags.includes(tag));
-    if (newTags.length > 0) {
-      updateSelectedTags([...selectedTags, ...newTags]);
+    } else {
+      // Remove tag when unchecked
+      updateSelectedTags(selectedTags.filter(t => t !== tag));
     }
-    setSelectedSuggestions([]);
-  }, [selectedSuggestions, selectedTags, updateSelectedTags]);
-
-  const handleClearSuggestions = useCallback(() => {
-    setSelectedSuggestions([]);
-  }, []);
+  }, [selectedTags, updateSelectedTags]);
 
   const isLoading = productTypeTagsLoading || allTagsLoading;
   const hasError = productTypeTagsError && allTagsError;
@@ -231,152 +222,163 @@ export default function StepTags({ formData, onChange, onNext, onBack, productId
   );
 
   return (
-    <Card>
-      <BlockStack gap="500">
-        <Text variant="headingMd" as="h2">
-          Add Your Product Tags
-        </Text>
-
-        {hasError && (
-          <Banner tone="warning">
-            <Text as="p">
-              Unable to load existing tags. You can still add custom tags below.
+    <>
+      {/* Enhanced Product Information Display Card */}
+      <Card>
+        <BlockStack gap="200">
+          <Text as="span">
+            <Text as="span" fontWeight="bold">Product Title:</Text> {formData.title || 'Not specified'}
+          </Text>
+          <InlineStack gap="400" wrap>
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Vendor:</Text> {formData.vendor || 'Not specified'}
             </Text>
-          </Banner>
-        )}
-
-        {!hasError && !isLoading && productTypeTags && productTypeTags.length === 0 && !allTagsLoading && (
-          <Banner tone="info">
-            <Text as="p">
-              No tags found for "{formData.productType}" products. You can choose from tags used by other products or create new ones.
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Product Type:</Text> {formData.productType || 'Not specified'}
             </Text>
-          </Banner>
-        )}
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Category:</Text> {formData.category?.name || 'Not specified'}
+            </Text>
+          </InlineStack>
+        </BlockStack>
+      </Card>
 
-        <BlockStack gap="400">
-          {/* Product Type Tag Suggestions */}
-          {productTypeTagSuggestions.length > 0 && (
+      <Card>
+        <BlockStack gap="500">
+          <Text variant="headingMd" as="h2">
+            Add Your Product Tags
+          </Text>
+
+          {hasError && (
+            <Banner tone="warning">
+              <Text as="p">
+                Unable to load existing tags. You can still add custom tags below.
+              </Text>
+            </Banner>
+          )}
+
+          {!hasError && !isLoading && productTypeTags && productTypeTags.length === 0 && !allTagsLoading && (
+            <Banner tone="info">
+              <Text as="p">
+                No tags found for "{formData.productType}" products. You can choose from tags used by other products or create new ones.
+              </Text>
+            </Banner>
+          )}
+
+          <BlockStack gap="400">
+            {/* Product Type Tag Suggestions */}
+            {productTypeTagSuggestions.length > 0 && (
+              <BlockStack gap="300">
+                <Text variant="headingSm" as="h3">
+                  Suggested Tags
+                </Text>
+                
+                <Box>
+                  <BlockStack gap="300">
+                    <Box 
+                      background="bg-surface-secondary" 
+                      padding="300" 
+                      borderRadius="200"
+                    >
+                      <BlockStack gap="300">
+                        <Text variant="bodySm" as="p" tone="subdued">
+                          Tags from other products with the same product type
+                        </Text>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                        {tagColumns.map((column, columnIndex) => (
+                          <div key={columnIndex}>
+                            {column.map((tag) => (
+                              <div key={tag} style={{ marginBottom: '8px' }}>
+                                <Checkbox
+                                  label={tag}
+                                  checked={selectedTags.includes(tag)}
+                                  onChange={(checked) => handleSuggestionToggle(tag, checked)}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </BlockStack>
+                  </Box>
+
+
+                </BlockStack>
+              </Box>
+              </BlockStack>
+            )}
+
+            {/* Main Tags Input with Autocomplete */}
             <BlockStack gap="300">
               <Text variant="headingSm" as="h3">
-                Suggested Tags
+                Additional Tags
               </Text>
-              
-              <Box>
-                <BlockStack gap="300">
-                  <Box 
-                    background="bg-surface-secondary" 
-                    padding="300" 
-                    borderRadius="200"
-                  >
-                    <BlockStack gap="300">
-                      <Text variant="bodySm" as="p" tone="subdued">
-                        Tags from other products with the same product type
-                      </Text>
-                    
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                      {tagColumns.map((column, columnIndex) => (
-                        <div key={columnIndex}>
-                          {column.map((tag) => (
-                            <div key={tag} style={{ marginBottom: '8px' }}>
-                              <Checkbox
-                                label={tag}
-                                checked={selectedSuggestions.includes(tag)}
-                                onChange={(checked) => handleSuggestionToggle(tag, checked)}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  </BlockStack>
-                </Box>
 
-                {selectedSuggestions.length > 0 && (
-                  <InlineStack gap="200">
-                    <Button 
-                      variant="primary" 
-                      size="slim"
-                      onClick={handleAddSelectedSuggestions}
-                    >
-                      Add {selectedSuggestions.length.toString()} Selected Tag{selectedSuggestions.length !== 1 ? 's' : ''}
-                    </Button>
-                    <Button 
-                      size="slim" 
-                      onClick={handleClearSuggestions}
-                    >
-                      Clear
-                    </Button>
-                  </InlineStack>
+              <Autocomplete
+                options={finalOptions}
+                selected={[]}
+                onSelect={updateSelection}
+                textField={textField}
+                loading={isLoading}
+                emptyState={
+                  inputValue.trim() && finalOptions.length === 0 ? (
+                    <div style={{ padding: '12px', textAlign: 'center' }}>
+                      <Text as="p" tone="subdued">No matching tags found</Text>
+                    </div>
+                  ) : undefined
+                }
+              />
+            </BlockStack>
+
+            {/* Selected Tags Display */}
+            {selectedTags.length > 0 && (
+              <BlockStack gap="300">
+                <BlockStack gap="200">
+                  <Text variant="headingSm" as="h3">
+                    Selected Tags ({selectedTags.length.toString()})
+                  </Text>
+                  <Text variant="bodySm" as="p" tone="subdued">
+                    Default tags cannot be deleted from within Product Builder Pro
+                  </Text>
+                </BlockStack>
+                
+                <InlineStack gap="200" wrap>
+                  {selectedTags.map((tag) => {
+                    const currentYear = new Date().getFullYear().toString();
+                    const isDefaultTag = tag === formData.vendor || tag === currentYear;
+                    
+                    return (
+                      <Tag 
+                        key={tag} 
+                        onRemove={!isDefaultTag ? () => handleTagRemove(tag) : undefined}
+                      >
+                        {tag}
+                      </Tag>
+                    );
+                  })}
+                </InlineStack>
+
+                {selectedTags.length === 0 && (
+                  <Text as="p" tone="subdued">
+                    No tags selected yet. Add tags to help organize your product.
+                  </Text>
                 )}
               </BlockStack>
-            </Box>
-            </BlockStack>
-          )}
-
-          {/* Main Tags Input with Autocomplete */}
-          <BlockStack gap="300">
-            <Text variant="headingSm" as="h3">
-              Additional Tags
-            </Text>
-
-            <Autocomplete
-              options={finalOptions}
-              selected={[]}
-              onSelect={updateSelection}
-              textField={textField}
-              loading={isLoading}
-              emptyState={
-                inputValue.trim() && finalOptions.length === 0 ? (
-                  <div style={{ padding: '12px', textAlign: 'center' }}>
-                    <Text as="p" tone="subdued">No matching tags found</Text>
-                  </div>
-                ) : undefined
-              }
-            />
+            )}
           </BlockStack>
 
-          {/* Selected Tags Display */}
-          {selectedTags.length > 0 && (
-            <BlockStack gap="300">
-              <Text variant="headingSm" as="h3">
-                Selected Tags ({selectedTags.length.toString()})
-              </Text>
-              
-              <InlineStack gap="200" wrap>
-                {selectedTags.map((tag) => {
-                  const currentYear = new Date().getFullYear().toString();
-                  const isDefaultTag = tag === formData.vendor || tag === currentYear;
-                  
-                  return (
-                    <Tag 
-                      key={tag} 
-                      onRemove={!isDefaultTag ? () => handleTagRemove(tag) : undefined}
-                    >
-                      {tag}
-                    </Tag>
-                  );
-                })}
-              </InlineStack>
-
-              {selectedTags.length === 0 && (
-                <Text as="p" tone="subdued">
-                  No tags selected yet. Add tags to help organize your product.
-                </Text>
-              )}
-            </BlockStack>
-          )}
+          <InlineStack gap="300" align="end">
+            <Button onClick={onBack}>Back</Button>
+            <Button 
+              variant="primary" 
+              onClick={onNext}
+            >
+              Next
+            </Button>
+          </InlineStack>
         </BlockStack>
-
-        <InlineStack gap="300" align="end">
-          <Button onClick={onBack}>Back</Button>
-          <Button 
-            variant="primary" 
-            onClick={onNext}
-          >
-            Next
-          </Button>
-        </InlineStack>
-      </BlockStack>
-    </Card>
+      </Card>
+    </>
   );
 } 

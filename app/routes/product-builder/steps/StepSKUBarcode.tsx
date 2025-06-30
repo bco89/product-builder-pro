@@ -10,6 +10,10 @@ import {
 
 interface StepSKUBarcodeProps {
   formData: {
+    vendor: string;
+    productType: string;
+    category: { id: string; name: string; } | null;
+    title: string;
     options: Array<{ name: string; values: string[] }>;
     skus: string[];
     barcodes: string[];
@@ -83,78 +87,100 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack, pro
   };
 
   return (
-    <Card>
-      <BlockStack gap="500">
-        <Text variant="headingMd" as="h2">
-          SKU & Barcode Assignment
-        </Text>
+    <>
+      {/* Enhanced Product Information Display Card */}
+      <Card>
+        <BlockStack gap="200">
+          <Text as="span">
+            <Text as="span" fontWeight="bold">Product Title:</Text> {formData.title || 'Not specified'}
+          </Text>
+          <InlineStack gap="400" wrap>
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Vendor:</Text> {formData.vendor || 'Not specified'}
+            </Text>
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Product Type:</Text> {formData.productType || 'Not specified'}
+            </Text>
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Category:</Text> {formData.category?.name || 'Not specified'}
+            </Text>
+          </InlineStack>
+        </BlockStack>
+      </Card>
 
-        {!hasVariants ? (
-          // Single product SKU/Barcode form
-          <BlockStack gap="400">
-            <TextField
-              label="SKU"
-              value={formData.skus[0] || ''}
-              onChange={handleSKUChange}
-              autoComplete="off"
-              helpText="Stock Keeping Unit - unique identifier for this product"
-            />
+      <Card>
+        <BlockStack gap="500">
+          <Text variant="headingMd" as="h2">
+            SKU & Barcode Assignment
+          </Text>
 
-            <TextField
-              label="Barcode (ISBN, UPC, GTIN, etc.)"
-              value={formData.barcodes[0] || ''}
-              onChange={handleBarcodeChange}
-              autoComplete="off"
-              helpText="Optional - Enter a valid barcode or leave blank"
-            />
-          </BlockStack>
-        ) : (
-          // Variant SKUs/Barcodes form
-          <BlockStack gap="500">
-            {variants.map((variant, index) => (
-              <Card key={variant.id}>
-                <BlockStack gap="400">
-                  <Text variant="headingSm" as="h3">
-                    {variant.title}
-                  </Text>
+          {!hasVariants ? (
+            // Single product SKU/Barcode form
+            <BlockStack gap="400">
+              <TextField
+                label="SKU"
+                value={formData.skus[0] || ''}
+                onChange={handleSKUChange}
+                autoComplete="off"
+                helpText="Stock Keeping Unit - unique identifier for this product"
+              />
 
-                  <BlockStack gap="300">
-                    <TextField
-                      label="SKU"
-                      value={variant.sku}
-                      onChange={(value) => handleVariantSKUChange(index, value)}
-                      autoComplete="off"
-                      helpText="Stock Keeping Unit - unique identifier for this variant"
-                    />
+              <TextField
+                label="Barcode (ISBN, UPC, GTIN, etc.)"
+                value={formData.barcodes[0] || ''}
+                onChange={handleBarcodeChange}
+                autoComplete="off"
+                helpText="Optional - Enter a valid barcode or leave blank"
+              />
+            </BlockStack>
+          ) : (
+            // Variant SKUs/Barcodes form
+            <BlockStack gap="500">
+              {variants.map((variant, index) => (
+                <Card key={variant.id}>
+                  <BlockStack gap="400">
+                    <Text variant="headingSm" as="h3">
+                      {variant.title}
+                    </Text>
 
-                    <TextField
-                      label="Barcode (ISBN, UPC, GTIN, etc.)"
-                      value={variant.barcode}
-                      onChange={(value) => handleVariantBarcodeChange(index, value)}
-                      autoComplete="off"
-                      helpText="Optional - Enter a valid barcode or leave blank"
-                    />
+                    <BlockStack gap="300">
+                      <TextField
+                        label="SKU"
+                        value={variant.sku}
+                        onChange={(value) => handleVariantSKUChange(index, value)}
+                        autoComplete="off"
+                        helpText="Stock Keeping Unit - unique identifier for this variant"
+                      />
+
+                      <TextField
+                        label="Barcode (ISBN, UPC, GTIN, etc.)"
+                        value={variant.barcode}
+                        onChange={(value) => handleVariantBarcodeChange(index, value)}
+                        autoComplete="off"
+                        helpText="Optional - Enter a valid barcode or leave blank"
+                      />
+                    </BlockStack>
                   </BlockStack>
-                </BlockStack>
-              </Card>
-            ))}
-          </BlockStack>
-        )}
+                </Card>
+              ))}
+            </BlockStack>
+          )}
 
-        <InlineStack gap="300" align="end">
-          <Button onClick={onBack}>Back</Button>
-          <Button 
-            variant="primary"
-            onClick={handleSubmit}
-            disabled={hasVariants ? 
-              variants.some(v => !v.sku) : 
-              !formData.skus[0]
-            }
-          >
-            Next
-          </Button>
-        </InlineStack>
-      </BlockStack>
-    </Card>
+          <InlineStack gap="300" align="end">
+            <Button onClick={onBack}>Back</Button>
+            <Button 
+              variant="primary"
+              onClick={handleSubmit}
+              disabled={hasVariants ? 
+                variants.some(v => !v.sku) : 
+                !formData.skus[0]
+              }
+            >
+              Next
+            </Button>
+          </InlineStack>
+        </BlockStack>
+      </Card>
+    </>
   );
 } 

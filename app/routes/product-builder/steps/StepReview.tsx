@@ -136,30 +136,40 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
         </Banner>
 
         <BlockStack gap="400">
-          {/* Basic Information */}
+          {/* Enhanced Product Information Display Card */}
           <Card>
             <BlockStack gap="400">
               <InlineStack align="space-between">
-                <Text variant="headingSm" as="h3">Basic Information</Text>
+                <BlockStack gap="200">
+                  <Text as="span">
+                    <Text as="span" fontWeight="bold">Product Title:</Text> {formData.title || 'Not specified'}
+                  </Text>
+                  <InlineStack gap="400" wrap>
+                    <Text as="span">
+                      <Text as="span" fontWeight="bold">Vendor:</Text> {formData.vendor || 'Not specified'}
+                    </Text>
+                    <Text as="span">
+                      <Text as="span" fontWeight="bold">Product Type:</Text> {formData.productType || 'Not specified'}
+                    </Text>
+                    <Text as="span">
+                      <Text as="span" fontWeight="bold">Category:</Text> {formData.category?.name || 'Not specified'}
+                    </Text>
+                  </InlineStack>
+                </BlockStack>
                 <Button variant="plain" onClick={() => handleEdit(STEPS.VENDOR_TYPE)}>Edit</Button>
               </InlineStack>
-              <List type="bullet">
-                <List.Item>Vendor: {formData.vendor}</List.Item>
-                <List.Item>Product Type: {formData.productType}</List.Item>
-              </List>
             </BlockStack>
           </Card>
 
-          {/* Product Details */}
+          {/* Description Card */}
           <Card>
             <BlockStack gap="400">
               <InlineStack align="space-between">
-                <Text variant="headingSm" as="h3">Product Details</Text>
+                <Text variant="headingSm" as="h3">Description</Text>
                 <Button variant="plain" onClick={() => handleEdit(STEPS.PRODUCT_DETAILS)}>Edit</Button>
               </InlineStack>
               <BlockStack gap="300">
-                <Text as="p">Title: {formData.title}</Text>
-                <Text as="p">Description: {formData.description}</Text>
+                <Text as="p">{formData.description || 'No description provided'}</Text>
                 {formData.images.length > 0 && (
                   <InlineStack gap="300">
                     {formData.images.map((image, index) => (

@@ -421,8 +421,8 @@ export default function ProductBuilder() {
   };
 
   const showPrimaryAction = () => {
-    // Only show for non-variant products on review step
-    return hasVariants === false && currentStep === steps.length - 1;
+    // Never show primary action - users must use the button at the bottom of the review page
+    return false;
   };
 
   return (

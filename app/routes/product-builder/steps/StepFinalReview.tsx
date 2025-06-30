@@ -38,6 +38,31 @@ export default function StepFinalReview({
           </Text>
         </Banner>
 
+        {/* Enhanced Product Information Display Card */}
+        <Card>
+          <BlockStack gap="400">
+            <InlineStack align="space-between">
+              <BlockStack gap="200">
+                <Text as="span">
+                  <Text as="span" fontWeight="bold">Product Title:</Text> {formData.title || 'Not specified'}
+                </Text>
+                <InlineStack gap="400" wrap>
+                  <Text as="span">
+                    <Text as="span" fontWeight="bold">Vendor:</Text> {formData.vendor || 'Not specified'}
+                  </Text>
+                  <Text as="span">
+                    <Text as="span" fontWeight="bold">Product Type:</Text> {formData.productType || 'Not specified'}
+                  </Text>
+                  <Text as="span">
+                    <Text as="span" fontWeight="bold">Category:</Text> {formData.category?.name || 'Not specified'}
+                  </Text>
+                </InlineStack>
+              </BlockStack>
+              <Button variant="plain" onClick={() => onEdit(0)}>Edit</Button>
+            </InlineStack>
+          </BlockStack>
+        </Card>
+
         {/* Show variant summary */}
         <Card>
           <BlockStack gap="300">

@@ -25,7 +25,10 @@ interface Option {
 
 interface StepVariantsProps {
   formData: {
+    vendor: string;
     productType: string;
+    category: { id: string; name: string; } | null;
+    title: string;
     options: Option[];
     variants: any[]; // Will be generated based on options
   };
@@ -384,311 +387,333 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
   const variantCount = calculateVariantCount();
 
   return (
-    <Card>
-      <BlockStack gap="500">
-        <Text variant="headingMd" as="h2">
-          Product Variants
-        </Text>
-
-        <Banner tone="info">
-          <Text as="p">
-            Add options (like Size or Color) and their values to create product variants. 
-            Each combination of option values will become a unique variant.
+    <>
+      {/* Enhanced Product Information Display Card */}
+      <Card>
+        <BlockStack gap="200">
+          <Text as="span">
+            <Text as="span" fontWeight="bold">Product Title:</Text> {formData.title || 'Not specified'}
           </Text>
-        </Banner>
-
-        {optionsError && allOptionsError && (
-          <Banner tone="warning">
-            <Text as="p">
-              Unable to load existing options. You can still create custom options below.
+          <InlineStack gap="400" wrap>
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Vendor:</Text> {formData.vendor || 'Not specified'}
             </Text>
-          </Banner>
-        )}
-
-        {!optionsError && !optionsLoading && existingOptions && existingOptions.length === 0 && !allOptionsLoading && (
-          <Banner tone="info">
-            <Text as="p">
-              No option names found for "{formData.productType}" products. You can choose from option names used by other product types or create a new one.
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Product Type:</Text> {formData.productType || 'Not specified'}
             </Text>
-          </Banner>
-        )}
-
-        {variantCount > 0 && (
-          <Box background="bg-surface-secondary" padding="400" borderRadius="200">
-            <InlineStack gap="200" align="center">
-              <Text as="p" fontWeight="medium">Variants to be created:</Text>
-              <Badge tone="info">{variantCount.toString()}</Badge>
-            </InlineStack>
-          </Box>
-        )}
-
-        <BlockStack gap="500">
-          {/* Option Selection Form */}
-          <Card>
-            <BlockStack gap="400">
-              {optionsError && allOptionsError ? (
-                <TextField
-                  label="Option Name"
-                  value={selectedOptionName}
-                  onChange={setSelectedOptionName}
-                  placeholder="Enter option name (e.g., Size, Color, Material)"
-                  helpText="Enter a custom option name since existing options could not be loaded."
-                  autoComplete="off"
-                />
-              ) : (
-                <BlockStack gap="300">
-                  <Select
-                    label="Option Name"
-                    options={optionNameOptions}
-                    value={isCustomOptionName ? 'custom' : selectedOptionName}
-                    onChange={handleOptionNameChange}
-                    placeholder={optionsLoading || allOptionsLoading ? "Loading options..." : 
-                      (existingOptions && existingOptions.length === 0 ? "Select an option name (from other products)" : "Select an option name")}
-                    helpText="Choose an existing option or create a new one."
-                  />
-                  
-                  {isCustomOptionName && (
-                    <TextField
-                      label="Custom Option Name"
-                      value={customOptionName}
-                      onChange={handleCustomOptionNameChange}
-                      placeholder="Enter option name (e.g., Size, Color, Material)"
-                      helpText="Enter a descriptive name for your new option."
-                      autoComplete="off"
-                    />
-                  )}
-                </BlockStack>
-              )}
-
-              {selectedOptionName && availableValues.length > 0 && !isCustomOptionName && (
-                <Box>
-                  <BlockStack gap="400">
-                    <InlineStack gap="200" align="space-between">
-                      <Text variant="headingSm" as="h4">
-                        Select Values for {selectedOptionName}
-                      </Text>
-                      <InlineStack gap="200">
-                        <Text variant="bodySm" as="p" tone="subdued">
-                          {selectedOptionValues.length} of 20 selected
-                        </Text>
-                        {selectedOptionValues.length > 0 && (
-                          <Button size="slim" onClick={handleClearAllValues}>
-                            Clear All
-                          </Button>
-                        )}
-                        {availableValues.length > 0 && selectedOptionValues.length < 20 && (
-                          <Button size="slim" onClick={handleSelectAllValues}>
-                            Select All (max 20)
-                          </Button>
-                        )}
-                      </InlineStack>
-                    </InlineStack>
-
-                    <Box 
-                      background="bg-surface-secondary" 
-                      padding="400" 
-                      borderRadius="200"
-                    >
-                      <div style={{height: '160px', overflow: 'auto'}}>
-                        <BlockStack gap="200">
-                          {availableValues.map((value, index) => {
-                            const isSelected = selectedOptionValues.includes(value);
-                            const isDisabled = !isSelected && selectedOptionValues.length >= 20;
-                            
-                            return (
-                              <Checkbox
-                                key={`${value}-${index}`}
-                                label={value}
-                                checked={isSelected}
-                                disabled={isDisabled}
-                                onChange={(checked) => handleValueSelectionChange(value, checked)}
-                              />
-                            );
-                          })}
-                        </BlockStack>
-                      </div>
-                    </Box>
-
-                    {selectedOptionValues.length >= 20 && (
-                      <Banner tone="warning">
-                        <Text as="p">
-                          Maximum of 20 values can be selected at once.
-                        </Text>
-                      </Banner>
-                    )}
-                  </BlockStack>
-                </Box>
-              )}
-
-              {selectedOptionName && (
-                <Box>
-                  <BlockStack gap="300">
-                    <TextField
-                      label="Add Custom Value"
-                      value={customValue}
-                      onChange={setCustomValue}
-                      placeholder={`Enter custom ${selectedOptionName.toLowerCase()} value(s)`}
-                      helpText={isCustomOptionName ? "Add variant titles for each product variant. Separate multiple values with commas (e.g., Small, Medium, Large)" : "Add variant titles for each product variant. Separate multiple values with commas (e.g., Red, Blue, Green)"}
-                      disabled={selectedOptionValues.length >= 20}
-                      autoComplete="off"
-                      connectedRight={
-                        <Button 
-                          onClick={handleAddCustomValue}
-                          disabled={!customValue.trim() || selectedOptionValues.length >= 20}
-                        >
-                          {customValue.includes(',') ? 'Add All' : 'Add'}
-                        </Button>
-                      }
-                    />
-                    
-                    {selectedOptionValues.length > 0 && (
-                      <Box background="bg-surface-secondary" padding="300" borderRadius="200">
-                        <BlockStack gap="200">
-                          <Text variant="bodySm" as="p" fontWeight="medium">
-                            Selected values ({selectedOptionValues.length}):
-                          </Text>
-                          <InlineStack gap="200" wrap>
-                            {smartSort(selectedOptionValues).map((value, index) => (
-                              <Badge key={`selected-${index}`} tone="info">
-                                {value}
-                              </Badge>
-                            ))}
-                          </InlineStack>
-                        </BlockStack>
-                      </Box>
-                    )}
-                  </BlockStack>
-                </Box>
-              )}
-
-              {selectedOptionName && (selectedOptionValues.length > 0) && (
-                <Button 
-                  variant="primary" 
-                  onClick={handleAddSelectedValues}
-                  disabled={selectedOptionValues.length === 0}
-                >
-                  Add {selectedOptionValues.length.toString()} Value{selectedOptionValues.length !== 1 ? 's' : ''} to {selectedOptionName}
-                </Button>
-              )}
-            </BlockStack>
-          </Card>
-
-          {/* Existing Options Display */}
-          {formData.options.length > 0 && (
-            <BlockStack gap="500">
-              <Banner tone="success">
-                <Text as="p">
-                  Great! Your variants are being configured. The system will automatically handle creating all combinations.
-                </Text>
-              </Banner>
-              
-              {formData.options.map((option, optionIndex) => (
-                <Card key={optionIndex}>
-                  <BlockStack gap="500">
-                    <InlineStack align="space-between">
-                      <Text variant="headingSm" as="h3">
-                        {option.name}
-                      </Text>
-                      <Button
-                        tone="critical"
-                        onClick={() => handleRemoveOption(optionIndex)}
-                      >
-                        Remove
-                      </Button>
-                    </InlineStack>
-
-                    {currentOptionIndex === optionIndex && (
-                      <Box paddingBlockEnd="600">
-                        <BlockStack gap="400">
-                          <TextField
-                            label="Add new value"
-                            value={customValue}
-                            onChange={setCustomValue}
-                            placeholder={`Enter ${option.name.toLowerCase()} value(s)`}
-                            autoComplete="off"
-                            helpText="Add variant titles for each product variant. Type a new value or select from suggestions below. Separate multiple values with commas (e.g., Small, Medium, Large)"
-                          />
-                          
-                          {(() => {
-                            const optionData = optionsForValues?.find(o => o.name === option.name);
-                            const filteredSuggestions = optionData?.values.filter(v => 
-                              customValue && v.toLowerCase().includes(customValue.toLowerCase())
-                            ) || [];
-                            
-                            if (filteredSuggestions.length > 0 && customValue) {
-                              return (
-                                <Box background="bg-surface-secondary" padding="200" borderRadius="200">
-                                  <BlockStack gap="100">
-                                    <Text as="p" variant="bodySm" tone="subdued">
-                                      Suggestions:
-                                    </Text>
-                                    <InlineStack gap="200" wrap>
-                                      {filteredSuggestions.slice(0, 5).map((suggestion, index) => (
-                                        <Button
-                                          key={`suggestion-${index}`}
-                                          size="slim"
-                                          onClick={() => setCustomValue(suggestion)}
-                                        >
-                                          {suggestion}
-                                        </Button>
-                                      ))}
-                                    </InlineStack>
-                                  </BlockStack>
-                                </Box>
-                              );
-                            }
-                            return null;
-                          })()}
-                          
-                          <Button 
-                            onClick={() => handleAddSingleValue(optionIndex)} 
-                            disabled={!customValue}
-                            variant="primary"
-                          >
-                            {customValue.includes(',') ? 'Add All Values' : 'Add Value'}
-                          </Button>
-                        </BlockStack>
-                      </Box>
-                    )}
-
-                    <InlineStack gap="300" wrap>
-                      {option.values.map((value, valueIndex) => (
-                        <Tag
-                          key={valueIndex}
-                          onRemove={() => handleRemoveValue(optionIndex, valueIndex)}
-                        >
-                          {value}
-                        </Tag>
-                      ))}
-                    </InlineStack>
-
-                    {currentOptionIndex !== optionIndex && (
-                      <Button
-                        onClick={() => {
-                          setCurrentOptionIndex(optionIndex);
-                          setCustomValue('');
-                        }}
-                        size="slim"
-                      >
-                        Add more values
-                      </Button>
-                    )}
-                  </BlockStack>
-                </Card>
-              ))}
-            </BlockStack>
-          )}
-
-          <InlineStack gap="300" align="center">
-            <Button onClick={onBack}>Back</Button>
-            {formData.options.length > 0 && (
-              <Button variant="primary" onClick={onNext}>
-                Continue with variants
-              </Button>
-            )}
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Category:</Text> {formData.category?.name || 'Not specified'}
+            </Text>
           </InlineStack>
         </BlockStack>
-      </BlockStack>
-    </Card>
+      </Card>
+
+      <Card>
+        <BlockStack gap="500">
+          <Text variant="headingMd" as="h2">
+            Product Variants
+          </Text>
+
+          <Banner tone="info">
+            <Text as="p">
+              Add options (like Size or Color) and their values to create product variants. 
+              Each combination of option values will become a unique variant.
+            </Text>
+          </Banner>
+
+          {optionsError && allOptionsError && (
+            <Banner tone="warning">
+              <Text as="p">
+                Unable to load existing options. You can still create custom options below.
+              </Text>
+            </Banner>
+          )}
+
+          {!optionsError && !optionsLoading && existingOptions && existingOptions.length === 0 && !allOptionsLoading && (
+            <Banner tone="info">
+              <Text as="p">
+                No option names found for "{formData.productType}" products. You can choose from option names used by other product types or create a new one.
+              </Text>
+            </Banner>
+          )}
+
+          {variantCount > 0 && (
+            <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+              <InlineStack gap="200" align="center">
+                <Text as="p" fontWeight="medium">Variants to be created:</Text>
+                <Badge tone="info">{variantCount.toString()}</Badge>
+              </InlineStack>
+            </Box>
+          )}
+
+          <BlockStack gap="500">
+            {/* Option Selection Form */}
+            <Card>
+              <BlockStack gap="400">
+                {optionsError && allOptionsError ? (
+                  <TextField
+                    label="Option Name"
+                    value={selectedOptionName}
+                    onChange={setSelectedOptionName}
+                    placeholder="Enter option name (e.g., Size, Color, Material)"
+                    helpText="Enter a custom option name since existing options could not be loaded."
+                    autoComplete="off"
+                  />
+                ) : (
+                  <BlockStack gap="300">
+                    <Select
+                      label="Option Name"
+                      options={optionNameOptions}
+                      value={isCustomOptionName ? 'custom' : selectedOptionName}
+                      onChange={handleOptionNameChange}
+                      placeholder={optionsLoading || allOptionsLoading ? "Loading options..." : 
+                        (existingOptions && existingOptions.length === 0 ? "Select an option name (from other products)" : "Select an option name")}
+                      helpText="Choose an existing option or create a new one."
+                    />
+                    
+                    {isCustomOptionName && (
+                      <TextField
+                        label="Custom Option Name"
+                        value={customOptionName}
+                        onChange={handleCustomOptionNameChange}
+                        placeholder="Enter option name (e.g., Size, Color, Material)"
+                        helpText="Enter a descriptive name for your new option."
+                        autoComplete="off"
+                      />
+                    )}
+                  </BlockStack>
+                )}
+
+                {selectedOptionName && availableValues.length > 0 && !isCustomOptionName && (
+                  <Box>
+                    <BlockStack gap="400">
+                      <InlineStack gap="200" align="space-between">
+                        <Text variant="headingSm" as="h4">
+                          Select Values for {selectedOptionName}
+                        </Text>
+                        <InlineStack gap="200">
+                          <Text variant="bodySm" as="p" tone="subdued">
+                            {selectedOptionValues.length} of 20 selected
+                          </Text>
+                          {selectedOptionValues.length > 0 && (
+                            <Button size="slim" onClick={handleClearAllValues}>
+                              Clear All
+                            </Button>
+                          )}
+                          {availableValues.length > 0 && selectedOptionValues.length < 20 && (
+                            <Button size="slim" onClick={handleSelectAllValues}>
+                              Select All (max 20)
+                            </Button>
+                          )}
+                        </InlineStack>
+                      </InlineStack>
+
+                      <Box 
+                        background="bg-surface-secondary" 
+                        padding="400" 
+                        borderRadius="200"
+                      >
+                        <div style={{height: '160px', overflow: 'auto'}}>
+                          <BlockStack gap="200">
+                            {availableValues.map((value, index) => {
+                              const isSelected = selectedOptionValues.includes(value);
+                              const isDisabled = !isSelected && selectedOptionValues.length >= 20;
+                              
+                              return (
+                                <Checkbox
+                                  key={`${value}-${index}`}
+                                  label={value}
+                                  checked={isSelected}
+                                  disabled={isDisabled}
+                                  onChange={(checked) => handleValueSelectionChange(value, checked)}
+                                />
+                              );
+                            })}
+                          </BlockStack>
+                        </div>
+                      </Box>
+
+                      {selectedOptionValues.length >= 20 && (
+                        <Banner tone="warning">
+                          <Text as="p">
+                            Maximum of 20 values can be selected at once.
+                          </Text>
+                        </Banner>
+                      )}
+                    </BlockStack>
+                  </Box>
+                )}
+
+                {selectedOptionName && (
+                  <Box>
+                    <BlockStack gap="300">
+                      <TextField
+                        label="Add Custom Value"
+                        value={customValue}
+                        onChange={setCustomValue}
+                        placeholder={`Enter custom ${selectedOptionName.toLowerCase()} value(s)`}
+                        helpText={isCustomOptionName ? "Add variant titles for each product variant. Separate multiple values with commas (e.g., Small, Medium, Large)" : "Add variant titles for each product variant. Separate multiple values with commas (e.g., Red, Blue, Green)"}
+                        disabled={selectedOptionValues.length >= 20}
+                        autoComplete="off"
+                        connectedRight={
+                          <Button 
+                            onClick={handleAddCustomValue}
+                            disabled={!customValue.trim() || selectedOptionValues.length >= 20}
+                          >
+                            {customValue.includes(',') ? 'Add All' : 'Add'}
+                          </Button>
+                        }
+                      />
+                      
+                      {selectedOptionValues.length > 0 && (
+                        <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+                          <BlockStack gap="200">
+                            <Text variant="bodySm" as="p" fontWeight="medium">
+                              Selected values ({selectedOptionValues.length}):
+                            </Text>
+                            <InlineStack gap="200" wrap>
+                              {smartSort(selectedOptionValues).map((value, index) => (
+                                <Badge key={`selected-${index}`} tone="info">
+                                  {value}
+                                </Badge>
+                              ))}
+                            </InlineStack>
+                          </BlockStack>
+                        </Box>
+                      )}
+                    </BlockStack>
+                  </Box>
+                )}
+
+                {selectedOptionName && (selectedOptionValues.length > 0) && (
+                  <Button 
+                    variant="primary" 
+                    onClick={handleAddSelectedValues}
+                    disabled={selectedOptionValues.length === 0}
+                  >
+                    Add {selectedOptionValues.length.toString()} Value{selectedOptionValues.length !== 1 ? 's' : ''} to {selectedOptionName}
+                  </Button>
+                )}
+              </BlockStack>
+            </Card>
+
+            {/* Existing Options Display */}
+            {formData.options.length > 0 && (
+              <BlockStack gap="500">
+                <Banner tone="success">
+                  <Text as="p">
+                    Great! Your variants are being configured. The system will automatically handle creating all combinations.
+                  </Text>
+                </Banner>
+                
+                {formData.options.map((option, optionIndex) => (
+                  <Card key={optionIndex}>
+                    <BlockStack gap="500">
+                      <InlineStack align="space-between">
+                        <Text variant="headingSm" as="h3">
+                          {option.name}
+                        </Text>
+                        <Button
+                          tone="critical"
+                          onClick={() => handleRemoveOption(optionIndex)}
+                        >
+                          Remove
+                        </Button>
+                      </InlineStack>
+
+                      {currentOptionIndex === optionIndex && (
+                        <Box paddingBlockEnd="600">
+                          <BlockStack gap="400">
+                            <TextField
+                              label="Add new value"
+                              value={customValue}
+                              onChange={setCustomValue}
+                              placeholder={`Enter ${option.name.toLowerCase()} value(s)`}
+                              autoComplete="off"
+                              helpText="Add variant titles for each product variant. Type a new value or select from suggestions below. Separate multiple values with commas (e.g., Small, Medium, Large)"
+                            />
+                            
+                            {(() => {
+                              const optionData = optionsForValues?.find(o => o.name === option.name);
+                              const filteredSuggestions = optionData?.values.filter(v => 
+                                customValue && v.toLowerCase().includes(customValue.toLowerCase())
+                              ) || [];
+                              
+                              if (filteredSuggestions.length > 0 && customValue) {
+                                return (
+                                  <Box background="bg-surface-secondary" padding="200" borderRadius="200">
+                                    <BlockStack gap="100">
+                                      <Text as="p" variant="bodySm" tone="subdued">
+                                        Suggestions:
+                                      </Text>
+                                      <InlineStack gap="200" wrap>
+                                        {filteredSuggestions.slice(0, 5).map((suggestion, index) => (
+                                          <Button
+                                            key={`suggestion-${index}`}
+                                            size="slim"
+                                            onClick={() => setCustomValue(suggestion)}
+                                          >
+                                            {suggestion}
+                                          </Button>
+                                        ))}
+                                      </InlineStack>
+                                    </BlockStack>
+                                  </Box>
+                                );
+                              }
+                              return null;
+                            })()}
+                            
+                            <Button 
+                              onClick={() => handleAddSingleValue(optionIndex)} 
+                              disabled={!customValue}
+                              variant="primary"
+                            >
+                              {customValue.includes(',') ? 'Add All Values' : 'Add Value'}
+                            </Button>
+                          </BlockStack>
+                        </Box>
+                      )}
+
+                      <InlineStack gap="300" wrap>
+                        {option.values.map((value, valueIndex) => (
+                          <Tag
+                            key={valueIndex}
+                            onRemove={() => handleRemoveValue(optionIndex, valueIndex)}
+                          >
+                            {value}
+                          </Tag>
+                        ))}
+                      </InlineStack>
+
+                      {currentOptionIndex !== optionIndex && (
+                        <Button
+                          onClick={() => {
+                            setCurrentOptionIndex(optionIndex);
+                            setCustomValue('');
+                          }}
+                          size="slim"
+                        >
+                          Add more values
+                        </Button>
+                      )}
+                    </BlockStack>
+                  </Card>
+                ))}
+              </BlockStack>
+            )}
+
+            <InlineStack gap="300" align="center">
+              <Button onClick={onBack}>Back</Button>
+              {formData.options.length > 0 && (
+                <Button variant="primary" onClick={onNext}>
+                  Continue with variants
+                </Button>
+              )}
+            </InlineStack>
+          </BlockStack>
+        </BlockStack>
+      </Card>
+    </>
   );
 } 
