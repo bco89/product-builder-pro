@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import {
   Card,
   FormLayout,
@@ -335,18 +335,20 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
   }, [productTypeCategories, categoryInputValue]);
 
   // Update category input when selection changes or when product type changes
-  useMemo(() => {
+  useEffect(() => {
     if (formData.category?.name !== categoryInputValue) {
       setCategoryInputValue(formData.category?.name || '');
     }
-  }, [formData.category?.name, categoryInputValue]);
+  }, [formData.category?.name]);
 
   // Clear category input when product type changes
-  useMemo(() => {
-    if (!formData.category && categoryInputValue) {
+  useEffect(() => {
+    // Only clear if we don't have a category selected and we have some input
+    // but don't clear during normal typing (when product type exists)
+    if (!formData.category && categoryInputValue && !formData.productType) {
       setCategoryInputValue('');
     }
-  }, [formData.category, categoryInputValue]);
+  }, [formData.category, formData.productType]);
 
   // Initialize filtered data when source data loads
   useMemo(() => {
@@ -488,7 +490,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
                     placeholder="Search vendors or type to create new..."
                     autoComplete="off"
                     disabled={!!vendorsError}
-                    helpText="Start typing to search for vendors in your store or create a new one"
+                    helpText="Search existing vendors or type a new vendor name to create one"
                   />
                 }
               >
@@ -506,11 +508,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
               </Combobox>
             )}
           </div>
-          {!formData.vendor && !vendorsLoading && (
-            <Text as="p" variant="bodyMd" tone="subdued">
-              Search and select a vendor or type a new vendor name to create one
-            </Text>
-          )}
+
           {vendorsError && (
             <InlineError message="Unable to load vendors" fieldID="vendor" />
           )}
