@@ -8,14 +8,16 @@ import {
   Text,
   Banner,
   Tag,
-  Select,
   Listbox,
   Combobox,
   Box,
   Badge,
   Checkbox,
   Scrollable,
+  Icon,
+  ChoiceList,
 } from '@shopify/polaris';
+import { SearchIcon, PlusIcon } from '@shopify/polaris-icons';
 import { useQuery } from '@tanstack/react-query';
 
 interface Option {
@@ -104,7 +106,12 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
   const [currentOptionIndex, setCurrentOptionIndex] = useState<number | null>(null);
   const [customValue, setCustomValue] = useState('');
   const [isCustomOptionName, setIsCustomOptionName] = useState(false);
-  const [customOptionName, setCustomOptionName] = useState('');
+  
+  // New state for Combobox implementation
+  const [optionNameInputValue, setOptionNameInputValue] = useState('');
+  const [valueInputValue, setValueInputValue] = useState('');
+  const [valueSearchQuery, setValueSearchQuery] = useState('');
+  const [valueComboboxInputValue, setValueComboboxInputValue] = useState('');
 
   // Auto-show options form when shouldShowOptionsForm is true
   useEffect(() => {
@@ -132,17 +139,22 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
     }
   });
 
-  // Fetch all options as fallback when current product type has no options
+  // Fetch all options to show other product types' options
   const { data: allOptions, isLoading: allOptionsLoading, isError: allOptionsError } = useQuery({
     queryKey: ['allProductOptions'],
-    enabled: !!formData.productType && !optionsLoading && !optionsError && (!existingOptions || existingOptions.length === 0),
+    enabled: !!formData.productType,
     queryFn: async () => {
       const response = await fetch('/api/shopify/products?type=allOptions');
       if (!response.ok) {
         throw new Error('Failed to fetch all product options');
       }
       const data = await response.json();
-      return data.options as Option[];
+      // Filter out "Title" and "Default Title" options to avoid confusion
+      const filteredOptions = (data.options as Option[]).filter(
+        option => option.name.toLowerCase() !== 'title' && 
+                 option.name.toLowerCase() !== 'default title'
+      );
+      return filteredOptions;
     }
   });
 
@@ -150,24 +162,55 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
     setShowOptionsForm(true);
   }, []);
 
-  const handleOptionNameChange = useCallback((value: string) => {
-    if (value === 'custom') {
-      setIsCustomOptionName(true);
-      setSelectedOptionName('');
-      setCustomOptionName('');
-    } else {
-      setIsCustomOptionName(false);
-      setSelectedOptionName(value);
-      setCustomOptionName('');
-    }
-    setSelectedOptionValues([]); // Reset selected values when option name changes
+  // New handlers for Combobox option name selection
+  const updateOptionNameText = useCallback((value: string) => {
+    setOptionNameInputValue(value);
+    setSelectedOptionName(value);
+    setIsCustomOptionName(true);
+    setSelectedOptionValues([]);
     setCustomValue('');
   }, []);
 
-  const handleCustomOptionNameChange = useCallback((value: string) => {
-    setCustomOptionName(value);
-    setSelectedOptionName(value);
+  const updateOptionNameSelection = useCallback((selected: string) => {
+    if (selected.startsWith('create:')) {
+      const newOptionName = selected.replace('create:', '');
+      if (newOptionName === 'new') {
+        // Focus the input field for the user to start typing
+        setOptionNameInputValue('');
+        setSelectedOptionName('');
+        setIsCustomOptionName(true);
+        return;
+      }
+      setSelectedOptionName(newOptionName);
+      setOptionNameInputValue(newOptionName);
+      setIsCustomOptionName(true);
+    } else {
+      setSelectedOptionName(selected);
+      setOptionNameInputValue(selected);
+      setIsCustomOptionName(false);
+    }
+    setSelectedOptionValues([]);
+    setCustomValue('');
   }, []);
+
+  // Enhanced value selection handlers
+  const updateValueText = useCallback((value: string) => {
+    setValueInputValue(value);
+  }, []);
+
+  const updateValueSelection = useCallback((selected: string[]) => {
+    if (selected.some(s => s.startsWith('create:'))) {
+      const newValues = selected
+        .filter(s => s.startsWith('create:'))
+        .map(s => s.replace('create:', ''));
+      const existingValues = selected.filter(s => !s.startsWith('create:'));
+      setSelectedOptionValues([...existingValues, ...newValues]);
+    } else {
+      setSelectedOptionValues(selected);
+    }
+  }, []);
+
+
 
   const handleValueSelectionChange = useCallback((value: string, checked: boolean) => {
     setSelectedOptionValues(prev => {
@@ -184,15 +227,43 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
     });
   }, []);
 
-  const handleSelectAllValues = useCallback(() => {
-    const availableValues = existingOptions
-      ?.find(opt => opt.name === selectedOptionName)
-      ?.values || [];
-    
-    const sortedValues = smartSort(availableValues);
-    const valuesToSelect = sortedValues.slice(0, 20); // Limit to 20
-    setSelectedOptionValues(valuesToSelect);
-  }, [selectedOptionName, existingOptions]);
+  // New handler for ChoiceList multiple selection
+  const handleChoiceListChange = useCallback((values: string[]) => {
+    // Limit to 20 values maximum
+    if (values.length <= 20) {
+      setSelectedOptionValues(values);
+    }
+  }, []);
+
+  // Handler for suggested value selection
+  const handleSelectSuggestedValue = useCallback((value: string) => {
+    if (!selectedOptionValues.includes(value) && selectedOptionValues.length < 20) {
+      setSelectedOptionValues(prev => [...prev, value]);
+    }
+  }, [selectedOptionValues]);
+
+  // Handler for value combobox text updates
+  const updateValueComboboxText = useCallback((value: string) => {
+    setValueComboboxInputValue(value);
+  }, []);
+
+  // Handler for value combobox selection
+  const updateValueComboboxSelection = useCallback((selected: string) => {
+    if (selected.startsWith('create:')) {
+      const newValue = selected.replace('create:', '');
+      if (newValue && !selectedOptionValues.includes(newValue) && selectedOptionValues.length < 20) {
+        setSelectedOptionValues(prev => [...prev, newValue]);
+        setValueComboboxInputValue('');
+      }
+    } else {
+      if (!selectedOptionValues.includes(selected) && selectedOptionValues.length < 20) {
+        setSelectedOptionValues(prev => [...prev, selected]);
+        setValueComboboxInputValue('');
+      }
+    }
+  }, [selectedOptionValues]);
+
+
 
   const handleClearAllValues = useCallback(() => {
     setSelectedOptionValues([]);
@@ -247,8 +318,12 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
       onChange({ options: updatedOptions });
     }
     
+    // Reset form state
     setSelectedOptionValues([]);
     setCustomValue('');
+    setOptionNameInputValue('');
+    setSelectedOptionName('');
+    setIsCustomOptionName(false);
     
     // Auto-advance to next step
     onNext();
@@ -293,52 +368,78 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
     onNext();
   }, [onChange, onNext]);
 
-  // Create options for the dropdown with fallback support
-  const optionNameOptions = useMemo(() => {
-    const options = [];
+
+
+
+
+  // Organized options for better UX
+  const organizedOptions = useMemo(() => {
+    // Options used in products with the same product type
+    const currentProductTypeOptions = existingOptions?.filter(opt => 
+      !opt.name.toLowerCase().includes('title')
+    ) || [];
     
-    // Add current product type options first (if any)
-    if (existingOptions && existingOptions.length > 0) {
-      existingOptions.forEach(option => {
-        options.push({
-          label: option.name,
-          value: option.name
-        });
-      });
-    }
+    // Options used in other products (different product types)
+    const otherProductOptions = allOptions?.filter(opt => 
+      !opt.name.toLowerCase().includes('title') &&
+      !currentProductTypeOptions.some(existing => existing.name === opt.name)
+    ) || [];
     
-    // Add separator if we have both current type and fallback options
-    if (existingOptions && existingOptions.length > 0 && allOptions && allOptions.length > 0) {
-      options.push({ label: '── Other Options ──', value: 'separator', disabled: true });
-    }
-    
-    // Add options from other product types (if current type has no options)
-    if (allOptions && allOptions.length > 0) {
-      // Filter out options that are already in existingOptions
-      const existingOptionNames = new Set(existingOptions?.map(opt => opt.name) || []);
-      const uniqueAllOptions = allOptions.filter(option => !existingOptionNames.has(option.name));
-      
-      uniqueAllOptions.forEach(option => {
-        options.push({
-          label: option.name,
-          value: option.name
-        });
-      });
-    }
-    
-    // Always add option to create custom
-    options.push({ label: '── Create Custom ──', value: 'separator2', disabled: true });
-    options.push({ label: '+ Create new option name', value: 'custom' });
-    
-    return options;
+    return {
+      current: currentProductTypeOptions,
+      other: otherProductOptions
+    };
   }, [existingOptions, allOptions, formData.productType]);
+
+  // Filtered options based on input
+  const filteredOptions = useMemo(() => {
+    if (!optionNameInputValue.trim()) {
+      return [
+        ...organizedOptions.current,
+        ...organizedOptions.other.slice(0, 5) // Limit other options
+      ];
+    }
+
+    const searchTerm = optionNameInputValue.toLowerCase();
+    const allAvailableOptions = [
+      ...organizedOptions.current,
+      ...organizedOptions.other
+    ];
+
+    return allAvailableOptions.filter(option => {
+      return option.name?.toLowerCase().includes(searchTerm);
+    });
+  }, [optionNameInputValue, organizedOptions]);
+
+  // Check if input exactly matches an existing option
+  const exactMatch = useMemo(() => {
+    return filteredOptions.some(option => {
+      return option.name?.toLowerCase() === optionNameInputValue.toLowerCase();
+    });
+  }, [filteredOptions, optionNameInputValue]);
 
   // Determine which options to use for values
   const optionsForValues = useMemo(() => {
-    if (existingOptions && existingOptions.length > 0) {
-      return existingOptions;
-    }
-    return allOptions || [];
+    // Combine current product type options with all other options
+    const currentOptions = existingOptions || [];
+    const otherOptions = allOptions || [];
+    
+    // Create a map to avoid duplicates, prioritizing current product type options
+    const optionsMap = new Map<string, Option>();
+    
+    // Add current product type options first (higher priority)
+    currentOptions.forEach(option => {
+      optionsMap.set(option.name.toLowerCase(), option);
+    });
+    
+    // Add other options if not already present
+    otherOptions.forEach(option => {
+      if (!optionsMap.has(option.name.toLowerCase())) {
+        optionsMap.set(option.name.toLowerCase(), option);
+      }
+    });
+    
+    return Array.from(optionsMap.values());
   }, [existingOptions, allOptions]);
 
   if (!showOptionsForm && formData.options.length === 0) {
@@ -378,6 +479,40 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
     return smartSort(values);
   }, [optionsForValues, selectedOptionName, optionsError, allOptionsError, isCustomOptionName]);
 
+  // Organize values similar to how options are organized
+  const organizedValues = useMemo(() => {
+    if (!selectedOptionName || isCustomOptionName) return { current: [], other: [] };
+    
+    // Values from the current selected option name
+    const currentOptionValues = existingOptions?.find(opt => opt.name === selectedOptionName)?.values || [];
+    
+    // Values from other option names (for cross-option suggestions)
+    const otherOptionValues = optionsForValues
+      ?.filter(opt => opt.name !== selectedOptionName)
+      .flatMap(opt => opt.values)
+      .filter((value, index, arr) => arr.indexOf(value) === index) // Remove duplicates
+      || [];
+    
+    return {
+      current: smartSort(currentOptionValues),
+      other: smartSort(otherOptionValues.slice(0, 10)) // Limit to 10 suggestions
+    };
+  }, [selectedOptionName, existingOptions, optionsForValues, isCustomOptionName]);
+
+  // Filtered values for combobox based on input
+  const filteredValuesForCombobox = useMemo(() => {
+    if (!valueComboboxInputValue.trim()) {
+      return organizedValues.other.slice(0, 8); // Show top 8 other values when no input
+    }
+
+    const searchTerm = valueComboboxInputValue.toLowerCase();
+    const allValues = [...organizedValues.current, ...organizedValues.other];
+
+    return allValues
+      .filter(value => value.toLowerCase().includes(searchTerm))
+      .slice(0, 10); // Limit to 10 results
+  }, [valueComboboxInputValue, organizedValues]);
+
   // Calculate total variants that will be created
   const calculateVariantCount = () => {
     if (formData.options.length === 0) return 0;
@@ -388,6 +523,39 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
 
   return (
     <>
+      <style>
+        {`
+          /* Improve Listbox option hover states and cursor */
+          [data-listbox-option] {
+            cursor: pointer !important;
+            transition: background-color 0.15s ease;
+          }
+          
+          [data-listbox-option]:hover {
+            background-color: var(--p-color-bg-surface-hover) !important;
+          }
+          
+          [data-listbox-option]:focus {
+            background-color: var(--p-color-bg-surface-selected) !important;
+            outline: 2px solid var(--p-color-border-focus) !important;
+            outline-offset: -2px !important;
+          }
+          
+          [data-listbox-option] * {
+            cursor: pointer !important;
+          }
+          
+          /* Section headers should not be clickable */
+          .option-section-header {
+            cursor: default !important;
+          }
+          
+          .option-section-header * {
+            cursor: default !important;
+          }
+        `}
+      </style>
+      
       {/* Enhanced Product Information Display Card */}
       <Card>
         <BlockStack gap="200">
@@ -429,10 +597,22 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
             </Banner>
           )}
 
+          {(optionsLoading || allOptionsLoading) && (
+            <Banner tone="info">
+              <Text as="p">
+                Loading option names...
+              </Text>
+            </Banner>
+          )}
+
           {!optionsError && !optionsLoading && existingOptions && existingOptions.length === 0 && !allOptionsLoading && (
             <Banner tone="info">
               <Text as="p">
-                No option names found for "{formData.productType}" products. You can choose from option names used by other product types or create a new one.
+                No option names found for "{formData.productType}" products. 
+                {allOptions && allOptions.length > 0 
+                  ? `Found ${allOptions.length} options from other product types.`
+                  : 'You can create a new option below.'
+                }
               </Text>
             </Banner>
           )}
@@ -461,77 +641,250 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
                   />
                 ) : (
                   <BlockStack gap="300">
-                    <Select
-                      label="Option Name"
-                      options={optionNameOptions}
-                      value={isCustomOptionName ? 'custom' : selectedOptionName}
-                      onChange={handleOptionNameChange}
-                      placeholder={optionsLoading || allOptionsLoading ? "Loading options..." : 
-                        (existingOptions && existingOptions.length === 0 ? "Select an option name (from other products)" : "Select an option name")}
-                      helpText="Choose an existing option or create a new one."
-                    />
-                    
-                    {isCustomOptionName && (
-                      <TextField
-                        label="Custom Option Name"
-                        value={customOptionName}
-                        onChange={handleCustomOptionNameChange}
-                        placeholder="Enter option name (e.g., Size, Color, Material)"
-                        helpText="Enter a descriptive name for your new option."
-                        autoComplete="off"
-                      />
-                    )}
+                    <Combobox
+                      activator={
+                        <Combobox.TextField
+                          prefix={<Icon source={SearchIcon} />}
+                          onChange={updateOptionNameText}
+                          label="Option Name"
+                          value={optionNameInputValue}
+                          placeholder="Search existing options or create new (e.g., Size, Color, Material)"
+                          autoComplete="off"
+                          loading={optionsLoading || allOptionsLoading}
+                          helpText="Type to search existing options or create a new one."
+                        />
+                      }
+                      preferredPosition="below"
+                      height="280px"
+                    >
+                      {filteredOptions.length > 0 || optionNameInputValue ? (
+                        <Listbox onSelect={updateOptionNameSelection}>
+                          {/* Current product type options */}
+                          {organizedOptions.current.length > 0 && (
+                            <>
+                              <div className="option-section-header">
+                                <Box padding="200" background="bg-surface-secondary">
+                                  <Text as="p" variant="bodySm" fontWeight="semibold" tone="subdued">
+                                    Used in {formData.productType} products
+                                  </Text>
+                                </Box>
+                              </div>
+                              {organizedOptions.current
+                                .filter(option => !optionNameInputValue || option.name.toLowerCase().includes(optionNameInputValue.toLowerCase()))
+                                .map((option) => (
+                                <Listbox.Option
+                                  key={option.name}
+                                  value={option.name}
+                                >
+                                  <Box padding="200">
+                                    <InlineStack align="space-between" blockAlign="center">
+                                      <Text as="span" variant="bodySm" fontWeight="medium">
+                                        {option.name}
+                                      </Text>
+                                      <Badge tone="info" size="small">
+                                        {`${option.values.length} values`}
+                                      </Badge>
+                                    </InlineStack>
+                                  </Box>
+                                </Listbox.Option>
+                              ))}
+                            </>
+                          )}
+
+                          {/* Other Option Names */}
+                          {organizedOptions.other.length > 0 && (
+                            <>
+                              <div className="option-section-header">
+                                <Box padding="200" background="bg-surface-secondary">
+                                  <Text as="p" variant="bodySm" fontWeight="semibold" tone="subdued">
+                                    Other Option Names
+                                  </Text>
+                                </Box>
+                              </div>
+                              {organizedOptions.other
+                                .filter(option => !optionNameInputValue || option.name.toLowerCase().includes(optionNameInputValue.toLowerCase()))
+                                .slice(0, 8)
+                                .map((option) => (
+                                <Listbox.Option
+                                  key={option.name}
+                                  value={option.name}
+                                >
+                                  <Box padding="200">
+                                    <InlineStack align="space-between" blockAlign="center">
+                                      <Text as="span" variant="bodySm">
+                                        {option.name}
+                                      </Text>
+                                      <Badge size="small">
+                                        {`${option.values.length} values`}
+                                      </Badge>
+                                    </InlineStack>
+                                  </Box>
+                                </Listbox.Option>
+                              ))}
+                            </>
+                          )}
+
+                          {/* Create new section - always visible */}
+                          <div className="option-section-header">
+                            <Box padding="200" background="bg-surface-secondary">
+                              <Text as="p" variant="bodySm" fontWeight="semibold" tone="subdued">
+                                Create new
+                              </Text>
+                            </Box>
+                          </div>
+                          
+                          {/* Create new option when typing */}
+                          {optionNameInputValue && !exactMatch && (
+                            <Listbox.Option value={`create:${optionNameInputValue}`}>
+                              <Box padding="200">
+                                <InlineStack gap="200" blockAlign="center">
+                                  <Box 
+                                    background="bg-surface-brand" 
+                                    borderRadius="100" 
+                                    padding="050"
+                                  >
+                                    <Icon source={PlusIcon} tone="base" />
+                                  </Box>
+                                  <BlockStack gap="025">
+                                    <Text as="span" variant="bodySm" fontWeight="medium">
+                                      Create "{optionNameInputValue}"
+                                    </Text>
+                                    <Text as="span" variant="bodySm" tone="subdued">
+                                      New option for your products
+                                    </Text>
+                                  </BlockStack>
+                                </InlineStack>
+                              </Box>
+                            </Listbox.Option>
+                          )}
+                          
+                          {/* Create new placeholder when not typing */}
+                          {!optionNameInputValue && (
+                            <Listbox.Option value="create:new">
+                              <Box padding="200">
+                                <InlineStack gap="200" blockAlign="center">
+                                  <Box 
+                                    background="bg-surface-tertiary" 
+                                    borderRadius="100" 
+                                    padding="050"
+                                  >
+                                    <Icon source={PlusIcon} tone="subdued" />
+                                  </Box>
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    Start typing to create a new option
+                                  </Text>
+                                </InlineStack>
+                              </Box>
+                            </Listbox.Option>
+                          )}
+                        </Listbox>
+                      ) : null}
+                    </Combobox>
                   </BlockStack>
                 )}
 
-                {selectedOptionName && availableValues.length > 0 && !isCustomOptionName && (
+                {selectedOptionName && !isCustomOptionName && (
                   <Box>
                     <BlockStack gap="400">
-                      <InlineStack gap="200" align="space-between">
-                        <Text variant="headingSm" as="h4">
-                          Select Values for {selectedOptionName}
-                        </Text>
-                        <InlineStack gap="200">
-                          <Text variant="bodySm" as="p" tone="subdued">
-                            {selectedOptionValues.length} of 20 selected
-                          </Text>
-                          {selectedOptionValues.length > 0 && (
-                            <Button size="slim" onClick={handleClearAllValues}>
-                              Clear All
-                            </Button>
-                          )}
-                          {availableValues.length > 0 && selectedOptionValues.length < 20 && (
-                            <Button size="slim" onClick={handleSelectAllValues}>
-                              Select All (max 20)
-                            </Button>
-                          )}
-                        </InlineStack>
-                      </InlineStack>
+                      <Text variant="headingSm" as="h4">
+                        Add Values for {selectedOptionName}
+                      </Text>
 
-                      <Box 
-                        background="bg-surface-secondary" 
-                        padding="400" 
-                        borderRadius="200"
-                      >
-                        <div style={{height: '160px', overflow: 'auto'}}>
-                          <BlockStack gap="200">
-                            {availableValues.map((value, index) => {
-                              const isSelected = selectedOptionValues.includes(value);
-                              const isDisabled = !isSelected && selectedOptionValues.length >= 20;
+                      {/* Suggested Values Section */}
+                      {organizedValues.current.length > 0 && (
+                        <BlockStack gap="300">
+                          <Text variant="bodySm" as="p" tone="subdued">
+                            Values from other products with the same option name
+                          </Text>
+                          <Box 
+                            background="bg-surface-secondary" 
+                            padding="400" 
+                            borderRadius="200"
+                          >
+                            <InlineStack gap="200" wrap>
+                              {organizedValues.current.map((value, index) => (
+                                <Button
+                                  key={`suggested-${index}`}
+                                  size="slim"
+                                  disabled={selectedOptionValues.includes(value) || selectedOptionValues.length >= 20}
+                                  onClick={() => handleSelectSuggestedValue(value)}
+                                >
+                                  {value}
+                                </Button>
+                              ))}
+                            </InlineStack>
+                          </Box>
+                        </BlockStack>
+                      )}
+
+                      {/* Additional Values Combobox */}
+                      <BlockStack gap="200">
+                        <Text variant="bodySm" as="p">Additional Values</Text>
+                                                 <Combobox
+                           activator={
+                             <Combobox.TextField
+                               label="Additional values"
+                               labelHidden
+                               prefix={<Icon source={PlusIcon} />}
+                               onChange={updateValueComboboxText}
+                               value={valueComboboxInputValue}
+                               placeholder="Add values used for other option names..."
+                               autoComplete="off"
+                               disabled={selectedOptionValues.length >= 20}
+                             />
+                           }
+                          allowMultiple={false}
+                        >
+                          {filteredValuesForCombobox.length > 0 ? (
+                            <Listbox onSelect={updateValueComboboxSelection}>
+                              {filteredValuesForCombobox.map((value) => (
+                                <Listbox.Option
+                                  key={value}
+                                  value={value}
+                                  disabled={selectedOptionValues.includes(value)}
+                                >
+                                  <Box padding="200">
+                                    <InlineStack gap="200" align="space-between">
+                                      <Text as="span" variant="bodySm">
+                                        {value}
+                                      </Text>
+                                      {selectedOptionValues.includes(value) && (
+                                        <Badge tone="success">Selected</Badge>
+                                      )}
+                                    </InlineStack>
+                                  </Box>
+                                </Listbox.Option>
+                              ))}
                               
-                              return (
-                                <Checkbox
-                                  key={`${value}-${index}`}
-                                  label={value}
-                                  checked={isSelected}
-                                  disabled={isDisabled}
-                                  onChange={(checked) => handleValueSelectionChange(value, checked)}
-                                />
-                              );
-                            })}
-                          </BlockStack>
-                        </div>
-                      </Box>
+                              {valueComboboxInputValue && !filteredValuesForCombobox.includes(valueComboboxInputValue) && (
+                                <Listbox.Option value={`create:${valueComboboxInputValue}`}>
+                                  <Box padding="200">
+                                    <InlineStack gap="200">
+                                      <Icon source={PlusIcon} />
+                                      <Text as="span" variant="bodySm">
+                                        Add "{valueComboboxInputValue}"
+                                      </Text>
+                                    </InlineStack>
+                                  </Box>
+                                </Listbox.Option>
+                              )}
+                            </Listbox>
+                          ) : valueComboboxInputValue ? (
+                            <Listbox onSelect={updateValueComboboxSelection}>
+                              <Listbox.Option value={`create:${valueComboboxInputValue}`}>
+                                <Box padding="200">
+                                  <InlineStack gap="200">
+                                    <Icon source={PlusIcon} />
+                                    <Text as="span" variant="bodySm">
+                                      Add "{valueComboboxInputValue}"
+                                    </Text>
+                                  </InlineStack>
+                                </Box>
+                              </Listbox.Option>
+                            </Listbox>
+                          ) : null}
+                        </Combobox>
+                      </BlockStack>
 
                       {selectedOptionValues.length >= 20 && (
                         <Banner tone="warning">
@@ -566,26 +919,36 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
                       />
                       
                       {selectedOptionValues.length > 0 && (
-                        <Box background="bg-surface-secondary" padding="300" borderRadius="200">
-                          <BlockStack gap="200">
-                            <Text variant="bodySm" as="p" fontWeight="medium">
-                              Selected values ({selectedOptionValues.length}):
-                            </Text>
-                            <InlineStack gap="200" wrap>
-                              {smartSort(selectedOptionValues).map((value, index) => (
-                                <Badge key={`selected-${index}`} tone="info">
-                                  {value}
-                                </Badge>
-                              ))}
+                        <BlockStack gap="300">
+                          <Text variant="bodySm" as="p" fontWeight="medium">
+                            Selected Values ({selectedOptionValues.length})
+                          </Text>
+                          <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+                            <InlineStack gap="200" align="space-between" blockAlign="start">
+                              <InlineStack gap="200" wrap>
+                                {smartSort(selectedOptionValues).map((value, index) => (
+                                  <Tag
+                                    key={`selected-${index}`}
+                                    onRemove={() => handleValueSelectionChange(value, false)}
+                                  >
+                                    {value}
+                                  </Tag>
+                                ))}
+                              </InlineStack>
+                              {selectedOptionValues.length > 0 && (
+                                <Button size="slim" onClick={handleClearAllValues}>
+                                  Clear All
+                                </Button>
+                              )}
                             </InlineStack>
-                          </BlockStack>
-                        </Box>
+                          </Box>
+                        </BlockStack>
                       )}
                     </BlockStack>
                   </Box>
                 )}
 
-                {selectedOptionName && (selectedOptionValues.length > 0) && (
+                {selectedOptionName && selectedOptionValues.length > 0 && (
                   <Button 
                     variant="primary" 
                     onClick={handleAddSelectedValues}
