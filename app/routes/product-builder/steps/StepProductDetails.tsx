@@ -13,7 +13,10 @@ import {
   InlineStack,
   Checkbox,
   Spinner,
-  Icon
+  Icon,
+  BlockStack,
+  Box,
+  Badge
 } from '@shopify/polaris';
 import { CheckIcon, AlertTriangleIcon } from '@shopify/polaris-icons';
 import { generateHandle, isValidHandle } from '../../../utils/handleGenerator';
@@ -29,6 +32,9 @@ interface FormDataType {
 
 interface StepProductDetailsProps {
   formData: {
+    vendor: string;
+    productType: string;
+    category: { id: string; name: string; } | null;
     title: string;
     description: string;
     handle: string;
@@ -46,21 +52,19 @@ type HandleValidationState = 'idle' | 'checking' | 'available' | 'taken' | 'erro
 export default function StepProductDetails({ formData, onChange, onNext, onBack, productId }: StepProductDetailsProps) {
   const [rejectedFiles, setRejectedFiles] = useState<File[]>([]);
   const [handleValidationState, setHandleValidationState] = useState<HandleValidationState>('idle');
-  const [handleSuggestions, setHandleSuggestions] = useState<string[]>([]);
-  const [isHandleManuallyEdited, setIsHandleManuallyEdited] = useState(false);
   const [validationTimeout, setValidationTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const shopifyApi = useMemo(() => new ShopifyApiServiceImpl(null), []);
 
-  // Auto-generate handle when title changes (if not manually edited)
+  // Auto-generate handle when title changes
   useEffect(() => {
-    if (formData.title && !isHandleManuallyEdited) {
+    if (formData.title) {
       const generatedHandle = generateHandle(formData.title);
       if (generatedHandle !== formData.handle) {
         onChange({ handle: generatedHandle });
       }
     }
-  }, [formData.title, isHandleManuallyEdited, formData.handle, onChange]);
+  }, [formData.title, formData.handle, onChange]);
 
   // Validate handle with debouncing
   useEffect(() => {
@@ -84,15 +88,12 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
         const result = await shopifyApi.validateHandle(formData.handle);
         if (result.available) {
           setHandleValidationState('available');
-          setHandleSuggestions([]);
         } else {
           setHandleValidationState('taken');
-          setHandleSuggestions(result.suggestions || []);
         }
       } catch (error) {
         console.error('Handle validation error:', error);
         setHandleValidationState('error');
-        setHandleSuggestions([]);
       }
     }, 300);
 
@@ -119,24 +120,6 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
       images: formData.images.filter((_, index) => index !== indexToRemove)
     });
   }, [formData.images, onChange]);
-
-  const handleHandleChange = useCallback((value: string) => {
-    setIsHandleManuallyEdited(true);
-    onChange({ handle: value });
-  }, [onChange]);
-
-  const handleGenerateFromTitle = useCallback(() => {
-    if (formData.title) {
-      const generatedHandle = generateHandle(formData.title);
-      onChange({ handle: generatedHandle });
-      setIsHandleManuallyEdited(false);
-    }
-  }, [formData.title, onChange]);
-
-  const handleSuggestionClick = useCallback((suggestion: string) => {
-    onChange({ handle: suggestion });
-    setIsHandleManuallyEdited(true);
-  }, [onChange]);
 
   const validImageTypes = ['image/jpeg', 'image/png', 'image/gif'];
   
@@ -186,64 +169,17 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
     </Banner>
   );
 
-  const getHandleValidationContent = () => {
-    switch (handleValidationState) {
-      case 'checking':
-        return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Spinner size="small" />
-            <Text as="span" variant="bodySm" tone="subdued">Checking availability...</Text>
-          </div>
-        );
-      case 'available':
-        return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Icon source={CheckIcon} tone="success" />
-            <Text as="span" variant="bodySm" tone="success">Handle is available</Text>
-          </div>
-        );
-      case 'taken':
-        return (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-              <Icon source={AlertTriangleIcon} tone="critical" />
-              <Text as="span" variant="bodySm" tone="critical">Handle is already taken</Text>
-            </div>
-            {handleSuggestions.length > 0 && (
-              <div>
-                <Text as="span" variant="bodySm" tone="subdued">Suggestions:</Text>
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
-                  {handleSuggestions.map((suggestion) => (
-                    <Button
-                      key={suggestion}
-                      size="micro"
-                      onClick={() => handleSuggestionClick(suggestion)}
-                    >
-                      {suggestion}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      case 'invalid':
-        return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Icon source={AlertTriangleIcon} tone="critical" />
-            <Text as="span" variant="bodySm" tone="critical">Handle contains invalid characters</Text>
-          </div>
-        );
-      case 'error':
-        return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Icon source={AlertTriangleIcon} tone="critical" />
-            <Text as="span" variant="bodySm" tone="critical">Error checking handle availability</Text>
-          </div>
-        );
-      default:
-        return null;
+  const getHandleErrorContent = () => {
+    if (handleValidationState === 'taken' || handleValidationState === 'invalid' || handleValidationState === 'error') {
+      return (
+        <div style={{ marginTop: '0.5rem' }}>
+          <Text as="span" variant="bodySm" tone="critical">
+            Product handle already exists. Please choose an alternative product title.
+          </Text>
+        </div>
+      );
     }
+    return null;
   };
 
   const isFormValid = () => {
@@ -262,11 +198,27 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
   };
 
   return (
-    <Card>
-      <FormLayout>
-        <Text variant="headingMd" as="h2">Product Details</Text>
+    <>
+      {/* Vendor & Product Type Display Card */}
+      <Card>
+        <InlineStack gap="400" wrap>
+          <Text as="span">
+            <Text as="span" fontWeight="bold">Vendor:</Text> {formData.vendor || 'Not specified'}
+          </Text>
+          <Text as="span">
+            <Text as="span" fontWeight="bold">Product Type:</Text> {formData.productType || 'Not specified'}
+          </Text>
+          <Text as="span">
+            <Text as="span" fontWeight="bold">Category:</Text> {formData.category?.name || 'Not specified'}
+          </Text>
+        </InlineStack>
+      </Card>
 
-        <TextField
+      <Card>
+        <FormLayout>
+          <Text variant="headingMd" as="h2">Product Details</Text>
+
+          <TextField
           label="Title"
           value={formData.title}
           onChange={(value) => onChange({ title: value })}
@@ -303,23 +255,13 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
         />
 
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-            <TextField
-              label="Product Handle"
-              value={formData.handle}
-              onChange={handleHandleChange}
-              autoComplete="off"
-              helpText="This will be used in the product URL"
-            />
-            <Button
-              size="micro"
-              onClick={handleGenerateFromTitle}
-              disabled={!formData.title}
-            >
-              Generate from title
-            </Button>
-          </div>
-          {getHandleValidationContent()}
+          <TextField
+            label="Product Handle"
+            value={formData.handle}
+            readOnly
+            autoComplete="off"
+          />
+          {getHandleErrorContent()}
         </div>
 
         <InlineStack gap="300" align="end">
@@ -334,5 +276,6 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
         </InlineStack>
       </FormLayout>
     </Card>
+    </>
   );
 } 

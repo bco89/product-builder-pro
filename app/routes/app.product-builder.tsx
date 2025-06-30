@@ -268,6 +268,40 @@ export default function ProductBuilder() {
     setHasUnsavedChanges(true);
   }, []);
 
+  const handleBuildAnother = useCallback(() => {
+    // Reset all form state
+    setFormData({
+      vendor: '',
+      productType: '',
+      category: null,
+      googleCategory: '',
+      title: '',
+      description: '',
+      handle: '',
+      images: [],
+      addImagesLater: false,
+      options: [],
+      variants: [],
+      skus: [],
+      barcodes: [],
+      pricing: [],
+      currency: 'USD',
+      tags: []
+    });
+    
+    // Reset component state
+    setCurrentStep(0);
+    setIsSubmitting(false);
+    setToastMessage('');
+    setErrorBanner('');
+    setHasUnsavedChanges(false);
+    setProductId(null);
+    setHasVariants(null);
+    setIsCreatingProduct(false);
+    setShouldShowOptionsForm(false);
+    setShowSuccess(false);
+  }, []);
+
   const handleNext = useCallback(() => {
     // Check if we need to create product mid-flow
     if (hasVariants && !productId && currentStep === steps.length - 1) {
@@ -364,6 +398,7 @@ export default function ProductBuilder() {
               productId={productId} 
               shop={shop} 
               variantCount={variantCount}
+              onBuildAnother={handleBuildAnother}
             />
           </Layout.Section>
         </Layout>

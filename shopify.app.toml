@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "a584fd28cd63a66d60fb6fe599f5c747"
-application_url = "https://literacy-children-night-seen.trycloudflare.com"
+application_url = "https://soldier-johnston-wet-their.trycloudflare.com"
 embedded = true
 name = "Product Builder Pro"
 handle = "product-builder-pro"
@@ -23,9 +23,9 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://literacy-children-night-seen.trycloudflare.com/auth/callback",
-  "https://literacy-children-night-seen.trycloudflare.com/auth/shopify/callback",
-  "https://literacy-children-night-seen.trycloudflare.com/api/auth/callback"
+  "https://soldier-johnston-wet-their.trycloudflare.com/auth/callback",
+  "https://soldier-johnston-wet-their.trycloudflare.com/auth/shopify/callback",
+  "https://soldier-johnston-wet-their.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

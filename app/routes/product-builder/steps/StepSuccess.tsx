@@ -1,14 +1,14 @@
-import { Card, BlockStack, Text, Button, InlineStack, Banner, Icon, Box } from '@shopify/polaris';
-import { CheckIcon } from '@shopify/polaris-icons';
+import { Card, BlockStack, Text, Button, InlineStack, Banner, Box } from '@shopify/polaris';
 import { useNavigate } from '@remix-run/react';
 
 interface StepSuccessProps {
   productId: string | null;
   shop: string;
   variantCount: number;
+  onBuildAnother?: () => void;
 }
 
-export default function StepSuccess({ productId, shop, variantCount }: StepSuccessProps) {
+export default function StepSuccess({ productId, shop, variantCount, onBuildAnother }: StepSuccessProps) {
   const navigate = useNavigate();
   
   const handleViewProduct = () => {
@@ -20,7 +20,11 @@ export default function StepSuccess({ productId, shop, variantCount }: StepSucce
   };
 
   const handleBuildAnother = () => {
-    navigate('/app/product-builder');
+    if (onBuildAnother) {
+      onBuildAnother();
+    } else {
+      navigate('/app/product-builder');
+    }
   };
 
   const handleGoToCatalog = () => {
@@ -33,10 +37,6 @@ export default function StepSuccess({ productId, shop, variantCount }: StepSucce
       <BlockStack gap="600">
         <Box paddingBlockEnd="400">
           <BlockStack gap="400" align="center">
-            <Box background="bg-surface-secondary" padding="400" borderRadius="full">
-              <Icon source={CheckIcon} tone="success" />
-            </Box>
-            
             <BlockStack gap="200" align="center">
               <Text variant="headingLg" as="h2" fontWeight="bold">
                 Product Created Successfully!

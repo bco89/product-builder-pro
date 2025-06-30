@@ -113,6 +113,23 @@ export const loader = async ({ request }: { request: Request }) => {
         variables = { query: `product_type:'${productType}'` };
         break;
 
+      case 'allOptions':
+        // Fetch options from all product types (fallback when current type has no options)
+        graphqlQuery = `#graphql
+          query getAllOptions {
+            products(first: 250) {
+              edges {
+                node {
+                  options {
+                    name
+                    values
+                  }
+                }
+              }
+            }
+          }`;
+        break;
+
       case 'tags':
         if (!productType) {
           return json({ tags: [] });
@@ -128,6 +145,20 @@ export const loader = async ({ request }: { request: Request }) => {
             }
           }`;
         variables = { query: `product_type:'${productType}'` };
+        break;
+
+      case 'allTags':
+        // Fetch tags from all products (for global tag selection)
+        graphqlQuery = `#graphql
+          query getAllTags {
+            products(first: 250) {
+              edges {
+                node {
+                  tags
+                }
+              }
+            }
+          }`;
         break;
 
       default:
@@ -171,12 +202,12 @@ export const loader = async ({ request }: { request: Request }) => {
 
       case 'options':
         // Get all options used by products of this type
-        const allOptions = data.data.products.edges.flatMap(edge => edge.node.options);
+        const productTypeOptions = data.data.products.edges.flatMap(edge => edge.node.options);
         
         // Create a map to store unique options and their values
         const optionsMap = new Map<string, Set<string>>();
         
-        allOptions.forEach(option => {
+        productTypeOptions.forEach(option => {
           if (!optionsMap.has(option.name)) {
             optionsMap.set(option.name, new Set());
           }
@@ -193,6 +224,35 @@ export const loader = async ({ request }: { request: Request }) => {
 
         return json({ options });
 
+      case 'allOptions':
+        // Get all options used by all products
+        const allOptionsFromAllProducts = data.data.products.edges.flatMap(edge => edge.node.options);
+        
+        // Create a map to store unique options and their values
+        const allOptionsMap = new Map<string, Set<string>>();
+        
+        allOptionsFromAllProducts.forEach(option => {
+          if (!allOptionsMap.has(option.name)) {
+            allOptionsMap.set(option.name, new Set());
+          }
+          option.values.forEach(value => {
+            allOptionsMap.get(option.name)?.add(value);
+          });
+        });
+
+        // Convert the map to the desired format and filter out generic options
+        const allOptions = Array.from(allOptionsMap.entries())
+          .filter(([name]) => 
+            name.toLowerCase() !== 'title' && 
+            name.toLowerCase() !== 'default title'
+          )
+          .map(([name, values]) => ({
+            name,
+            values: Array.from(values)
+          }));
+
+        return json({ options: allOptions });
+
       case 'tags':
         // Get all tags used by products of this type
         const allTags = data.data.products.edges.flatMap(edge => edge.node.tags);
@@ -201,6 +261,15 @@ export const loader = async ({ request }: { request: Request }) => {
         const uniqueTags = [...new Set(allTags)].sort();
 
         return json({ tags: uniqueTags });
+
+      case 'allTags':
+        // Get all tags used by all products
+        const allTagsFromAllProducts = data.data.products.edges.flatMap(edge => edge.node.tags);
+        
+        // Remove duplicates and sort alphabetically
+        const uniqueAllTags = [...new Set(allTagsFromAllProducts)].sort();
+
+        return json({ tags: uniqueAllTags });
     }
 
   } catch (error) {

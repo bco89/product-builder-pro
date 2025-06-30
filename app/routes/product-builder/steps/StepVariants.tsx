@@ -100,6 +100,8 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
   const [selectedOptionValues, setSelectedOptionValues] = useState<string[]>([]);
   const [currentOptionIndex, setCurrentOptionIndex] = useState<number | null>(null);
   const [customValue, setCustomValue] = useState('');
+  const [isCustomOptionName, setIsCustomOptionName] = useState(false);
+  const [customOptionName, setCustomOptionName] = useState('');
 
   // Auto-show options form when shouldShowOptionsForm is true
   useEffect(() => {
@@ -127,14 +129,41 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
     }
   });
 
+  // Fetch all options as fallback when current product type has no options
+  const { data: allOptions, isLoading: allOptionsLoading, isError: allOptionsError } = useQuery({
+    queryKey: ['allProductOptions'],
+    enabled: !!formData.productType && !optionsLoading && !optionsError && (!existingOptions || existingOptions.length === 0),
+    queryFn: async () => {
+      const response = await fetch('/api/shopify/products?type=allOptions');
+      if (!response.ok) {
+        throw new Error('Failed to fetch all product options');
+      }
+      const data = await response.json();
+      return data.options as Option[];
+    }
+  });
+
   const handleAddOptionsClick = useCallback(() => {
     setShowOptionsForm(true);
   }, []);
 
   const handleOptionNameChange = useCallback((value: string) => {
-    setSelectedOptionName(value);
+    if (value === 'custom') {
+      setIsCustomOptionName(true);
+      setSelectedOptionName('');
+      setCustomOptionName('');
+    } else {
+      setIsCustomOptionName(false);
+      setSelectedOptionName(value);
+      setCustomOptionName('');
+    }
     setSelectedOptionValues([]); // Reset selected values when option name changes
     setCustomValue('');
+  }, []);
+
+  const handleCustomOptionNameChange = useCallback((value: string) => {
+    setCustomOptionName(value);
+    setSelectedOptionName(value);
   }, []);
 
   const handleValueSelectionChange = useCallback((value: string, checked: boolean) => {
@@ -167,10 +196,27 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
   }, []);
 
   const handleAddCustomValue = useCallback(() => {
-    if (customValue.trim() && !selectedOptionValues.includes(customValue.trim()) && selectedOptionValues.length < 20) {
-      setSelectedOptionValues(prev => [...prev, customValue.trim()]);
-      setCustomValue('');
+    if (!customValue.trim()) return;
+    
+    // Split by comma and clean up each value
+    const newValues = customValue
+      .split(',')
+      .map(value => value.trim())
+      .filter(value => value.length > 0) // Remove empty values
+      .filter(value => !selectedOptionValues.includes(value)); // Remove duplicates
+    
+    // Check if adding these values would exceed the limit
+    const totalAfterAdding = selectedOptionValues.length + newValues.length;
+    if (totalAfterAdding > 20) {
+      // Only add values up to the limit
+      const availableSlots = 20 - selectedOptionValues.length;
+      const valuesToAdd = newValues.slice(0, availableSlots);
+      setSelectedOptionValues(prev => [...prev, ...valuesToAdd]);
+    } else {
+      setSelectedOptionValues(prev => [...prev, ...newValues]);
     }
+    
+    setCustomValue('');
   }, [customValue, selectedOptionValues]);
 
   const handleAddSelectedValues = useCallback(() => {
@@ -208,9 +254,16 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
   const handleAddSingleValue = useCallback((optionIndex: number) => {
     if (!customValue.trim()) return;
     
-    const updatedOptions = [...formData.options];
-    if (!updatedOptions[optionIndex].values.includes(customValue.trim())) {
-      updatedOptions[optionIndex].values.push(customValue.trim());
+    // Split by comma and clean up each value
+    const newValues = customValue
+      .split(',')
+      .map(value => value.trim())
+      .filter(value => value.length > 0) // Remove empty values
+      .filter(value => !formData.options[optionIndex].values.includes(value)); // Remove duplicates
+    
+    if (newValues.length > 0) {
+      const updatedOptions = [...formData.options];
+      updatedOptions[optionIndex].values.push(...newValues);
       // Sort the values after adding
       updatedOptions[optionIndex].values = smartSort(updatedOptions[optionIndex].values);
       onChange({ options: updatedOptions });
@@ -237,16 +290,53 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
     onNext();
   }, [onChange, onNext]);
 
-  // Create options for the dropdown - fallback to custom input if API fails
+  // Create options for the dropdown with fallback support
   const optionNameOptions = useMemo(() => {
-    if (optionsError) {
-      return [{ label: 'Enter custom option name', value: '' }];
+    const options = [];
+    
+    // Add current product type options first (if any)
+    if (existingOptions && existingOptions.length > 0) {
+      existingOptions.forEach(option => {
+        options.push({
+          label: option.name,
+          value: option.name
+        });
+      });
     }
-    return existingOptions?.map(option => ({
-      label: option.name,
-      value: option.name
-    })) || [];
-  }, [existingOptions, optionsError]);
+    
+    // Add separator if we have both current type and fallback options
+    if (existingOptions && existingOptions.length > 0 && allOptions && allOptions.length > 0) {
+      options.push({ label: '── Other Options ──', value: 'separator', disabled: true });
+    }
+    
+    // Add options from other product types (if current type has no options)
+    if (allOptions && allOptions.length > 0) {
+      // Filter out options that are already in existingOptions
+      const existingOptionNames = new Set(existingOptions?.map(opt => opt.name) || []);
+      const uniqueAllOptions = allOptions.filter(option => !existingOptionNames.has(option.name));
+      
+      uniqueAllOptions.forEach(option => {
+        options.push({
+          label: option.name,
+          value: option.name
+        });
+      });
+    }
+    
+    // Always add option to create custom
+    options.push({ label: '── Create Custom ──', value: 'separator2', disabled: true });
+    options.push({ label: '+ Create new option name', value: 'custom' });
+    
+    return options;
+  }, [existingOptions, allOptions, formData.productType]);
+
+  // Determine which options to use for values
+  const optionsForValues = useMemo(() => {
+    if (existingOptions && existingOptions.length > 0) {
+      return existingOptions;
+    }
+    return allOptions || [];
+  }, [existingOptions, allOptions]);
 
   if (!showOptionsForm && formData.options.length === 0) {
     return (
@@ -278,10 +368,12 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
 
   // Get available option values for selected option name
   const availableValues = useMemo(() => {
-    if (optionsError) return [];
-    const values = existingOptions?.find(opt => opt.name === selectedOptionName)?.values || [];
+    if (optionsError && allOptionsError) return [];
+    if (isCustomOptionName) return []; // No predefined values for custom options
+    
+    const values = optionsForValues?.find(opt => opt.name === selectedOptionName)?.values || [];
     return smartSort(values);
-  }, [existingOptions, selectedOptionName, optionsError]);
+  }, [optionsForValues, selectedOptionName, optionsError, allOptionsError, isCustomOptionName]);
 
   // Calculate total variants that will be created
   const calculateVariantCount = () => {
@@ -305,10 +397,18 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
           </Text>
         </Banner>
 
-        {optionsError && (
+        {optionsError && allOptionsError && (
           <Banner tone="warning">
             <Text as="p">
               Unable to load existing options. You can still create custom options below.
+            </Text>
+          </Banner>
+        )}
+
+        {!optionsError && !optionsLoading && existingOptions && existingOptions.length === 0 && !allOptionsLoading && (
+          <Banner tone="info">
+            <Text as="p">
+              No option names found for "{formData.productType}" products. You can choose from option names used by other product types or create a new one.
             </Text>
           </Banner>
         )}
@@ -326,7 +426,7 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
           {/* Option Selection Form */}
           <Card>
             <BlockStack gap="400">
-              {optionsError ? (
+              {optionsError && allOptionsError ? (
                 <TextField
                   label="Option Name"
                   value={selectedOptionName}
@@ -336,17 +436,31 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
                   autoComplete="off"
                 />
               ) : (
-                <Select
-                  label="Option Name"
-                  options={optionNameOptions}
-                  value={selectedOptionName}
-                  onChange={handleOptionNameChange}
-                  placeholder={optionsLoading ? "Loading options..." : "Select an option name"}
-                  helpText="Choose an option like Size, Color, Material, etc."
-                />
+                <BlockStack gap="300">
+                  <Select
+                    label="Option Name"
+                    options={optionNameOptions}
+                    value={isCustomOptionName ? 'custom' : selectedOptionName}
+                    onChange={handleOptionNameChange}
+                    placeholder={optionsLoading || allOptionsLoading ? "Loading options..." : 
+                      (existingOptions && existingOptions.length === 0 ? "Select an option name (from other products)" : "Select an option name")}
+                    helpText="Choose an existing option or create a new one."
+                  />
+                  
+                  {isCustomOptionName && (
+                    <TextField
+                      label="Custom Option Name"
+                      value={customOptionName}
+                      onChange={handleCustomOptionNameChange}
+                      placeholder="Enter option name (e.g., Size, Color, Material)"
+                      helpText="Enter a descriptive name for your new option."
+                      autoComplete="off"
+                    />
+                  )}
+                </BlockStack>
               )}
 
-              {selectedOptionName && availableValues.length > 0 && (
+              {selectedOptionName && availableValues.length > 0 && !isCustomOptionName && (
                 <Box>
                   <BlockStack gap="400">
                     <InlineStack gap="200" align="space-between">
@@ -413,8 +527,8 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
                       label="Add Custom Value"
                       value={customValue}
                       onChange={setCustomValue}
-                      placeholder={`Enter custom ${selectedOptionName.toLowerCase()} value`}
-                      helpText="Add a custom value not in the list above"
+                      placeholder={`Enter custom ${selectedOptionName.toLowerCase()} value(s)`}
+                      helpText={isCustomOptionName ? "Add variant titles for each product variant. Separate multiple values with commas (e.g., Small, Medium, Large)" : "Add variant titles for each product variant. Separate multiple values with commas (e.g., Red, Blue, Green)"}
                       disabled={selectedOptionValues.length >= 20}
                       autoComplete="off"
                       connectedRight={
@@ -422,7 +536,7 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
                           onClick={handleAddCustomValue}
                           disabled={!customValue.trim() || selectedOptionValues.length >= 20}
                         >
-                          Add
+                          {customValue.includes(',') ? 'Add All' : 'Add'}
                         </Button>
                       }
                     />
@@ -490,13 +604,13 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
                             label="Add new value"
                             value={customValue}
                             onChange={setCustomValue}
-                            placeholder={`Enter ${option.name.toLowerCase()} value`}
+                            placeholder={`Enter ${option.name.toLowerCase()} value(s)`}
                             autoComplete="off"
-                            helpText="Type a new value or select from suggestions below"
+                            helpText="Add variant titles for each product variant. Type a new value or select from suggestions below. Separate multiple values with commas (e.g., Small, Medium, Large)"
                           />
                           
                           {(() => {
-                            const optionData = existingOptions?.find(o => o.name === option.name);
+                            const optionData = optionsForValues?.find(o => o.name === option.name);
                             const filteredSuggestions = optionData?.values.filter(v => 
                               customValue && v.toLowerCase().includes(customValue.toLowerCase())
                             ) || [];
@@ -531,7 +645,7 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
                             disabled={!customValue}
                             variant="primary"
                           >
-                            Add Value
+                            {customValue.includes(',') ? 'Add All Values' : 'Add Value'}
                           </Button>
                         </BlockStack>
                       </Box>
