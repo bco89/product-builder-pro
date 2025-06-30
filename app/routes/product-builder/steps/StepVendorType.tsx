@@ -9,7 +9,6 @@ import {
   Combobox,
   Listbox,
   Autocomplete,
-  Select,
   Icon,
   InlineStack,
   BlockStack,
@@ -20,15 +19,6 @@ import {
 } from '@shopify/polaris';
 import { SearchIcon, AlertCircleIcon, PlusIcon } from '@shopify/polaris-icons';
 import { useQuery } from '@tanstack/react-query';
-import { GET_PRODUCT_CATEGORIES } from '~/graphql/queries';
-
-interface Category {
-  id: string;
-  name: string;
-  fullName: string;
-  level: number;
-  isLeaf: boolean;
-}
 
 interface ProductType {
   productType: string;
@@ -71,7 +61,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
   // State for new entry creation and confirmation
   const [newEntryConfirmation, setNewEntryConfirmation] = useState({
     isOpen: false,
-    type: '' as 'vendor' | 'productType' | 'category' | '',
+    type: '' as 'vendor' | 'productType' | '',
     value: '',
     isConfirmed: false
   });
@@ -103,20 +93,6 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
     }
   });
 
-  // Updated query for categories
-  const { data: productTypeCategories, isLoading: categoriesLoading, error: categoriesError } = useQuery({
-    queryKey: ['categories', formData.vendor, formData.productType],
-    enabled: !!formData.vendor && !!formData.productType,
-    queryFn: async () => {
-      const response = await fetch(`/api/shopify/products?type=categories&productType=${encodeURIComponent(formData.productType)}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch categories');
-      }
-      const data = await response.json();
-      return data.categories || [];
-    }
-  });
-
   // Helper function to check if entry exists
   const isNewVendor = useCallback((value: string) => {
     return value && vendorsData && !vendorsData.includes(value);
@@ -125,8 +101,6 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
   const isNewProductType = useCallback((value: string) => {
     return value && vendorProductTypes && !vendorProductTypes.some((type: ProductType) => type.productType === value);
   }, [vendorProductTypes]);
-
-  // Categories now come from Shopify taxonomy - no need to create new ones
 
   // Handle new entry confirmation
   const handleNewEntryConfirmation = useCallback((type: 'vendor' | 'productType', value: string) => {
@@ -157,13 +131,10 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
         break;
       case 'productType':
         onChange({ 
-          productType: value,
-          category: null
+          productType: value
         });
         setProductTypeInputValue(value);
-        setCategoryInputValue(''); // Clear category input when new product type is created
         break;
-      // Categories now come from Shopify taxonomy - no creation needed
     }
 
     setNewEntryConfirmation({
@@ -216,8 +187,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
       setVendorInputValue(matchedVendor);
       onChange({ 
         vendor: matchedVendor,
-        productType: '',
-        category: null
+        productType: ''
       });
       setProductTypeInputValue('');
     }
@@ -259,99 +229,11 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
       if (matchedType) {
         setProductTypeInputValue(matchedType.productType);
         onChange({ 
-          productType: matchedType.productType,
-          category: null
+          productType: matchedType.productType
         });
       }
     }
   }, [filteredProductTypes, onChange, productTypeInputValue, handleNewEntryConfirmation]);
-
-  // Category search functionality
-  const [categoryInputValue, setCategoryInputValue] = useState(formData.category?.name || '');
-
-  // Handle category selection
-  const handleCategoryChange = useCallback((selected: string[]) => {
-    const selectedValue = selected[0];
-
-    if (selectedValue) {
-      const category = productTypeCategories?.find((cat: Category) => cat.id === selectedValue) || null;
-      onChange({ category });
-      // Update the input value to match the selected category
-      if (category) {
-        setCategoryInputValue(category.name);
-      }
-    }
-  }, [onChange, productTypeCategories]);
-  const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
-
-  // Filter categories based on input
-  const updateCategoryText = useCallback((value: string) => {
-    setCategoryInputValue(value);
-    
-    if (!productTypeCategories) {
-      setFilteredCategories([]);
-      return;
-    }
-    
-    if (value === '') {
-      setFilteredCategories(productTypeCategories);
-      return;
-    }
-
-    const filterRegex = new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    const resultCategories = productTypeCategories.filter((cat: Category) =>
-      cat.name.match(filterRegex) || cat.fullName.match(filterRegex)
-    );
-    setFilteredCategories(resultCategories);
-  }, [productTypeCategories]);
-
-  // Initialize filtered categories when source data loads
-  useMemo(() => {
-    if (productTypeCategories) {
-      if (categoryInputValue === '') {
-        setFilteredCategories(productTypeCategories);
-      } else {
-        // Re-filter when categories change
-        const filterRegex = new RegExp(categoryInputValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-        const resultCategories = productTypeCategories.filter((cat: Category) =>
-          cat.name.match(filterRegex)
-        );
-        setFilteredCategories(resultCategories);
-      }
-    } else {
-      // If no categories exist for this product type, reset filtered categories
-      setFilteredCategories([]);
-    }
-  }, [productTypeCategories, categoryInputValue]);
-
-  // Update category input when selection changes or when product type changes
-  useEffect(() => {
-    if (formData.category?.name !== categoryInputValue) {
-      setCategoryInputValue(formData.category?.name || '');
-    }
-  }, [formData.category?.name]);
-
-  // Clear category input when product type changes
-  useEffect(() => {
-    // Only clear if we don't have a category selected and we have some input
-    // but don't clear during normal typing (when product type exists)
-    if (!formData.category && categoryInputValue && !formData.productType) {
-      setCategoryInputValue('');
-    }
-  }, [formData.category, formData.productType]);
-
-  // Initialize filtered data when source data loads
-  useMemo(() => {
-    if (vendorsData && filteredVendors.length === 0 && vendorInputValue === '') {
-      setFilteredVendors(vendorsData);
-    }
-  }, [vendorsData, filteredVendors.length, vendorInputValue]);
-
-  useMemo(() => {
-    if (vendorProductTypes && filteredProductTypes.length === 0 && productTypeInputValue === '') {
-      setFilteredProductTypes(vendorProductTypes);
-    }
-  }, [vendorProductTypes, filteredProductTypes.length, productTypeInputValue]);
 
   // Vendor options for Combobox
   const vendorOptionsMarkup = useMemo(() => {
@@ -410,15 +292,18 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
     return options;
   }, [filteredProductTypes, productTypeInputValue, isNewProductType]);
 
-  const categoryOptions = useMemo(() => {
-    const options = filteredCategories?.map((cat: Category) => ({
-      value: cat.id,
-      label: cat.level > 0 ? `${cat.name} (${cat.fullName})` : cat.name
-    })) || [];
+  // Initialize filtered data when source data loads
+  useMemo(() => {
+    if (vendorsData && filteredVendors.length === 0 && vendorInputValue === '') {
+      setFilteredVendors(vendorsData);
+    }
+  }, [vendorsData, filteredVendors.length, vendorInputValue]);
 
-    // Categories come from Shopify taxonomy - no new categories can be created
-    return options;
-  }, [filteredCategories]);
+  useMemo(() => {
+    if (vendorProductTypes && filteredProductTypes.length === 0 && productTypeInputValue === '') {
+      setFilteredProductTypes(vendorProductTypes);
+    }
+  }, [vendorProductTypes, filteredProductTypes.length, productTypeInputValue]);
 
   const handleSubmit = () => {
     if (formData.vendor && formData.productType) {
@@ -427,13 +312,12 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
   };
 
   // Check for any errors
-  const hasErrors = vendorsError || productTypesError || categoriesError;
+  const hasErrors = vendorsError || productTypesError;
 
   const getConfirmationTitle = () => {
     const typeMap: Record<string, string> = {
       vendor: 'Vendor',
-      productType: 'Product Type',
-      category: 'Product Category'
+      productType: 'Product Type'
     };
     return typeMap[newEntryConfirmation.type] || 'Entry';
   };
@@ -448,7 +332,6 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
             <p>
               {vendorsError && "Failed to load vendors. "}
               {productTypesError && "Failed to load product types. "}
-              {categoriesError && "Failed to load categories. "}
               Please try refreshing the page.
             </p>
           </Banner>
@@ -559,71 +442,6 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
           </div>
           {productTypesError && (
             <InlineError message="Unable to load product types" fieldID="productType" />
-          )}
-        </BlockStack>
-
-        {/* Enhanced Category Selection */}
-        <BlockStack gap="200">
-          <div style={{ height: categoriesLoading ? '44px' : 'auto' }}>
-            {!formData.productType ? (
-              <Autocomplete
-                options={[]}
-                selected={[]}
-                onSelect={() => {}}
-                textField={
-                  <Autocomplete.TextField
-                    label="Product Category"
-                    onChange={() => {}}
-                    value=""
-                    prefix={<Icon source={SearchIcon} tone="base" />}
-                    placeholder="Select a product type first..."
-                    autoComplete="off"
-                    disabled={true}
-                    helpText="Select the most appropriate category to improve your product's discoverability and boost sales"
-                  />
-                }
-                emptyState={
-                  <Text as="p" variant="bodyMd" tone="subdued" alignment="center">
-                    Please select a product type first
-                  </Text>
-                }
-              />
-            ) : categoriesLoading ? (
-              <InlineStack gap="300" align="center">
-                <Spinner accessibilityLabel="Loading categories" size="small" />
-                <Text as="p" variant="bodyMd" tone="subdued">Loading categories...</Text>
-              </InlineStack>
-            ) : (
-              <Autocomplete
-                options={categoryOptions}
-                selected={formData.category ? [formData.category.id] : []}
-                onSelect={handleCategoryChange}
-                textField={
-                  <Autocomplete.TextField
-                    label="Product Category"
-                    onChange={updateCategoryText}
-                    value={categoryInputValue}
-                    prefix={<Icon source={SearchIcon} tone="base" />}
-                    placeholder="Search categories..."
-                    autoComplete="off"
-                    disabled={!!categoriesError}
-                    helpText="Select the most appropriate category to improve your product's discoverability and boost sales"
-                  />
-                }
-                emptyState={
-                  <Text as="p" variant="bodyMd" tone="subdued" alignment="center">
-                    {productTypeCategories && productTypeCategories.length === 0
-                      ? "No categories available for this product type."
-                      : `No categories found matching "${categoryInputValue}"`
-                    }
-                  </Text>
-                }
-                loading={categoriesLoading}
-              />
-            )}
-          </div>
-          {categoriesError && (
-            <InlineError message="Unable to load categories" fieldID="category" />
           )}
         </BlockStack>
 
