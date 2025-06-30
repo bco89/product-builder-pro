@@ -97,17 +97,25 @@ export default function ProductBuilder() {
         { title: 'Variants?', component: StepVariantDecision, phase: 1 }
       ];
     } else if (hasVariants === false) {
-      // No variants flow
-      return [
-        { title: 'Vendor & Type', component: StepVendorType, phase: 1 },
-        { title: 'Product Details', component: StepProductDetails, phase: 1 },
-        { title: 'Tags', component: StepTags, phase: 1 },
-        { title: 'Pricing', component: StepPricing, phase: 1 },
-        { title: 'SKU & Barcode', component: StepSKUBarcode, phase: 1 },
-        { title: 'Review', component: StepReview, phase: 1 }
-      ];
+      // No variants flow - CREATE PRODUCT AFTER PRICING (unified with variant flow)
+      if (!productId) {
+        // Phase 1: Before product creation
+        return [
+          { title: 'Vendor & Type', component: StepVendorType, phase: 1 },
+          { title: 'Product Details', component: StepProductDetails, phase: 1 },
+          { title: 'Tags', component: StepTags, phase: 1 },
+          { title: 'Pricing', component: StepPricing, phase: 1 }
+          // Product creation happens after pricing, then continues to phase 2
+        ];
+      } else {
+        // Phase 2: After product creation
+        return [
+          { title: 'SKU & Barcode', component: StepSKUBarcode, phase: 2 },
+          { title: 'Review', component: StepReview, phase: 2 }
+        ];
+      }
     } else {
-      // Has variants flow - split into two phases
+      // Has variants flow - same as current
       if (!productId) {
         // Phase 1: Before product creation
         return [
@@ -117,7 +125,7 @@ export default function ProductBuilder() {
           { title: 'Pricing', component: StepPricing, phase: 1 }
         ];
       } else {
-        // Phase 2: After product creation - removed variant pricing step
+        // Phase 2: After product creation
         return [
           { title: 'Variants', component: StepVariants, phase: 2 },
           { title: 'SKU & Barcode', component: StepSKUBarcode, phase: 2 },
@@ -156,7 +164,7 @@ export default function ProductBuilder() {
     }
   }, []);
 
-  // Create product mid-flow for variant products
+  // Create product mid-flow for both variant and non-variant products
   const createProductMidFlow = useCallback(async () => {
     setIsCreatingProduct(true);
     setErrorBanner('');
@@ -187,7 +195,13 @@ export default function ProductBuilder() {
       }
 
       setProductId(data.id);
-      setToastMessage('Product created! Now configure variants...');
+      
+      if (hasVariants) {
+        setToastMessage('Product created! Now configure variants...');
+      } else {
+        setToastMessage('Product created! Now add final details...');
+      }
+      
       setCurrentStep(0); // Reset to first step of phase 2
       
     } catch (error) {
@@ -197,7 +211,7 @@ export default function ProductBuilder() {
     } finally {
       setIsCreatingProduct(false);
     }
-  }, [formData]);
+  }, [formData, hasVariants]);
 
   // Handle final submission (for products with variants)
   const handleFinalSubmit = useCallback(async () => {
@@ -240,39 +254,48 @@ export default function ProductBuilder() {
     }
   }, [productId, formData, shop]);
 
-  // Original submit handler for non-variant products
+  // Submit handler for non-variant products (now finalizes instead of creates)
   const handleSubmit = useCallback(async () => {
+    if (!productId) return;
+    
     setIsSubmitting(true);
     setErrorBanner('');
+    
     try {
-      console.log('Submitting product data:', formData);
-      const response = await fetch('/api/shopify/create-product', {
+      // Update the product with final SKU and barcode details
+      const response = await fetch('/api/shopify/update-product-variants', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          productId,
+          skus: formData.skus,
+          barcodes: formData.barcodes,
+          // For non-variant products, we don't update pricing or options
+          options: [],
+          pricing: formData.pricing
+        }),
       });
 
       const data = await response.json();
-      console.log('Server response:', data);
-
+      
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create product');
+        throw new Error(data.error || 'Failed to finalize product');
       }
 
-      setToastMessage('Product created successfully!');
+      setToastMessage('Product finalized successfully!');
       setHasUnsavedChanges(false);
-      setProductId(data.id);
       setShowSuccess(true);
+      
     } catch (error) {
-      console.error('Error creating product:', error);
+      console.error('Error finalizing product:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setErrorBanner(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, shop]);
+  }, [productId, formData]);
 
   const handleStepChange = useCallback((step: number) => {
     setCurrentStep(step);
@@ -320,8 +343,8 @@ export default function ProductBuilder() {
   }, []);
 
   const handleNext = useCallback(() => {
-    // Check if we need to create product mid-flow
-    if (hasVariants && !productId && currentStep === steps.length - 1) {
+    // Check if we need to create product mid-flow for BOTH variant and non-variant products
+    if (!productId && currentStep === steps.length - 1) {
       createProductMidFlow();
     } else {
       setCurrentStep(currentStep + 1);
@@ -406,7 +429,7 @@ export default function ProductBuilder() {
 
   // Show success page after finalizing variants or creating product
   if (showSuccess && productId) {
-    const variantCount = hasVariants === false ? 1 : formData.options.reduce((acc, option) => acc * option.values.length, 1);
+    const variantCount: number = hasVariants === false ? 1 : formData.options.reduce((acc, option) => acc * option.values.length, 1);
     return (
       <Page title="Success!">
         <Layout>
@@ -425,14 +448,14 @@ export default function ProductBuilder() {
 
   const getPageTitle = () => {
     if (productId) {
-      return "Configure Product Variants";
+      return hasVariants ? "Configure Product Variants" : "Finalize Product Details";
     }
     return "Create A New Product with Product Builder Pro";
   };
 
   const getPageSubtitle = () => {
     if (productId) {
-      return "Add variants to your product";
+      return hasVariants ? "Add variants to your product" : "Add final SKU and barcode details";
     }
     return "A step by step process for product data you know is right";
   };
@@ -499,7 +522,12 @@ export default function ProductBuilder() {
                 
                 {productId && (
                   <Banner tone="success" title="Product Created Successfully">
-                    <Text as="p">Your product has been created. Now configure the variants below.</Text>
+                    <Text as="p">
+                      {hasVariants ? 
+                        "Your product has been created. Now configure the variants below." :
+                        "Your product has been created. Now add final SKU and barcode details below."
+                      }
+                    </Text>
                   </Banner>
                 )}
               </BlockStack>
@@ -518,17 +546,26 @@ export default function ProductBuilder() {
               <BlockStack gap="200">
                 <Text as="p" variant="bodyMd">
                   {productId ? 
-                    "Now configure the variants for your product:" :
+                    (hasVariants ? "Now configure the variants for your product:" : "Now finalize your product:") :
                     "Follow these steps to create a new product:"
                   }
                 </Text>
                 <ol style={{ paddingLeft: '20px' }}>
                   {productId ? (
                     <>
-                      <li>Add product options (size, color, etc.)</li>
-                      <li>Assign SKUs and barcodes to variants</li>
-                      <li>Set pricing for each variant</li>
-                      <li>Review and finalize</li>
+                      {hasVariants ? (
+                        <>
+                          <li>Add product options (size, color, etc.)</li>
+                          <li>Assign SKUs and barcodes to variants</li>
+                          <li>Set pricing for each variant</li>
+                          <li>Review and finalize</li>
+                        </>
+                      ) : (
+                        <>
+                          <li>Add SKU and barcode</li>
+                          <li>Review and finalize</li>
+                        </>
+                      )}
                     </>
                   ) : (
                     <>

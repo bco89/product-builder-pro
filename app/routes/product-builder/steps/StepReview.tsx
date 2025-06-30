@@ -87,39 +87,10 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
   const hasVariants = formData.options.length > 0;
 
   const handleSubmit = useCallback(async () => {
+    // For the new unified flow, just call the parent's onSubmit
+    // The product is already created, this just finalizes it
     onSubmit();
-    try {
-      // Format the data properly for submission
-      const submissionData = {
-        ...formData,
-        pricing: formData.pricing.map(price => ({
-          price: price.price || "0.00",
-          compareAtPrice: price.compareAtPrice || "",
-          cost: price.cost || "0.00"
-        })),
-        skus: formData.skus || [],
-        barcodes: formData.barcodes || [],
-        category: formData.category || null
-      };
-
-      console.log('Submitting product data:', submissionData);
-      const response = await fetch('/api/shopify/create-product', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(submissionData),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        setErrorBanner(error.message || 'Failed to create product');
-      }
-    } catch (error) {
-      setErrorBanner('An error occurred while creating the product');
-      console.error('Product creation error:', error);
-    }
-  }, [formData, onSubmit]);
+  }, [onSubmit]);
 
   return (
     <Card>
@@ -130,7 +101,7 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
 
         <Banner tone="warning">
           <Text as="p">
-            Please review all information carefully before creating the product.
+            Please review all information carefully before finalizing the product.
             Click 'Edit' on any section to make changes.
           </Text>
         </Banner>

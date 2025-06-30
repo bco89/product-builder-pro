@@ -186,23 +186,19 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
 
   return (
     <>
-      {/* Vendor & Product Type Display Card */}
+      {/* Selected Information Display Card */}
       <Card>
-        <BlockStack gap="300">
-          <Text variant="headingMd" as="h3">Selected Information</Text>
+        <BlockStack gap="200">
           <InlineStack gap="400" wrap>
-            <BlockStack gap="100">
-              <Text as="span" variant="bodyMd" tone="subdued">Vendor</Text>
-              <Badge tone="info">{formData.vendor || 'Not specified'}</Badge>
-            </BlockStack>
-            <BlockStack gap="100">
-              <Text as="span" variant="bodyMd" tone="subdued">Product Type</Text>
-              <Badge tone="attention">{formData.productType || 'Not specified'}</Badge>
-            </BlockStack>
-            <BlockStack gap="100">
-              <Text as="span" variant="bodyMd" tone="subdued">Category</Text>
-              <Badge tone="success">{formData.category?.name || 'Not specified'}</Badge>
-            </BlockStack>
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Vendor:</Text> {formData.vendor || 'Not specified'}
+            </Text>
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Product Type:</Text> {formData.productType || 'Not specified'}
+            </Text>
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Category:</Text> {formData.category?.name || 'Not specified'}
+            </Text>
           </InlineStack>
         </BlockStack>
       </Card>

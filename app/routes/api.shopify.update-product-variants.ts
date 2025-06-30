@@ -27,7 +27,85 @@ export const action = async ({ request }: { request: Request }) => {
   try {
     console.log("Updating product with variants:", { productId, options });
 
-    // Step 1: Create product options first
+    // Check if this is a non-variant product (no options)
+    if (!options || options.length === 0) {
+      console.log("Updating non-variant product with SKU and barcode");
+      
+      // Get the default variant ID for non-variant products
+      const variantResponse = await admin.graphql(
+        `#graphql
+        query getProductVariants($productId: ID!) {
+          product(id: $productId) {
+            variants(first: 1) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+          }
+        }`,
+        {
+          variables: { productId }
+        }
+      );
+
+      const variantData = await variantResponse.json();
+      const defaultVariantId = variantData.data?.product?.variants?.edges?.[0]?.node?.id;
+
+      if (defaultVariantId) {
+        // Update the default variant with SKU and barcode
+        const updateResponse = await admin.graphql(
+          `#graphql
+          mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+            productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+              productVariants {
+                id
+                sku
+                barcode
+              }
+              userErrors {
+                field
+                message
+              }
+            }
+          }`,
+          {
+            variables: {
+              productId: productId,
+              variants: [{
+                id: defaultVariantId,
+                barcode: barcodes[0] || "",
+                inventoryItem: {
+                  tracked: true,
+                  sku: skus[0] || ""
+                }
+              }]
+            }
+          }
+        );
+
+        const updateResponseJson = await updateResponse.json();
+        console.log("Non-variant update response:", JSON.stringify(updateResponseJson, null, 2));
+
+        if (updateResponseJson.data?.productVariantsBulkUpdate?.userErrors?.length > 0) {
+          console.error("Error updating non-variant product:", updateResponseJson.data.productVariantsBulkUpdate.userErrors);
+          return json(
+            { error: updateResponseJson.data.productVariantsBulkUpdate.userErrors[0].message },
+            { status: 400 }
+          );
+        }
+
+        return json({ 
+          success: true,
+          variants: updateResponseJson.data?.productVariantsBulkUpdate?.productVariants || []
+        });
+      } else {
+        return json({ error: "Could not find default variant for non-variant product" }, { status: 400 });
+      }
+    }
+
+    // Step 1: Create product options first (for variant products)
     console.log("Creating product options");
     const optionsInput = options.map((option: any, index: number) => ({
       name: option.name,

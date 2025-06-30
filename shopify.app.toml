@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "a584fd28cd63a66d60fb6fe599f5c747"
-application_url = "https://formed-physiology-sandwich-simple.trycloudflare.com"
+application_url = "https://fm-textiles-purchased-witness.trycloudflare.com"
 embedded = true
 name = "Product Builder Pro"
 handle = "product-builder-pro"
@@ -23,9 +23,9 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://formed-physiology-sandwich-simple.trycloudflare.com/auth/callback",
-  "https://formed-physiology-sandwich-simple.trycloudflare.com/auth/shopify/callback",
-  "https://formed-physiology-sandwich-simple.trycloudflare.com/api/auth/callback"
+  "https://fm-textiles-purchased-witness.trycloudflare.com/auth/callback",
+  "https://fm-textiles-purchased-witness.trycloudflare.com/auth/shopify/callback",
+  "https://fm-textiles-purchased-witness.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

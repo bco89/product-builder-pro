@@ -42,7 +42,10 @@ export default function StepSuccess({ productId, shop, variantCount, onBuildAnot
                 Product Created Successfully!
               </Text>
               <Text as="p" tone="subdued">
-                Your product with {variantCount} variants has been created and is ready to sell.
+                {variantCount === 1 
+                  ? "Your product has been created and is ready to sell."
+                  : `Your product with ${variantCount} variants has been created and is ready to sell.`
+                }
               </Text>
             </BlockStack>
           </BlockStack>
