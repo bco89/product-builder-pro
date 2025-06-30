@@ -11,8 +11,11 @@ import {
   InlineStack,
   Text,
   Button,
-  Spinner
+  Spinner,
+  Icon,
+  Box
 } from '@shopify/polaris';
+import { CheckIcon, ClockIcon, AlertCircleIcon } from '@shopify/polaris-icons';
 import { json } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { authenticate } from '../shopify.server';
@@ -125,6 +128,20 @@ export default function ProductBuilder() {
   };
 
   const steps = getSteps();
+
+  // Enhanced progress information
+  const getProgressInfo = () => {
+    const totalSteps = steps.length;
+    const progressPercentage = ((currentStep + 1) / totalSteps) * 100;
+    const currentPhase = productId ? 2 : 1;
+    
+    return {
+      totalSteps,
+      progressPercentage,
+      currentPhase,
+      stepTitle: steps[currentStep]?.title || 'Unknown Step'
+    };
+  };
 
   // Handle variant decision
   const handleVariantDecision = useCallback((hasVariantsDecision: boolean) => {
@@ -456,33 +473,35 @@ export default function ProductBuilder() {
               </Banner>
             )}
             
+            {/* Enhanced Progress Indicator */}
             <Card>
-              <BlockStack gap="400">
+              <BlockStack gap="300">
+                <InlineStack gap="300" align="space-between">
+                  <Text variant="headingMd" as="h2">
+                    {productId ? 'Phase 2: Variant Configuration' : 'Phase 1: Product Setup'}
+                  </Text>
+                  <Badge tone={productId ? 'attention' : 'info'}>
+                    Step {currentStep + 1} of {steps.length}
+                  </Badge>
+                </InlineStack>
+                
                 <BlockStack gap="200">
-                  <InlineStack align="space-between">
-                    <Text variant="headingMd" as="h2">
-                      {productId ? `Phase 2: Variant Configuration` : `Progress`}
+                  <ProgressBar progress={getProgressInfo().progressPercentage} size="medium" />
+                  <InlineStack gap="300" align="space-between">
+                    <Text as="span" variant="bodyMd" tone="subdued">
+                      Current: {getProgressInfo().stepTitle}
                     </Text>
-                    {productId && (
-                      <Badge tone="success">Product Created</Badge>
-                    )}
+                    <Text as="span" variant="bodyMd" tone="subdued">
+                      {Math.round(getProgressInfo().progressPercentage)}% Complete
+                    </Text>
                   </InlineStack>
-                  <ProgressBar
-                    progress={(currentStep / (steps.length - 1)) * 100}
-                    size="small"
-                  />
                 </BlockStack>
                 
-                <InlineStack gap="200" wrap>
-                  {steps.map((step, index) => (
-                    <Badge
-                      key={`${step.phase}-${index}`}
-                      tone={index === currentStep ? 'info' : index < currentStep ? 'success' : undefined}
-                    >
-                      {`${index + 1}. ${step.title}`}
-                    </Badge>
-                  ))}
-                </InlineStack>
+                {productId && (
+                  <Banner tone="success" title="Product Created Successfully">
+                    <Text as="p">Your product has been created. Now configure the variants below.</Text>
+                  </Banner>
+                )}
               </BlockStack>
             </Card>
             

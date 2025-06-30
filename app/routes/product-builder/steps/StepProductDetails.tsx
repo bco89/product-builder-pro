@@ -169,19 +169,6 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
     </Banner>
   );
 
-  const getHandleErrorContent = () => {
-    if (handleValidationState === 'taken' || handleValidationState === 'invalid' || handleValidationState === 'error') {
-      return (
-        <div style={{ marginTop: '0.5rem' }}>
-          <Text as="span" variant="bodySm" tone="critical">
-            Product handle already exists. Please choose an alternative product title.
-          </Text>
-        </div>
-      );
-    }
-    return null;
-  };
-
   const isFormValid = () => {
     const hasTitle = !!formData.title;
     const hasDescription = !!formData.description;
@@ -201,17 +188,23 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
     <>
       {/* Vendor & Product Type Display Card */}
       <Card>
-        <InlineStack gap="400" wrap>
-          <Text as="span">
-            <Text as="span" fontWeight="bold">Vendor:</Text> {formData.vendor || 'Not specified'}
-          </Text>
-          <Text as="span">
-            <Text as="span" fontWeight="bold">Product Type:</Text> {formData.productType || 'Not specified'}
-          </Text>
-          <Text as="span">
-            <Text as="span" fontWeight="bold">Category:</Text> {formData.category?.name || 'Not specified'}
-          </Text>
-        </InlineStack>
+        <BlockStack gap="300">
+          <Text variant="headingMd" as="h3">Selected Information</Text>
+          <InlineStack gap="400" wrap>
+            <BlockStack gap="100">
+              <Text as="span" variant="bodyMd" tone="subdued">Vendor</Text>
+              <Badge tone="info">{formData.vendor || 'Not specified'}</Badge>
+            </BlockStack>
+            <BlockStack gap="100">
+              <Text as="span" variant="bodyMd" tone="subdued">Product Type</Text>
+              <Badge tone="attention">{formData.productType || 'Not specified'}</Badge>
+            </BlockStack>
+            <BlockStack gap="100">
+              <Text as="span" variant="bodyMd" tone="subdued">Category</Text>
+              <Badge tone="success">{formData.category?.name || 'Not specified'}</Badge>
+            </BlockStack>
+          </InlineStack>
+        </BlockStack>
       </Card>
 
       <Card>
@@ -223,6 +216,9 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
           value={formData.title}
           onChange={(value) => onChange({ title: value })}
           autoComplete="off"
+          helpText="Enter a clear, descriptive name for your product"
+          showCharacterCount
+          maxLength={255}
         />
 
         <TextField
@@ -231,19 +227,32 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
           onChange={(value) => onChange({ description: value })}
           multiline={4}
           autoComplete="off"
+          helpText="Provide a detailed description to help customers understand your product"
+          showCharacterCount
+          maxLength={5000}
         />
 
-        <DropZone
-          accept="image/*"
-          type="image"
-          onDrop={handleDropZoneDrop}
-          allowMultiple
-          label="Product Images"
-          errorOverlayText="File type must be image/*"
-        >
-          {uploadedFiles}
-          {fileUpload}
-        </DropZone>
+        <BlockStack gap="200">
+          <DropZone
+            accept="image/*"
+            type="image"
+            onDrop={handleDropZoneDrop}
+            allowMultiple
+            label="Product Images"
+            errorOverlayText="File type must be .jpg, .png, or .gif"
+          >
+            {uploadedFiles}
+            {fileUpload}
+          </DropZone>
+          <Text as="p" variant="bodyMd" tone="subdued">
+            Add up to 5 product images. Accepted formats: JPG, PNG, GIF. Maximum file size: 20MB per image.
+          </Text>
+          {formData.images.length > 0 && (
+            <Text as="p" variant="bodyMd" tone="success">
+              {formData.images.length} image{formData.images.length > 1 ? 's' : ''} uploaded
+            </Text>
+          )}
+        </BlockStack>
 
         {errorMessage}
 
@@ -252,6 +261,11 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
           checked={formData.addImagesLater}
           onChange={(checked) => onChange({ addImagesLater: checked })}
           disabled={formData.images.length > 0}
+          helpText={
+            formData.images.length > 0 
+              ? "Images have been uploaded - uncheck to remove images and add later"
+              : "Check this if you want to proceed without images and add them later"
+          }
         />
 
         <div>
@@ -260,20 +274,61 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
             value={formData.handle}
             readOnly
             autoComplete="off"
+            suffix={
+              handleValidationState === 'checking' ? (
+                <Spinner accessibilityLabel="Validating handle" size="small" />
+              ) : handleValidationState === 'available' ? (
+                <Icon source={CheckIcon} tone="success" />
+              ) : handleValidationState === 'taken' || handleValidationState === 'invalid' || handleValidationState === 'error' ? (
+                <Icon source={AlertTriangleIcon} tone="critical" />
+              ) : null
+            }
+            helpText={
+              handleValidationState === 'available' 
+                ? "This handle is available and will be used as your product URL"
+                : handleValidationState === 'checking'
+                ? "Checking availability..."
+                : "Auto-generated from product title. This will be your product URL."
+            }
+            error={handleValidationState === 'taken' || handleValidationState === 'invalid' || handleValidationState === 'error'}
           />
-          {getHandleErrorContent()}
+          {(handleValidationState === 'taken' || handleValidationState === 'invalid' || handleValidationState === 'error') && (
+            <Text as="p" variant="bodyMd" tone="critical">
+              {handleValidationState === 'taken' 
+                ? "This handle is already in use. Please choose a different product title."
+                : handleValidationState === 'invalid'
+                ? "Invalid handle format. Please choose a different product title."
+                : "Unable to validate handle. Please try again."
+              }
+            </Text>
+          )}
         </div>
 
-        <InlineStack gap="300" align="end">
-          <Button onClick={onBack}>Back</Button>
-          <Button 
-            variant="primary"
-            onClick={handleSubmit}
-            disabled={!isFormValid()}
-          >
-            Next
-          </Button>
-        </InlineStack>
+        <BlockStack gap="300">
+          {!isFormValid() && (
+            <Banner tone="info" title="Complete all required fields">
+              <Text as="p">
+                Please fill in all required fields: 
+                {!formData.title && " Title"}
+                {!formData.description && " Description"}
+                {handleValidationState !== 'available' && " Valid Handle"}
+                {!(formData.images.length > 0 || formData.addImagesLater) && " Images or check 'Add images later'"}
+              </Text>
+            </Banner>
+          )}
+          
+          <InlineStack gap="300" align="end">
+            <Button onClick={onBack}>Back</Button>
+            <Button 
+              variant="primary"
+              onClick={handleSubmit}
+              disabled={!isFormValid()}
+              loading={handleValidationState === 'checking'}
+            >
+              {handleValidationState === 'checking' ? 'Validating...' : 'Next'}
+            </Button>
+          </InlineStack>
+        </BlockStack>
       </FormLayout>
     </Card>
     </>
