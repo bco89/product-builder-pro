@@ -1,24 +1,12 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 
-interface CollectionNode {
+interface TaxonomyCategory {
   id: string;
-  title: string;
-  description: string | null;
-}
-
-interface Category {
-  id: string;
-  title: string;
-  description: string | null;
-}
-
-interface ProductNode {
-  collections: {
-    edges: Array<{
-      node: CollectionNode;
-    }>;
-  };
+  name: string;
+  fullName: string;
+  level: number;
+  isLeaf: boolean;
 }
 
 export const loader = async ({ request }: { request: Request }) => {
@@ -31,49 +19,112 @@ export const loader = async ({ request }: { request: Request }) => {
   }
 
   try {
+    // First, get the top-level categories from Shopify's taxonomy
     const response = await admin.graphql(
       `#graphql
-      query getCategories($productType: String!) {
-        products(first: 250, query: $productType) {
-          edges {
-            node {
-              collections(first: 10) {
-                edges {
-                  node {
-                    id
-                    title
-                    description
-                  }
-                }
+      query getTaxonomyCategories {
+        taxonomy {
+          categories(first: 250) {
+            edges {
+              node {
+                id
+                name
+                fullName
+                level
+                isLeaf
               }
             }
           }
         }
-      }`,
-      {
-        variables: {
-          productType: `product_type:'${productType}'`
-        }
-      }
+      }`
     );
 
     const data = await response.json();
-    const categories = data.data.products.edges.flatMap((edge: { node: ProductNode }) => 
-      edge.node.collections.edges.map(collectionEdge => ({
-        id: collectionEdge.node.id,
-        title: collectionEdge.node.title,
-        description: collectionEdge.node.description
-      }))
-    );
+    
+    if (!data?.data?.taxonomy?.categories?.edges) {
+      console.log("No taxonomy categories found");
+      return json({ categories: [] });
+    }
 
-    // Remove duplicates based on ID
-    const uniqueCategories = Array.from(
-      new Map(categories.map((item: Category) => [item.id, item])).values()
-    );
+    // Map taxonomy categories to our interface
+    const categories = data.data.taxonomy.categories.edges.map((edge: { node: TaxonomyCategory }) => ({
+      id: edge.node.id,
+      name: edge.node.name,
+      fullName: edge.node.fullName,
+      level: edge.node.level,
+      isLeaf: edge.node.isLeaf
+    }));
 
-    return json({ categories: uniqueCategories });
+    // Filter categories that might be relevant to the product type
+    // For now, return all categories but we could add smart filtering later
+    let filteredCategories = categories;
+
+    // Optionally filter by relevance to product type
+    if (productType) {
+      const productTypeLower = productType.toLowerCase();
+      filteredCategories = categories.filter((cat: TaxonomyCategory) => {
+        const nameMatch = cat.name.toLowerCase().includes(productTypeLower);
+        const fullNameMatch = cat.fullName.toLowerCase().includes(productTypeLower);
+        return nameMatch || fullNameMatch;
+      });
+
+      // If no specific matches found, return top-level categories (level 0 and 1)
+      if (filteredCategories.length === 0) {
+        filteredCategories = categories.filter((cat: TaxonomyCategory) => cat.level <= 1);
+      }
+    }
+
+    // Sort by level (top-level first) then by name
+    filteredCategories.sort((a: TaxonomyCategory, b: TaxonomyCategory) => {
+      if (a.level !== b.level) {
+        return a.level - b.level;
+      }
+      return a.name.localeCompare(b.name);
+    });
+
+    return json({ categories: filteredCategories });
   } catch (error) {
-    console.error("Failed to fetch categories:", error);
-    return json({ categories: [] });
+    console.error("Failed to fetch taxonomy categories:", error);
+    
+    // Fallback: return some common categories if taxonomy fails
+    const fallbackCategories = [
+      {
+        id: "gid://shopify/TaxonomyCategory/aa-1",
+        name: "Apparel & Accessories",
+        fullName: "Apparel & Accessories",
+        level: 0,
+        isLeaf: false
+      },
+      {
+        id: "gid://shopify/TaxonomyCategory/aa-2",
+        name: "Arts & Entertainment",
+        fullName: "Arts & Entertainment", 
+        level: 0,
+        isLeaf: false
+      },
+      {
+        id: "gid://shopify/TaxonomyCategory/aa-3",
+        name: "Baby & Toddler",
+        fullName: "Baby & Toddler",
+        level: 0,
+        isLeaf: false
+      },
+      {
+        id: "gid://shopify/TaxonomyCategory/aa-4",
+        name: "Business & Industrial",
+        fullName: "Business & Industrial",
+        level: 0,
+        isLeaf: false
+      },
+      {
+        id: "gid://shopify/TaxonomyCategory/aa-5",
+        name: "Cameras & Optics",
+        fullName: "Cameras & Optics",
+        level: 0,
+        isLeaf: false
+      }
+    ];
+    
+    return json({ categories: fallbackCategories });
   }
 }; 

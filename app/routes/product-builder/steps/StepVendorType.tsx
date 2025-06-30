@@ -25,11 +25,9 @@ import { GET_PRODUCT_CATEGORIES } from '~/graphql/queries';
 interface Category {
   id: string;
   name: string;
-}
-
-interface ProductCategory {
-  id: string;
-  name: string;
+  fullName: string;
+  level: number;
+  isLeaf: boolean;
 }
 
 interface ProductType {
@@ -37,6 +35,9 @@ interface ProductType {
   category: {
     id: string;
     name: string;
+    fullName?: string;
+    level?: number;
+    isLeaf?: boolean;
   } | null;
 }
 
@@ -46,6 +47,9 @@ interface FormDataType {
   category: {
     id: string;
     name: string;
+    fullName?: string;
+    level?: number;
+    isLeaf?: boolean;
   } | null;
 }
 
@@ -122,12 +126,10 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
     return value && vendorProductTypes && !vendorProductTypes.some((type: ProductType) => type.productType === value);
   }, [vendorProductTypes]);
 
-  const isNewCategory = useCallback((value: string) => {
-    return value && productTypeCategories && !productTypeCategories.some((cat: Category) => cat.name === value);
-  }, [productTypeCategories]);
+  // Categories now come from Shopify taxonomy - no need to create new ones
 
   // Handle new entry confirmation
-  const handleNewEntryConfirmation = useCallback((type: 'vendor' | 'productType' | 'category', value: string) => {
+  const handleNewEntryConfirmation = useCallback((type: 'vendor' | 'productType', value: string) => {
     setNewEntryConfirmation({
       isOpen: true,
       type,
@@ -161,15 +163,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
         setProductTypeInputValue(value);
         setCategoryInputValue(''); // Clear category input when new product type is created
         break;
-      case 'category':
-        // Create a new category object with a temporary ID
-        const newCategory = {
-          id: `new-${Date.now()}`,
-          name: value
-        };
-        onChange({ category: newCategory });
-        setCategoryInputValue(value);
-        break;
+      // Categories now come from Shopify taxonomy - no creation needed
     }
 
     setNewEntryConfirmation({
@@ -278,10 +272,6 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
   // Handle category selection
   const handleCategoryChange = useCallback((selected: string[]) => {
     const selectedValue = selected[0];
-    if (selectedValue === 'create-new-category') {
-      handleNewEntryConfirmation('category', categoryInputValue);
-      return;
-    }
 
     if (selectedValue) {
       const category = productTypeCategories?.find((cat: Category) => cat.id === selectedValue) || null;
@@ -291,7 +281,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
         setCategoryInputValue(category.name);
       }
     }
-  }, [onChange, productTypeCategories, categoryInputValue, handleNewEntryConfirmation]);
+  }, [onChange, productTypeCategories]);
   const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
 
   // Filter categories based on input
@@ -310,7 +300,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
 
     const filterRegex = new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
     const resultCategories = productTypeCategories.filter((cat: Category) =>
-      cat.name.match(filterRegex)
+      cat.name.match(filterRegex) || cat.fullName.match(filterRegex)
     );
     setFilteredCategories(resultCategories);
   }, [productTypeCategories]);
@@ -423,19 +413,12 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
   const categoryOptions = useMemo(() => {
     const options = filteredCategories?.map((cat: Category) => ({
       value: cat.id,
-      label: cat.name
+      label: cat.level > 0 ? `${cat.name} (${cat.fullName})` : cat.name
     })) || [];
 
-    // Add "Create new" option if input doesn't match any existing category and there's input
-    if (categoryInputValue.trim() && isNewCategory(categoryInputValue)) {
-      options.unshift({
-        value: 'create-new-category',
-        label: `Create new category: "${categoryInputValue}"`
-      });
-    }
-
+    // Categories come from Shopify taxonomy - no new categories can be created
     return options;
-  }, [filteredCategories, categoryInputValue, isNewCategory]);
+  }, [filteredCategories]);
 
   const handleSubmit = () => {
     if (formData.vendor && formData.productType) {
@@ -621,26 +604,16 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
                     onChange={updateCategoryText}
                     value={categoryInputValue}
                     prefix={<Icon source={SearchIcon} tone="base" />}
-                    placeholder={
-                      productTypeCategories && productTypeCategories.length === 0 
-                        ? "Type to create new category..." 
-                        : "Search categories or type to create new..."
-                    }
+                    placeholder="Search categories..."
                     autoComplete="off"
                     disabled={!!categoriesError}
-                    helpText={
-                      productTypeCategories && productTypeCategories.length === 0
-                        ? "No existing categories found for this product type. Type to create a new category."
-                        : "Select the most appropriate category to improve your product's discoverability and boost sales"
-                    }
+                    helpText="Select the most appropriate category to improve your product's discoverability and boost sales"
                   />
                 }
                 emptyState={
                   <Text as="p" variant="bodyMd" tone="subdued" alignment="center">
-                    {categoryInputValue && isNewCategory(categoryInputValue)
-                      ? `Create new category: "${categoryInputValue}"`
-                      : productTypeCategories && productTypeCategories.length === 0
-                      ? "No categories found. Type to create a new category."
+                    {productTypeCategories && productTypeCategories.length === 0
+                      ? "No categories available for this product type."
                       : `No categories found matching "${categoryInputValue}"`
                     }
                   </Text>

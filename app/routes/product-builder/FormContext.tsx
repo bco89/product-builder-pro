@@ -12,6 +12,9 @@ export interface FormData {
   category: {
     id: string;
     name: string;
+    fullName?: string;
+    level?: number;
+    isLeaf?: boolean;
   } | null;
   title: string;
   description: string;
