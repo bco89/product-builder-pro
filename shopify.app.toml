@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "a584fd28cd63a66d60fb6fe599f5c747"
-application_url = "https://should-baltimore-fd-falling.trycloudflare.com"
+application_url = "https://crash-recipe-letter-excitement.trycloudflare.com"
 embedded = true
 name = "Product Builder Pro"
 handle = "product-builder-pro"
@@ -23,9 +23,9 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://should-baltimore-fd-falling.trycloudflare.com/auth/callback",
-  "https://should-baltimore-fd-falling.trycloudflare.com/auth/shopify/callback",
-  "https://should-baltimore-fd-falling.trycloudflare.com/api/auth/callback"
+  "https://crash-recipe-letter-excitement.trycloudflare.com/auth/callback",
+  "https://crash-recipe-letter-excitement.trycloudflare.com/auth/shopify/callback",
+  "https://crash-recipe-letter-excitement.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

@@ -17,7 +17,8 @@ import {
   SearchIcon, 
   ChevronRightIcon,
   FolderIcon,
-  CheckIcon 
+  CheckIcon,
+  ChevronLeftIcon
 } from '@shopify/polaris-icons';
 
 interface Category {
@@ -242,10 +243,27 @@ export function CategoryBrowser({
             onClearButtonClick={() => setSearchQuery('')}
           />
 
+          {/* Back Button */}
+          {!searchMode && breadcrumbs.length > 0 && (
+            <Box paddingBlockEnd="200">
+              <Button
+                icon={ChevronLeftIcon}
+                onClick={() => {
+                  const parentIndex = breadcrumbs.length - 1;
+                  navigateToBreadcrumb(parentIndex);
+                }}
+                variant="tertiary"
+                size="medium"
+              >
+                Back to {breadcrumbs.length === 1 ? 'All Categories' : breadcrumbs[breadcrumbs.length - 2]?.name || 'Previous Level'}
+              </Button>
+            </Box>
+          )}
+
           {/* Breadcrumbs */}
           {!searchMode && breadcrumbs.length > 0 && (
-            <Box paddingBlockEnd="300">
-              <InlineStack gap="150" align="start" wrap={false}>
+            <Box paddingBlockStart="100" paddingBlockEnd="200">
+              <InlineStack gap="200" align="start" wrap={false}>
                 <Button
                   size="micro"
                   variant="plain"
@@ -255,7 +273,9 @@ export function CategoryBrowser({
                 </Button>
                 {breadcrumbs.map((crumb, index) => (
                   <React.Fragment key={crumb.id}>
-                    <Icon source={ChevronRightIcon} tone="subdued" />
+                    <Box paddingInlineStart="100" paddingInlineEnd="100">
+                      <Icon source={ChevronRightIcon} tone="subdued" />
+                    </Box>
                     <Button
                       size="micro"
                       variant="plain"
