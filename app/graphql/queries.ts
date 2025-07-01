@@ -73,6 +73,31 @@ export const GET_PRODUCT_CATEGORIES = `#graphql
   }
 `;
 
+export const GET_TAXONOMY_CATEGORIES_HIERARCHICAL = `#graphql
+  query GetCategories($search: String, $childrenOf: ID) {
+    taxonomy {
+      categories(
+        first: 50
+        search: $search
+        childrenOf: $childrenOf
+      ) {
+        edges {
+          node {
+            id
+            name
+            fullName
+            level
+            isLeaf
+            isRoot
+            parentId
+            childrenIds
+          }
+        }
+      }
+    }
+  }
+`;
+
 export const SHOP_QUERY = `#graphql
   query {
     shop {
