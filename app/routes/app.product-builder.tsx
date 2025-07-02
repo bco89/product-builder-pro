@@ -438,6 +438,7 @@ export default function ProductBuilder() {
               shop={shop} 
               variantCount={variantCount}
               onBuildAnother={handleBuildAnother}
+              productTitle={formData.title}
             />
           </Layout.Section>
         </Layout>
@@ -503,7 +504,7 @@ export default function ProductBuilder() {
                     {productId ? 'Phase 2: Variant Configuration' : 'Phase 1: Product Setup'}
                   </Text>
                   <Badge tone={productId ? 'attention' : 'info'}>
-                    Step {currentStep + 1} of {steps.length}
+                    {`Step ${currentStep + 1} of ${steps.length}`}
                   </Badge>
                 </InlineStack>
                 

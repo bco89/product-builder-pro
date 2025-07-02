@@ -6,9 +6,10 @@ interface StepSuccessProps {
   shop: string;
   variantCount: number;
   onBuildAnother?: () => void;
+  productTitle?: string;
 }
 
-export default function StepSuccess({ productId, shop, variantCount, onBuildAnother }: StepSuccessProps) {
+export default function StepSuccess({ productId, shop, variantCount, onBuildAnother, productTitle }: StepSuccessProps) {
   const navigate = useNavigate();
   
   const handleViewProduct = () => {
@@ -32,6 +33,13 @@ export default function StepSuccess({ productId, shop, variantCount, onBuildAnot
     window.open(catalogUrl, '_top');
   };
 
+  const getSubheadingText = () => {
+    const productName = productTitle || "Your product";
+    return variantCount === 1 
+      ? `${productName} has been created and is ready to sell.`
+      : `${productName} with ${variantCount} variants has been created and is ready to sell.`;
+  };
+
   return (
     <Card>
       <BlockStack gap="600">
@@ -42,16 +50,11 @@ export default function StepSuccess({ productId, shop, variantCount, onBuildAnot
                 Product Created Successfully!
               </Text>
               <Text as="p" tone="subdued">
-                {variantCount === 1 
-                  ? "Your product has been created and is ready to sell."
-                  : `Your product with ${variantCount} variants has been created and is ready to sell.`
-                }
+                {getSubheadingText()}
               </Text>
             </BlockStack>
           </BlockStack>
         </Box>
-
-
 
         <Box borderColor="border" borderWidth="025" padding="400" borderRadius="200">
           <BlockStack gap="300">
@@ -65,6 +68,15 @@ export default function StepSuccess({ productId, shop, variantCount, onBuildAnot
         <BlockStack gap="300">
           <Button
             variant="primary"
+            onClick={handleBuildAnother}
+            fullWidth
+            size="large"
+          >
+            Build Another Product
+          </Button>
+          
+          <Button
+            variant="primary"
             onClick={handleViewProduct}
             fullWidth
             size="large"
@@ -72,21 +84,13 @@ export default function StepSuccess({ productId, shop, variantCount, onBuildAnot
             View Created Product
           </Button>
           
-          <InlineStack gap="300">
-            <Button
-              onClick={handleBuildAnother}
-              fullWidth
-            >
-              Build Another Product
-            </Button>
-            
-            <Button
-              onClick={handleGoToCatalog}
-              fullWidth
-            >
-              Go to Product Catalog
-            </Button>
-          </InlineStack>
+          <Button
+            onClick={handleGoToCatalog}
+            fullWidth
+            size="large"
+          >
+            View All Products
+          </Button>
         </BlockStack>
       </BlockStack>
     </Card>
