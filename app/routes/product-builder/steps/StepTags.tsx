@@ -41,26 +41,10 @@ interface OptionDescriptor {
 }
 
 export default function StepTags({ formData, onChange, onNext, onBack, productId }: StepTagsProps) {
-  const [selectedTags, setSelectedTags] = useState<string[]>(() => {
-    if (formData.tags?.length > 0) return formData.tags;
-    
-    const currentYear = new Date().getFullYear().toString();
-    const defaultTags = [currentYear];
-    if (formData.vendor && formData.vendor !== 'Default Vendor') {
-      defaultTags.push(formData.vendor);
-    }
-    return defaultTags;
-  });
+  const [selectedTags, setSelectedTags] = useState<string[]>(formData.tags || []);
   
   const [inputValue, setInputValue] = useState('');
   const [options, setOptions] = useState<OptionDescriptor[]>([]);
-
-  // Ensure default tags are passed to parent component immediately
-  useEffect(() => {
-    if ((!formData.tags || formData.tags.length === 0) && selectedTags.length > 0) {
-      onChange({ tags: selectedTags });
-    }
-  }, [formData.tags, selectedTags, onChange]);
 
   // Fetch existing tags from products of the selected type
   const { data: productTypeTags = [], isLoading: productTypeTagsLoading, isError: productTypeTagsError } = useQuery({
@@ -160,20 +144,44 @@ export default function StepTags({ formData, onChange, onNext, onBack, productId
 
   // Get product type specific suggestions for the suggestion box
   const productTypeTagSuggestions = useMemo(() => {
-    if (!productTypeTags || productTypeTags.length === 0) return [];
+    const suggestions: string[] = [];
     
+    // Add priority suggestions first: current year, vendor, and product type
     const currentYear = new Date().getFullYear().toString();
-    const filteredTags = productTypeTags.filter(tag => 
-      !selectedTags.includes(tag) &&
-      tag !== formData.vendor &&
-      tag !== currentYear &&
-      !allVendors.includes(tag) // Filter out all vendor names from suggestions
-    );
     
-    // Sort alphabetically and organize into 3 columns
-    const sortedTags = filteredTags.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-    return sortedTags.slice(0, 12); // Show up to 12 tags (4 rows × 3 columns)
-  }, [productTypeTags, selectedTags, formData.vendor, allVendors]);
+    // Add current year as first suggestion if not already selected
+    if (!selectedTags.includes(currentYear)) {
+      suggestions.push(currentYear);
+    }
+    
+    // Add vendor as second suggestion if valid and not already selected
+    if (formData.vendor && formData.vendor !== 'Default Vendor' && !selectedTags.includes(formData.vendor)) {
+      suggestions.push(formData.vendor);
+    }
+    
+    // Add product type as third suggestion if not already selected
+    if (formData.productType && !selectedTags.includes(formData.productType)) {
+      suggestions.push(formData.productType);
+    }
+    
+    // Add other product type tags if available
+    if (productTypeTags && productTypeTags.length > 0) {
+      const filteredTags = productTypeTags.filter(tag => 
+        !selectedTags.includes(tag) &&
+        tag !== formData.vendor &&
+        tag !== currentYear &&
+        tag !== formData.productType &&
+        !allVendors.includes(tag) // Filter out all vendor names from suggestions
+      );
+      
+      // Sort alphabetically and add to suggestions
+      const sortedTags = filteredTags.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+      suggestions.push(...sortedTags);
+    }
+    
+    // Limit to 12 total suggestions (4 rows × 3 columns)
+    return suggestions.slice(0, 12);
+  }, [productTypeTags, selectedTags, formData.vendor, formData.productType, allVendors]);
 
   // Organize tags into 3 columns for display
   const tagColumns = useMemo(() => {
@@ -190,15 +198,9 @@ export default function StepTags({ formData, onChange, onNext, onBack, productId
   }, [onChange]);
 
   const handleTagRemove = useCallback((tag: string) => {
-    // Prevent removing default tags
-    const currentYear = new Date().getFullYear().toString();
-    if (tag === formData.vendor || tag === currentYear) {
-      return;
-    }
-    
     const newTags = selectedTags.filter((t) => t !== tag);
     updateSelectedTags(newTags);
-  }, [selectedTags, updateSelectedTags, formData.vendor]);
+  }, [selectedTags, updateSelectedTags]);
 
   const updateText = useCallback((value: string) => {
     setInputValue(value);
@@ -304,30 +306,28 @@ export default function StepTags({ formData, onChange, onNext, onBack, productId
                     >
                       <BlockStack gap="300">
                         <Text variant="bodySm" as="p" tone="subdued">
-                          Tags from other products with the same product type
+                          Recommended tags for your product
                         </Text>
                       
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                        {tagColumns.map((column, columnIndex) => (
-                          <div key={columnIndex}>
-                            {column.map((tag) => (
-                              <div key={tag} style={{ marginBottom: '8px' }}>
-                                <Checkbox
-                                  label={tag}
-                                  checked={selectedTags.includes(tag)}
-                                  onChange={(checked) => handleSuggestionToggle(tag, checked)}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    </BlockStack>
-                  </Box>
-
-
-                </BlockStack>
-              </Box>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                          {tagColumns.map((column, columnIndex) => (
+                            <div key={columnIndex}>
+                              {column.map((tag) => (
+                                <div key={tag} style={{ marginBottom: '8px' }}>
+                                  <Checkbox
+                                    label={tag}
+                                    checked={selectedTags.includes(tag)}
+                                    onChange={(checked) => handleSuggestionToggle(tag, checked)}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      </BlockStack>
+                    </Box>
+                  </BlockStack>
+                </Box>
               </BlockStack>
             )}
 
@@ -360,20 +360,14 @@ export default function StepTags({ formData, onChange, onNext, onBack, productId
                   <Text variant="headingSm" as="h3">
                     Selected Tags ({selectedTags.length.toString()})
                   </Text>
-                  <Text variant="bodySm" as="p" tone="subdued">
-                    Default tags cannot be deleted from within Product Builder Pro
-                  </Text>
                 </BlockStack>
                 
                 <InlineStack gap="200" wrap>
                   {selectedTags.map((tag) => {
-                    const currentYear = new Date().getFullYear().toString();
-                    const isDefaultTag = tag === formData.vendor || tag === currentYear;
-                    
                     return (
                       <Tag 
                         key={tag} 
-                        onRemove={!isDefaultTag ? () => handleTagRemove(tag) : undefined}
+                        onRemove={() => handleTagRemove(tag)}
                       >
                         {tag}
                       </Tag>

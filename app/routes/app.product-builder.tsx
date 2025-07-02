@@ -479,7 +479,7 @@ export default function ProductBuilder() {
       secondaryActions={[
         {
           content: 'Cancel',
-          onAction: () => navigate('/app'),
+          onAction: handleBuildAnother,
         }
       ]}
     >
@@ -510,14 +510,9 @@ export default function ProductBuilder() {
                 
                 <BlockStack gap="200">
                   <ProgressBar progress={getProgressInfo().progressPercentage} size="medium" />
-                  <InlineStack gap="300" align="space-between">
-                    <Text as="span" variant="bodyMd" tone="subdued">
-                      Current: {getProgressInfo().stepTitle}
-                    </Text>
-                    <Text as="span" variant="bodyMd" tone="subdued">
-                      {Math.round(getProgressInfo().progressPercentage)}% Complete
-                    </Text>
-                  </InlineStack>
+                  <Text as="span" variant="bodyMd" tone="subdued">
+                    Current: {getProgressInfo().stepTitle}
+                  </Text>
                 </BlockStack>
                 
                 {productId && (
