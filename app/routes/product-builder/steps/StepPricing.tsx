@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import {
   Card,
   TextField,
@@ -71,8 +71,9 @@ export default function StepPricing({ formData, onChange, onNext, onBack, produc
 
           <Banner tone="info">
             <Text as="p">
-              Set the base price for your product. This price will be applied to all variants. 
-              You can adjust individual variant prices later in the product catalog.
+              Set the base price for your product. If you choose to add variants in the next step, 
+              this price will be applied to all variants. You can adjust individual variant prices 
+              later in the product catalog.
             </Text>
           </Banner>
 
@@ -84,7 +85,7 @@ export default function StepPricing({ formData, onChange, onNext, onBack, produc
               value={formData.pricing[0]?.price || ''}
               onChange={(value) => handlePriceChange('price', value)}
               autoComplete="off"
-              helpText="This price will be applied to all product variants"
+              helpText="Base price for your product - will be applied to all variants if you add them"
             />
 
             <TextField

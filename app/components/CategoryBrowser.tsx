@@ -97,10 +97,11 @@ export function CategoryBrowser({
 
   // Navigate to category
   const navigateToCategory = (category: Category) => {
-    if (!category.isLeaf && !searchMode) {
+    if (!category.isLeaf) {
+      // Clear search when navigating to allow proper folder browsing
+      setSearchQuery('');
       setCurrentParentId(category.id);
       setBreadcrumbs([...breadcrumbs, category]);
-      setSearchQuery('');
       setSuggestedCategories([]); // Clear suggestions when navigating deeper
     }
   };
@@ -163,6 +164,10 @@ export function CategoryBrowser({
           onClick={() => {
             if (category.isLeaf) {
               handleSelectCategory(category);
+            } else if (searchMode) {
+              // In search mode, clicking a folder shows options: navigate or select
+              // For better UX, let's navigate to show subcategories
+              navigateToCategory(category);
             } else {
               navigateToCategory(category);
             }
@@ -197,16 +202,29 @@ export function CategoryBrowser({
                   Suggested
                 </Badge>
               )}
-              {/* Always show select button for all categories */}
-              <div onClick={(e) => e.stopPropagation()}>
-                <Button
-                  size="micro"
-                  variant={isSelected ? 'primary' : 'tertiary'}
-                  onClick={() => handleSelectCategory(category)}
-                >
-                  {isSelected ? 'Selected' : 'Select'}
-                </Button>
-              </div>
+              {/* Show action buttons with better labels */}
+              <InlineStack gap="100">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    size="micro"
+                    variant={isSelected ? 'primary' : 'tertiary'}
+                    onClick={() => handleSelectCategory(category)}
+                  >
+                    {isSelected ? 'Selected' : 'Select'}
+                  </Button>
+                </div>
+                {!category.isLeaf && searchMode && (
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      size="micro"
+                      variant="tertiary"
+                      onClick={() => navigateToCategory(category)}
+                    >
+                      Browse
+                    </Button>
+                  </div>
+                )}
+              </InlineStack>
               {!category.isLeaf && !searchMode && (
                 <Icon source={ChevronRightIcon} tone="subdued" />
               )}

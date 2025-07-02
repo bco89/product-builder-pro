@@ -576,6 +576,13 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
         </BlockStack>
       </Card>
 
+      {/* Pricing Inheritance Banner */}
+      <Banner tone="info">
+        <Text as="p">
+          All variants will inherit your base pricing. You can adjust individual variant prices later in the product catalog.
+        </Text>
+      </Banner>
+
       <Card>
         <BlockStack gap="500">
           <Text variant="headingMd" as="h2">

@@ -94,18 +94,20 @@ export default function ProductBuilder() {
         { title: 'Vendor & Type', component: StepVendorType, phase: 1 },
         { title: 'Product Details', component: StepProductDetails, phase: 1 },
         { title: 'Tags', component: StepTags, phase: 1 },
+        { title: 'Pricing', component: StepPricing, phase: 1 },
         { title: 'Variants?', component: StepVariantDecision, phase: 1 }
       ];
     } else if (hasVariants === false) {
       // No variants flow - CREATE PRODUCT AFTER PRICING (unified with variant flow)
       if (!productId) {
-        // Phase 1: Before product creation
+        // Phase 1: Before product creation - pricing already set, just create product
         return [
           { title: 'Vendor & Type', component: StepVendorType, phase: 1 },
           { title: 'Product Details', component: StepProductDetails, phase: 1 },
           { title: 'Tags', component: StepTags, phase: 1 },
-          { title: 'Pricing', component: StepPricing, phase: 1 }
-          // Product creation happens after pricing, then continues to phase 2
+          { title: 'Pricing', component: StepPricing, phase: 1 },
+          { title: 'Variants?', component: StepVariantDecision, phase: 1 }
+          // Product creation happens after variant decision, then continues to phase 2
         ];
       } else {
         // Phase 2: After product creation
@@ -115,14 +117,15 @@ export default function ProductBuilder() {
         ];
       }
     } else {
-      // Has variants flow - same as current
+      // Has variants flow - pricing already set, create product then configure variants
       if (!productId) {
-        // Phase 1: Before product creation
+        // Phase 1: Before product creation - pricing already set, just create product
         return [
           { title: 'Vendor & Type', component: StepVendorType, phase: 1 },
           { title: 'Product Details', component: StepProductDetails, phase: 1 },
           { title: 'Tags', component: StepTags, phase: 1 },
-          { title: 'Pricing', component: StepPricing, phase: 1 }
+          { title: 'Pricing', component: StepPricing, phase: 1 },
+          { title: 'Variants?', component: StepVariantDecision, phase: 1 }
         ];
       } else {
         // Phase 2: After product creation
@@ -150,19 +153,6 @@ export default function ProductBuilder() {
       stepTitle: steps[currentStep]?.title || 'Unknown Step'
     };
   };
-
-  // Handle variant decision
-  const handleVariantDecision = useCallback((hasVariantsDecision: boolean) => {
-    setHasVariants(hasVariantsDecision);
-    if (hasVariantsDecision) {
-      // Continue to Initial Pricing step (which will be step 3 after hasVariants is set)
-      setCurrentStep(3);
-      setShouldShowOptionsForm(true); // Set flag to show options form later
-    } else {
-      // Continue to pricing for non-variant flow (which will be step 3 after hasVariants is set)
-      setCurrentStep(3);
-    }
-  }, []);
 
   // Create product mid-flow for both variant and non-variant products
   const createProductMidFlow = useCallback(async () => {
@@ -212,6 +202,14 @@ export default function ProductBuilder() {
       setIsCreatingProduct(false);
     }
   }, [formData, hasVariants]);
+
+  // Handle variant decision
+  const handleVariantDecision = useCallback((hasVariantsDecision: boolean) => {
+    setHasVariants(hasVariantsDecision);
+    // After variant decision, trigger product creation since we now have all Phase 1 data
+    // including pricing which was already set in the previous step
+    createProductMidFlow();
+  }, [createProductMidFlow]);
 
   // Handle final submission (for products with variants)
   const handleFinalSubmit = useCallback(async () => {
@@ -358,6 +356,7 @@ export default function ProductBuilder() {
     if (StepComponent === StepVariantDecision) {
       return (
         <StepVariantDecision
+          formData={formData}
           onDecision={handleVariantDecision}
           onBack={() => handleStepChange(currentStep - 1)}
         />
@@ -572,10 +571,10 @@ export default function ProductBuilder() {
                       <li>Select vendor and product type</li>
                       <li>Add product details</li>
                       <li>Add tags for organization</li>
+                      <li>Set pricing information</li>
                       <li>Choose variant configuration</li>
                       {hasVariants === false && (
                         <>
-                          <li>Set pricing information</li>
                           <li>Add SKU and barcode</li>
                           <li>Review and create</li>
                         </>
