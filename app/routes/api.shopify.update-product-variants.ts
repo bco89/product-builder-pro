@@ -54,7 +54,7 @@ export const action = async ({ request }: { request: Request }) => {
       const defaultVariantId = variantData.data?.product?.variants?.edges?.[0]?.node?.id;
 
       if (defaultVariantId) {
-        // Update the default variant with SKU and barcode
+        // Update the default variant with SKU, barcode, and pricing
         const updateResponse = await admin.graphql(
           `#graphql
           mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
@@ -63,6 +63,8 @@ export const action = async ({ request }: { request: Request }) => {
                 id
                 sku
                 barcode
+                price
+                compareAtPrice
               }
               userErrors {
                 field
@@ -75,10 +77,13 @@ export const action = async ({ request }: { request: Request }) => {
               productId: productId,
               variants: [{
                 id: defaultVariantId,
+                price: pricing[0]?.price || "0.00",
+                compareAtPrice: pricing[0]?.compareAtPrice || undefined,
                 barcode: barcodes[0] || "",
                 inventoryItem: {
                   tracked: true,
-                  sku: skus[0] || ""
+                  sku: skus[0] || "",
+                  cost: pricing[0]?.cost || undefined
                 }
               }]
             }
