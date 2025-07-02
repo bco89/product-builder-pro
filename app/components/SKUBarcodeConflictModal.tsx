@@ -36,6 +36,22 @@ export function SKUBarcodeConflictModal({
 }: ConflictModalProps) {
   if (!conflicts || conflicts.length === 0) return null;
 
+  // Determine button text based on conflict types
+  const getButtonText = () => {
+    const hasSkuConflicts = conflicts.some(c => c.type === 'sku');
+    const hasBarcodeConflicts = conflicts.some(c => c.type === 'barcode');
+    
+    if (hasSkuConflicts && hasBarcodeConflicts) {
+      return 'Continue with Duplicates';
+    } else if (hasSkuConflicts) {
+      return 'Continue with Duplicate SKU';
+    } else if (hasBarcodeConflicts) {
+      return 'Continue with Duplicate Barcode';
+    } else {
+      return 'Continue with Duplicates';
+    }
+  };
+
   return (
     <Modal
       open={isOpen}
@@ -46,7 +62,7 @@ export function SKUBarcodeConflictModal({
         onAction: onClose
       }}
       secondaryActions={[{
-        content: 'Continue with Duplicate SKU',
+        content: getButtonText(),
         destructive: true,
         onAction: onContinueWithDuplicate
       }]}

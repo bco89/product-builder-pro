@@ -322,25 +322,7 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack, pro
     }
   }, [shopifyApi, conflictHistory, shouldSkipValidation]);
 
-  // Sequential validation function for focus-based validation
-  const validateFieldsSequentially = useCallback(async (index: number) => {
-    const variants = hasVariants ? generateVariants() : [{ sku: formData.skus[0] || '', barcode: formData.barcodes[0] || '' }];
-    const variant = variants[index];
 
-    if (!variant) return;
-
-    // First validate SKU, then Barcode
-    if (variant.sku) {
-      await validateSKU(variant.sku, index);
-    }
-    
-    // Small delay before validating barcode
-    setTimeout(() => {
-      if (variant.barcode) {
-        validateBarcode(variant.barcode, index);
-      }
-    }, 100);
-  }, [formData.skus, formData.barcodes, hasVariants, validateSKU, validateBarcode]);
 
   // Handle field focus and blur for controlled validation
   const handleFieldFocus = useCallback((fieldId: string) => {
@@ -353,6 +335,7 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack, pro
       
       // Extract index from fieldId (format: "sku-0" or "barcode-0")
       const parts = fieldId.split('-');
+      const fieldType = parts[0] as 'sku' | 'barcode';
       const index = parseInt(parts[1], 10);
       
       // Only validate if we're in small store mode and validation is enabled
@@ -362,9 +345,19 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack, pro
           clearTimeout(validationTimeouts[index]);
         }
         
-        // Start sequential validation after a short delay
+        // Start field-specific validation after a short delay
         const timeout = setTimeout(() => {
-          validateFieldsSequentially(index);
+          const variants = hasVariants ? generateVariants() : [{ sku: formData.skus[0] || '', barcode: formData.barcodes[0] || '' }];
+          const variant = variants[index];
+          
+          if (!variant) return;
+          
+          // Only validate the specific field that was blurred
+          if (fieldType === 'sku' && variant.sku) {
+            validateSKU(variant.sku, index);
+          } else if (fieldType === 'barcode' && variant.barcode) {
+            validateBarcode(variant.barcode, index);
+          }
         }, 200);
         
         setValidationTimeouts(prev => {
@@ -374,7 +367,7 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack, pro
         });
       }
     }
-  }, [focusedField, storeSize, validationEnabled, validationTimeouts, validateFieldsSequentially]);
+  }, [focusedField, storeSize, validationEnabled, validationTimeouts, formData.skus, formData.barcodes, hasVariants, validateSKU, validateBarcode]);
 
   // Batch validation for medium stores
   const validateBatch = useCallback(async () => {
@@ -696,7 +689,7 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack, pro
                         helpText="Stock Keeping Unit - unique identifier for this variant"
                         suffix={storeSize === 'small' && validationEnabled ? getValidationIcon(validationStates[index]?.sku || 'idle') : undefined}
                         error={storeSize === 'small' && validationEnabled ? getValidationError(validationStates[index]?.sku || 'idle') : false}
-                                                 tone={hasAcceptedConflict('sku', variant.sku, index) ? 'magic' : undefined}
+                        tone={hasAcceptedConflict('sku', variant.sku, index) ? 'magic' : undefined}
                       />
 
                       <TextField
@@ -709,7 +702,7 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack, pro
                         helpText="Optional - Enter a valid barcode or leave blank"
                         suffix={storeSize === 'small' && validationEnabled ? getValidationIcon(validationStates[index]?.barcode || 'idle') : undefined}
                         error={storeSize === 'small' && validationEnabled ? getValidationError(validationStates[index]?.barcode || 'idle') : false}
-                                                 tone={hasAcceptedConflict('barcode', variant.barcode, index) ? 'magic' : undefined}
+                        tone={hasAcceptedConflict('barcode', variant.barcode, index) ? 'magic' : undefined}
                       />
                     </BlockStack>
                   </BlockStack>
