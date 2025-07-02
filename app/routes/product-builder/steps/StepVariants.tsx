@@ -33,6 +33,11 @@ interface StepVariantsProps {
     title: string;
     options: Option[];
     variants: any[]; // Will be generated based on options
+    pricing?: Array<{
+      price?: string;
+      compareAtPrice?: string;
+      cost?: string;
+    }>;
   };
   onChange: (updates: Partial<StepVariantsProps['formData']>) => void;
   onNext: () => void;
@@ -113,9 +118,9 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
   const [valueSearchQuery, setValueSearchQuery] = useState('');
   const [valueComboboxInputValue, setValueComboboxInputValue] = useState('');
 
-  // Auto-show options form when shouldShowOptionsForm is true
+  // Auto-show options form when shouldShowOptionsForm is true OR when user reaches this step after deciding to have variants
   useEffect(() => {
-    if (shouldShowOptionsForm && formData.options.length === 0) {
+    if ((shouldShowOptionsForm || true) && formData.options.length === 0) {
       setShowOptionsForm(true);
     }
   }, [shouldShowOptionsForm, formData.options.length]);
@@ -442,33 +447,7 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
     return Array.from(optionsMap.values());
   }, [existingOptions, allOptions]);
 
-  if (!showOptionsForm && formData.options.length === 0) {
-    return (
-      <Card>
-        <BlockStack gap="500">
-          <Text variant="headingMd" as="h2">
-            Product Variants
-          </Text>
-          
-          <Banner tone="info">
-            <Text as="p">
-              Would you like to add variants to your product?
-            </Text>
-          </Banner>
 
-          <InlineStack gap="300" align="center">
-            <Button onClick={onBack}>Back</Button>
-            <Button onClick={handleNoVariants}>
-              This product has no variants
-            </Button>
-            <Button variant="primary" onClick={handleAddOptionsClick}>
-              Add Options and Variants
-            </Button>
-          </InlineStack>
-        </BlockStack>
-      </Card>
-    );
-  }
 
   // Get available option values for selected option name
   const availableValues = useMemo(() => {
@@ -520,6 +499,7 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
   };
 
   const variantCount = calculateVariantCount();
+  const basePricing = formData.pricing?.[0];
 
   return (
     <>
@@ -573,15 +553,25 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
               <Text as="span" fontWeight="bold">Category:</Text> {formData.category?.name || 'Not specified'}
             </Text>
           </InlineStack>
+          {basePricing && (
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Price:</Text> ${basePricing.price || '0.00'}
+              {basePricing.compareAtPrice && (
+                <>
+                  {' • '}
+                  <Text as="span" fontWeight="bold">Compare at:</Text> ${basePricing.compareAtPrice}
+                </>
+              )}
+              {basePricing.cost && (
+                <>
+                  {' • '}
+                  <Text as="span" fontWeight="bold">Cost:</Text> ${basePricing.cost}
+                </>
+              )}
+            </Text>
+          )}
         </BlockStack>
       </Card>
-
-      {/* Pricing Inheritance Banner */}
-      <Banner tone="info">
-        <Text as="p">
-          All variants will inherit your base pricing. You can adjust individual variant prices later in the product catalog.
-        </Text>
-      </Banner>
 
       <Card>
         <BlockStack gap="500">
@@ -904,55 +894,31 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
                   </Box>
                 )}
 
-                {selectedOptionName && (
-                  <Box>
-                    <BlockStack gap="300">
-                      <TextField
-                        label="Add Custom Value"
-                        value={customValue}
-                        onChange={setCustomValue}
-                        placeholder={`Enter custom ${selectedOptionName.toLowerCase()} value(s)`}
-                        helpText={isCustomOptionName ? "Add variant titles for each product variant. Separate multiple values with commas (e.g., Small, Medium, Large)" : "Add variant titles for each product variant. Separate multiple values with commas (e.g., Red, Blue, Green)"}
-                        disabled={selectedOptionValues.length >= 20}
-                        autoComplete="off"
-                        connectedRight={
-                          <Button 
-                            onClick={handleAddCustomValue}
-                            disabled={!customValue.trim() || selectedOptionValues.length >= 20}
-                          >
-                            {customValue.includes(',') ? 'Add All' : 'Add'}
+                {selectedOptionValues.length > 0 && (
+                  <BlockStack gap="300">
+                    <Text variant="bodySm" as="p" fontWeight="medium">
+                      Selected Values ({selectedOptionValues.length})
+                    </Text>
+                    <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+                      <InlineStack gap="200" align="space-between" blockAlign="start">
+                        <InlineStack gap="200" wrap>
+                          {smartSort(selectedOptionValues).map((value, index) => (
+                            <Tag
+                              key={`selected-${index}`}
+                              onRemove={() => handleValueSelectionChange(value, false)}
+                            >
+                              {value}
+                            </Tag>
+                          ))}
+                        </InlineStack>
+                        {selectedOptionValues.length > 0 && (
+                          <Button size="slim" onClick={handleClearAllValues}>
+                            Clear All
                           </Button>
-                        }
-                      />
-                      
-                      {selectedOptionValues.length > 0 && (
-                        <BlockStack gap="300">
-                          <Text variant="bodySm" as="p" fontWeight="medium">
-                            Selected Values ({selectedOptionValues.length})
-                          </Text>
-                          <Box background="bg-surface-secondary" padding="300" borderRadius="200">
-                            <InlineStack gap="200" align="space-between" blockAlign="start">
-                              <InlineStack gap="200" wrap>
-                                {smartSort(selectedOptionValues).map((value, index) => (
-                                  <Tag
-                                    key={`selected-${index}`}
-                                    onRemove={() => handleValueSelectionChange(value, false)}
-                                  >
-                                    {value}
-                                  </Tag>
-                                ))}
-                              </InlineStack>
-                              {selectedOptionValues.length > 0 && (
-                                <Button size="slim" onClick={handleClearAllValues}>
-                                  Clear All
-                                </Button>
-                              )}
-                            </InlineStack>
-                          </Box>
-                        </BlockStack>
-                      )}
-                    </BlockStack>
-                  </Box>
+                        )}
+                      </InlineStack>
+                    </Box>
+                  </BlockStack>
                 )}
 
                 {selectedOptionName && selectedOptionValues.length > 0 && (
