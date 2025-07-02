@@ -41,7 +41,6 @@ interface FormDataType {
   description: string;
   handle: string;
   images: File[];
-  addImagesLater: boolean;
 }
 
 interface StepProductDetailsProps {
@@ -53,7 +52,6 @@ interface StepProductDetailsProps {
     description: string;
     handle: string;
     images: File[];
-    addImagesLater: boolean;
   };
   onChange: (updates: Partial<StepProductDetailsProps['formData']>) => void;
   onNext: () => void;
@@ -129,7 +127,6 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
       setRejectedFiles(rejectedFiles);
       onChange({ 
         images: [...formData.images, ...acceptedFiles].slice(0, 5), // Limit to 5 images
-        addImagesLater: false // Uncheck "add images later" when images are added
       });
     },
     [formData.images, onChange]
@@ -193,9 +190,8 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
     const hasTitle = !!formData.title;
     const hasDescription = !!formData.description;
     const hasValidHandle = handleValidationState === 'available';
-    const hasImagesOrWillAddLater = formData.images.length > 0 || formData.addImagesLater;
     
-    return hasTitle && hasDescription && hasValidHandle && hasImagesOrWillAddLater;
+    return hasTitle && hasDescription && hasValidHandle;
   };
 
   const handleSubmit = () => {
@@ -332,18 +328,6 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
 
         {errorMessage}
 
-        <Checkbox
-          label="Add product images at a later time"
-          checked={formData.addImagesLater}
-          onChange={(checked) => onChange({ addImagesLater: checked })}
-          disabled={formData.images.length > 0}
-          helpText={
-            formData.images.length > 0 
-              ? "Images have been uploaded - uncheck to remove images and add later"
-              : "Check this if you want to proceed without images and add them later"
-          }
-        />
-
         <div>
           <TextField
             label="Product Handle"
@@ -388,7 +372,6 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
                 {!formData.title && " Title"}
                 {!formData.description && " Description"}
                 {handleValidationState !== 'available' && " Valid Handle"}
-                {!(formData.images.length > 0 || formData.addImagesLater) && " Images or check 'Add images later'"}
               </Text>
             </Banner>
           )}

@@ -90,12 +90,28 @@ export default function StepTags({ formData, onChange, onNext, onBack, productId
     }
   });
 
+  // Fetch all vendors to filter them out from suggestions
+  const { data: allVendors = [], isLoading: allVendorsLoading, isError: allVendorsError } = useQuery({
+    queryKey: ['allVendors'],
+    queryFn: async (): Promise<string[]> => {
+      const response = await fetch('/api/shopify/products?type=vendors');
+      if (!response.ok) {
+        throw new Error('Failed to load vendors');
+      }
+      const data = await response.json();
+      return data.vendors || [];
+    }
+  });
+
   // Create autocomplete options from available tags
   const autocompleteOptions = useMemo(() => {
     if (!allTags || allTags.length === 0) return [];
     
-    // Filter out already selected tags and create options
-    const availableTags = allTags.filter(tag => !selectedTags.includes(tag));
+    // Filter out already selected tags and vendor names
+    const availableTags = allTags.filter(tag => 
+      !selectedTags.includes(tag) && 
+      !allVendors.includes(tag) // Filter out all vendor names
+    );
     
     // Filter by search input if provided
     const filteredTags = inputValue.trim() 
@@ -108,7 +124,7 @@ export default function StepTags({ formData, onChange, onNext, onBack, productId
       value: tag,
       label: tag,
     }));
-  }, [allTags, selectedTags, inputValue]);
+  }, [allTags, selectedTags, allVendors, inputValue]);
 
   // Determine if we should show "Add [tag]" option for new tags
   const shouldShowAddNewTag = useMemo(() => {
@@ -120,8 +136,13 @@ export default function StepTags({ formData, onChange, onNext, onBack, productId
       tag.toLowerCase() === inputValue.toLowerCase()
     );
     
-    return !exactMatch && !selectedTags.includes(inputValue.trim());
-  }, [inputValue, productTypeTags, allTags, selectedTags]);
+    // Also check if it matches any vendor name
+    const isVendorName = allVendors.some(vendor =>
+      vendor.toLowerCase() === inputValue.toLowerCase()
+    );
+    
+    return !exactMatch && !selectedTags.includes(inputValue.trim()) && !isVendorName;
+  }, [inputValue, productTypeTags, allTags, selectedTags, allVendors]);
 
   // Add "Add [tag]" option to autocomplete if applicable
   const finalOptions = useMemo(() => {
@@ -145,13 +166,14 @@ export default function StepTags({ formData, onChange, onNext, onBack, productId
     const filteredTags = productTypeTags.filter(tag => 
       !selectedTags.includes(tag) &&
       tag !== formData.vendor &&
-      tag !== currentYear
+      tag !== currentYear &&
+      !allVendors.includes(tag) // Filter out all vendor names from suggestions
     );
     
     // Sort alphabetically and organize into 3 columns
     const sortedTags = filteredTags.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
     return sortedTags.slice(0, 12); // Show up to 12 tags (4 rows × 3 columns)
-  }, [productTypeTags, selectedTags, formData.vendor]);
+  }, [productTypeTags, selectedTags, formData.vendor, allVendors]);
 
   // Organize tags into 3 columns for display
   const tagColumns = useMemo(() => {
@@ -206,7 +228,7 @@ export default function StepTags({ formData, onChange, onNext, onBack, productId
     }
   }, [selectedTags, updateSelectedTags]);
 
-  const isLoading = productTypeTagsLoading || allTagsLoading;
+  const isLoading = productTypeTagsLoading || allTagsLoading || allVendorsLoading;
   const hasError = productTypeTagsError && allTagsError;
 
   const textField = (
