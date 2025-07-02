@@ -17,6 +17,11 @@ interface StepSKUBarcodeProps {
     options: Array<{ name: string; values: string[] }>;
     skus: string[];
     barcodes: string[];
+    pricing?: Array<{
+      price?: string;
+      compareAtPrice?: string;
+      cost?: string;
+    }>;
   };
   onChange: (updates: Partial<StepSKUBarcodeProps['formData']>) => void;
   onNext: () => void;
@@ -75,6 +80,7 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack, pro
   }, [formData.options, formData.skus, formData.barcodes, hasVariants]);
 
   const variants = generateVariants();
+  const basePricing = formData.pricing?.[0];
 
   const handleSubmit = () => {
     if (hasVariants) {
@@ -105,6 +111,23 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack, pro
               <Text as="span" fontWeight="bold">Category:</Text> {formData.category?.name || 'Not specified'}
             </Text>
           </InlineStack>
+          {basePricing && (
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Price:</Text> ${basePricing.price || '0.00'}
+              {basePricing.compareAtPrice && (
+                <>
+                  {' • '}
+                  <Text as="span" fontWeight="bold">Compare at:</Text> ${basePricing.compareAtPrice}
+                </>
+              )}
+              {basePricing.cost && (
+                <>
+                  {' • '}
+                  <Text as="span" fontWeight="bold">Cost:</Text> ${basePricing.cost}
+                </>
+              )}
+            </Text>
+          )}
         </BlockStack>
       </Card>
 
