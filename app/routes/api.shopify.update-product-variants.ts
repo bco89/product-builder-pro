@@ -22,7 +22,7 @@ export const action = async ({ request }: { request: Request }) => {
   }
 
   const { admin } = await authenticate.admin(request);
-  const { productId, options, skus, barcodes, pricing } = await request.json();
+  const { productId, options, skus, barcodes, pricing, weight, weightUnit } = await request.json();
 
   try {
     console.log("Updating product with variants:", { productId, options });
@@ -83,7 +83,15 @@ export const action = async ({ request }: { request: Request }) => {
                 inventoryItem: {
                   tracked: true,
                   sku: skus[0] || "",
-                  cost: pricing[0]?.cost || undefined
+                  cost: pricing[0]?.cost || undefined,
+                  ...(weight && weightUnit && {
+                    measurement: {
+                      weight: {
+                        value: weight,
+                        unit: weightUnit
+                      }
+                    }
+                  })
                 }
               }]
             }
@@ -204,7 +212,15 @@ export const action = async ({ request }: { request: Request }) => {
           inventoryItem: {
             tracked: true,
             sku: skus[index] || "",
-            cost: pricing[index]?.cost || basePricing.cost || undefined
+            cost: pricing[index]?.cost || basePricing.cost || undefined,
+            ...(weight && weightUnit && {
+              measurement: {
+                weight: {
+                  value: weight,
+                  unit: weightUnit
+                }
+              }
+            })
           }
         });
       } else {
@@ -220,7 +236,15 @@ export const action = async ({ request }: { request: Request }) => {
           inventoryItem: {
             tracked: true,
             sku: skus[index] || "",
-            cost: pricing[index]?.cost || basePricing.cost || undefined
+            cost: pricing[index]?.cost || basePricing.cost || undefined,
+            ...(weight && weightUnit && {
+              measurement: {
+                weight: {
+                  value: weight,
+                  unit: weightUnit
+                }
+              }
+            })
           }
         });
       }

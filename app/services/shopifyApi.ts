@@ -61,6 +61,10 @@ interface StoreMetrics {
   storeSize: 'small' | 'medium' | 'large';
 }
 
+interface StoreSettings {
+  defaultWeightUnit: 'GRAMS' | 'KILOGRAMS' | 'OUNCES' | 'POUNDS';
+}
+
 export interface ShopifyApiService {
   getVendors(): Promise<string[]>;
   getProductTypes(vendor: string): Promise<ProductType[]>;
@@ -68,6 +72,7 @@ export interface ShopifyApiService {
   validateHandle(handle: string): Promise<HandleValidationResult>;
   createProduct(productData: ProductFormData): Promise<any>;
   getStoreMetrics(): Promise<StoreMetrics>;
+  getStoreSettings(): Promise<StoreSettings>;
   validateSKU(sku: string): Promise<SKUValidationResult>;
   validateBarcode(barcode: string): Promise<BarcodeValidationResult>;
   validateSKUsBatch(skus: string[], barcodes?: string[]): Promise<BatchValidationResult>;
@@ -132,6 +137,14 @@ export class ShopifyApiServiceImpl implements ShopifyApiService {
     const response = await fetch('/api/shopify/store-metrics');
     if (!response.ok) {
       throw new Error('Failed to fetch store metrics');
+    }
+    return response.json();
+  }
+
+  async getStoreSettings(): Promise<StoreSettings> {
+    const response = await fetch('/api/shopify/store-settings');
+    if (!response.ok) {
+      throw new Error('Failed to fetch store settings');
     }
     return response.json();
   }

@@ -17,7 +17,8 @@ import {
   BlockStack,
   Box,
   Badge,
-  InlineError
+  InlineError,
+  Select
 } from '@shopify/polaris';
 import { CheckIcon, AlertTriangleIcon, SearchIcon } from '@shopify/polaris-icons';
 import { useQuery } from '@tanstack/react-query';
@@ -52,6 +53,8 @@ interface StepProductDetailsProps {
     description: string;
     handle: string;
     images: File[];
+    weight?: number;
+    weightUnit?: 'GRAMS' | 'KILOGRAMS' | 'OUNCES' | 'POUNDS';
   };
   onChange: (updates: Partial<StepProductDetailsProps['formData']>) => void;
   onNext: () => void;
@@ -65,6 +68,7 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
   const [rejectedFiles, setRejectedFiles] = useState<File[]>([]);
   const [handleValidationState, setHandleValidationState] = useState<HandleValidationState>('idle');
   const [validationTimeout, setValidationTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [defaultWeightUnit, setDefaultWeightUnit] = useState<'GRAMS' | 'KILOGRAMS' | 'OUNCES' | 'POUNDS'>('POUNDS');
 
   // Category Browser state
   const [categoryBrowserOpen, setCategoryBrowserOpen] = useState(false);
@@ -73,6 +77,39 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
 
   // Check if vendor/product type are available for category browsing
   const categoriesAvailable = !!formData.vendor && !!formData.productType;
+
+  // Fetch default weight unit on component mount
+  useEffect(() => {
+    const fetchStoreSettings = async () => {
+      try {
+        const settings = await shopifyApi.getStoreSettings();
+        setDefaultWeightUnit(settings.defaultWeightUnit);
+        
+        // Set default weight unit if not already set
+        if (!formData.weightUnit) {
+          onChange({ weightUnit: settings.defaultWeightUnit });
+        }
+      } catch (error) {
+        console.error('Failed to fetch store settings:', error);
+        // Fallback to POUNDS if fetch fails
+        if (!formData.weightUnit) {
+          onChange({ weightUnit: 'POUNDS' });
+        }
+      }
+    };
+
+    fetchStoreSettings();
+  }, [shopifyApi, formData.weightUnit, onChange]);
+
+  // Weight unit options for the select (using abbreviations only)
+  const weightUnitOptions = [
+    { label: 'g', value: 'GRAMS' },
+    { label: 'kg', value: 'KILOGRAMS' },
+    { label: 'oz', value: 'OUNCES' },
+    { label: 'lb', value: 'POUNDS' },
+  ];
+
+
 
   // Auto-generate handle when title changes
   useEffect(() => {
@@ -244,6 +281,8 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
           maxLength={5000}
         />
 
+
+
         {/* Product Category Selection */}
         <BlockStack gap="200">
           <Text variant="bodyMd" as="h3">Product Category</Text>
@@ -297,10 +336,50 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
                   size="slim"
                   onClick={() => onChange({ category: null })}
                 >
-                  Clear
+                  Clear Category
                 </Button>
               </InlineStack>
             </Box>
+          )}
+        </BlockStack>
+
+        {/* Product Weight (Optional) */}
+        <BlockStack gap="200">
+          <Text variant="bodyMd" as="h3">Product Weight</Text>
+          <InlineStack gap="300" blockAlign="end">
+            <div style={{ width: '130px' }}>
+              <TextField
+                label="Weight"
+                labelHidden
+                type="number"
+                value={formData.weight?.toString() || ''}
+                onChange={(value) => {
+                  const numericValue = value === '' ? undefined : parseFloat(value);
+                  onChange({ weight: numericValue });
+                }}
+                placeholder="Enter weight"
+                autoComplete="off"
+                step="0.01"
+                min="0"
+              />
+            </div>
+            <div style={{ width: '60px' }}>
+              <Select
+                label="Unit"
+                labelHidden
+                options={weightUnitOptions}
+                value={formData.weightUnit || defaultWeightUnit}
+                onChange={(value) => onChange({ weightUnit: value as 'GRAMS' | 'KILOGRAMS' | 'OUNCES' | 'POUNDS' })}
+              />
+            </div>
+          </InlineStack>
+          <Text as="p" variant="bodySm" tone="subdued">
+            Used for shipping calculations and product information
+          </Text>
+          {formData.weight && (
+            <Text as="p" variant="bodySm" tone="subdued">
+              Weight will be applied to all product variants
+            </Text>
           )}
         </BlockStack>
 

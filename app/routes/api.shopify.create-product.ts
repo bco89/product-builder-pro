@@ -25,6 +25,8 @@ interface FormData {
     id: string;
     name: string;
   };
+  weight?: number;
+  weightUnit?: 'GRAMS' | 'KILOGRAMS' | 'OUNCES' | 'POUNDS';
 }
 
 interface VariantEdge {
@@ -166,7 +168,15 @@ export const action = async ({ request }: { request: Request }) => {
                 inventoryItem: {
                   tracked: true,
                   sku: formData.skus[0] || "",
-                  cost: formData.pricing[0]?.cost || undefined
+                  cost: formData.pricing[0]?.cost || undefined,
+                  ...(formData.weight && formData.weightUnit && {
+                    measurement: {
+                      weight: {
+                        value: formData.weight,
+                        unit: formData.weightUnit
+                      }
+                    }
+                  })
                 }
               }]
             },
@@ -197,7 +207,15 @@ export const action = async ({ request }: { request: Request }) => {
         inventoryItem: {
           tracked: true,
           sku: formData.skus[index] || "",
-          cost: formData.pricing[index]?.cost || undefined
+          cost: formData.pricing[index]?.cost || undefined,
+          ...(formData.weight && formData.weightUnit && {
+            measurement: {
+              weight: {
+                value: formData.weight,
+                unit: formData.weightUnit
+              }
+            }
+          })
         }
       }));
 

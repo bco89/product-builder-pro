@@ -77,6 +77,8 @@ export default function ProductBuilder() {
     handle: '',
     images: [] as File[],
     addImagesLater: false,
+    weight: undefined as number | undefined,
+    weightUnit: undefined as 'GRAMS' | 'KILOGRAMS' | 'OUNCES' | 'POUNDS' | undefined,
     options: [] as Array<{ name: string; values: string[] }>,
     variants: [] as any[],
     skus: [] as string[],
@@ -229,7 +231,9 @@ export default function ProductBuilder() {
           options: formData.options,
           skus: formData.skus,
           barcodes: formData.barcodes,
-          pricing: formData.pricing
+          pricing: formData.pricing,
+          weight: formData.weight,
+          weightUnit: formData.weightUnit
         }),
       });
 
@@ -272,7 +276,9 @@ export default function ProductBuilder() {
           barcodes: formData.barcodes,
           // For non-variant products, we don't update pricing or options
           options: [],
-          pricing: formData.pricing
+          pricing: formData.pricing,
+          weight: formData.weight,
+          weightUnit: formData.weightUnit
         }),
       });
 
@@ -318,6 +324,8 @@ export default function ProductBuilder() {
       handle: '',
       images: [],
       addImagesLater: false,
+      weight: undefined,
+      weightUnit: undefined,
       options: [],
       variants: [],
       skus: [],

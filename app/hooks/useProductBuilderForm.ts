@@ -12,6 +12,8 @@ export interface ProductFormData {
   handle: string;
   images: File[];
   addImagesLater: boolean;
+  weight?: number;
+  weightUnit?: 'GRAMS' | 'KILOGRAMS' | 'OUNCES' | 'POUNDS';
   options: Array<{ name: string; values: string[] }>;
   skus: {
     [key: string]: string;
@@ -39,6 +41,8 @@ export function useProductBuilderForm(initialData?: Partial<ProductFormData>) {
     handle: '',
     images: [],
     addImagesLater: false,
+    weight: undefined,
+    weightUnit: undefined,
     options: [],
     skus: {},
     barcodes: {},
