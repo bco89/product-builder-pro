@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "a584fd28cd63a66d60fb6fe599f5c747"
-application_url = "https://meaningful-reynolds-sam-nursery.trycloudflare.com"
+application_url = "https://battery-fathers-interior-nasa.trycloudflare.com"
 embedded = true
 name = "Product Builder Pro"
 handle = "product-builder-pro"
@@ -23,9 +23,9 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://meaningful-reynolds-sam-nursery.trycloudflare.com/auth/callback",
-  "https://meaningful-reynolds-sam-nursery.trycloudflare.com/auth/shopify/callback",
-  "https://meaningful-reynolds-sam-nursery.trycloudflare.com/api/auth/callback"
+  "https://battery-fathers-interior-nasa.trycloudflare.com/auth/callback",
+  "https://battery-fathers-interior-nasa.trycloudflare.com/auth/shopify/callback",
+  "https://battery-fathers-interior-nasa.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

@@ -68,9 +68,14 @@ export const loader = async ({ request }: { request: Request }) => {
                   productType
                 }
               }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
             }
           }`;
-        variables = { query: `vendor:'${vendor}'` };
+        // Fix the query syntax - use double quotes for exact matching
+        variables = { query: `vendor:"${vendor}"` };
         break;
 
       case 'categories':

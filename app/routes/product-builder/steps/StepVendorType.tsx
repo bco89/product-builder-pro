@@ -79,17 +79,50 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
     }
   });
 
-  // Fetch product types for selected vendor
+  // Fetch all product types data (with caching)
+  const { data: allProductTypesData, isLoading: allTypesLoading } = useQuery({
+    queryKey: ['allProductTypes'],
+    queryFn: async () => {
+      const response = await fetch('/api/shopify/all-product-types');
+      if (!response.ok) {
+        throw new Error('Failed to fetch all product types');
+      }
+      const data = await response.json();
+      return data;
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  // Fetch product types for selected vendor with fallback
   const { data: vendorProductTypes, isLoading: productTypesLoading, error: productTypesError } = useQuery({
     queryKey: ['productTypes', formData.vendor],
     enabled: !!formData.vendor,
     queryFn: async () => {
-      const response = await fetch(`/api/shopify/products?type=productTypes&vendor=${encodeURIComponent(formData.vendor)}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch product types');
+      try {
+        // Try vendor-specific query first
+        const response = await fetch(`/api/shopify/products?type=productTypes&vendor=${encodeURIComponent(formData.vendor)}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.productTypes && data.productTypes.length > 0) {
+            return data.productTypes as ProductType[];
+          }
+        }
+        
+        // Fallback to filtering from all types
+        if (allProductTypesData && allProductTypesData.productTypesByVendor) {
+          const vendorTypes = allProductTypesData.productTypesByVendor[formData.vendor] || [];
+          return vendorTypes.map((type: string) => ({ productType: type })) as ProductType[];
+        }
+        
+        return [];
+      } catch (error) {
+        // Use fallback on error
+        if (allProductTypesData && allProductTypesData.productTypesByVendor) {
+          const vendorTypes = allProductTypesData.productTypesByVendor[formData.vendor] || [];
+          return vendorTypes.map((type: string) => ({ productType: type })) as ProductType[];
+        }
+        throw error;
       }
-      const data = await response.json();
-      return data.productTypes as ProductType[];
     }
   });
 
@@ -382,7 +415,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
 
         {/* Enhanced Product Type Selection with Autocomplete */}
         <BlockStack gap="200">
-          <div style={{ height: productTypesLoading ? '44px' : 'auto' }}>
+          <div style={{ height: (productTypesLoading || allTypesLoading) ? '44px' : 'auto' }}>
             {!formData.vendor ? (
               <Autocomplete
                 options={[]}
@@ -406,7 +439,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
                   </Text>
                 }
               />
-            ) : productTypesLoading ? (
+            ) : (productTypesLoading || allTypesLoading) ? (
               <InlineStack gap="300" align="center">
                 <Spinner accessibilityLabel="Loading product types" size="small" />
                 <Text as="p" variant="bodyMd" tone="subdued">Loading product types...</Text>
@@ -436,7 +469,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
                     }
                   </Text>
                 }
-                loading={productTypesLoading}
+                loading={productTypesLoading || allTypesLoading}
               />
             )}
           </div>
@@ -450,7 +483,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
           <Button 
             variant="primary"
             onClick={handleSubmit} 
-            disabled={!formData.vendor || !formData.productType || vendorsLoading || productTypesLoading}
+            disabled={!formData.vendor || !formData.productType || vendorsLoading || productTypesLoading || allTypesLoading}
           >
             Next
           </Button>
