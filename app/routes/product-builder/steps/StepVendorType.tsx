@@ -414,9 +414,10 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
     <>
       <style>
         {`
-          /* Make Autocomplete header options bold */
+          /* Make Autocomplete header options bold and black */
           [role="option"][aria-disabled="true"] {
             font-weight: bold !important;
+            color: var(--p-color-text) !important;
           }
         `}
       </style>
