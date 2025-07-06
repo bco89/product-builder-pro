@@ -188,12 +188,6 @@ export default function ProductBuilder() {
 
       setProductId(data.id);
       
-      if (hasVariants) {
-        setToastMessage('Product created! Now configure variants...');
-      } else {
-        setToastMessage('Product created! Now add final details...');
-      }
-      
       setCurrentStep(0); // Reset to first step of phase 2
       
     } catch (error) {
