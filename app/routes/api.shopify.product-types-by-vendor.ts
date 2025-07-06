@@ -1,6 +1,6 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-import { productTypesCache } from "../services/productTypesCache";
+import { CacheService } from "../services/cacheService";
 
 interface ProductNode {
   productType: string;
@@ -24,6 +24,12 @@ interface ProductsData {
   };
 }
 
+interface ProductTypesData {
+  productTypesByVendor: Record<string, string[]>;
+  allProductTypes: string[];
+  totalProducts: number;
+}
+
 export const loader = async ({ request }: { request: Request }) => {
   const { admin } = await authenticate.admin(request);
   const url = new URL(request.url);
@@ -41,8 +47,20 @@ export const loader = async ({ request }: { request: Request }) => {
   }
 
   try {
-    // Try to get cached data first
-    const cachedData = await productTypesCache.getAll();
+    // First, get the shop domain
+    const shopResponse = await admin.graphql(
+      `#graphql
+      query {
+        shop {
+          myshopifyDomain
+        }
+      }`
+    );
+    const shopData = await shopResponse.json();
+    const shop = shopData.data.shop.myshopifyDomain;
+
+    // Try to get cached data first - properly isolated by shop
+    const cachedData = await CacheService.get<ProductTypesData>(shop, 'productTypes');
     
     if (cachedData && cachedData.productTypesByVendor) {
       // Use cached data
@@ -120,13 +138,13 @@ export const loader = async ({ request }: { request: Request }) => {
     // Get all unique product types
     const allUniqueProductTypes = [...new Set(allProductTypes.map(pt => pt.productType))].sort();
     
-    // Cache the result
-    const cacheData = { 
+    // Cache the result with proper shop isolation
+    const cacheData: ProductTypesData = { 
       productTypesByVendor, 
       allProductTypes: allUniqueProductTypes,
       totalProducts: allProductTypes.length
     };
-    await productTypesCache.setAll(cacheData);
+    await CacheService.set(shop, 'productTypes', cacheData);
     
     // Return vendor-specific data
     const suggestedProductTypes = productTypesByVendor[vendor] || [];

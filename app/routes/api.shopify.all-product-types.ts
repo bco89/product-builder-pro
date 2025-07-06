@@ -1,6 +1,6 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-import { productTypesCache } from "../services/productTypesCache";
+import { CacheService } from "../services/cacheService";
 
 interface ProductNode {
   productType: string;
@@ -24,16 +24,35 @@ interface ProductsData {
   };
 }
 
+interface ProductTypesData {
+  productTypesByVendor: Record<string, string[]>;
+  allProductTypes: string[];
+  totalProducts: number;
+}
+
 export const loader = async ({ request }: { request: Request }) => {
   const { admin } = await authenticate.admin(request);
   
   try {
-    // Check cache first
-    const cached = await productTypesCache.getAll();
+    // First, get the shop domain
+    const shopResponse = await admin.graphql(
+      `#graphql
+      query {
+        shop {
+          myshopifyDomain
+        }
+      }`
+    );
+    const shopData = await shopResponse.json();
+    const shop = shopData.data.shop.myshopifyDomain;
+
+    // Check cache first - properly isolated by shop
+    const cached = await CacheService.get<ProductTypesData>(shop, 'productTypes');
     if (cached) {
-      console.log("Returning cached product types data");
+      console.log("Returning cached product types data for shop:", shop);
       return json(cached);
     }
+
     const allProductTypes: { productType: string; vendor: string }[] = [];
     let hasNextPage = true;
     let cursor: string | null = null;
@@ -95,14 +114,14 @@ export const loader = async ({ request }: { request: Request }) => {
     // Get all unique product types
     const allUniqueProductTypes = [...new Set(allProductTypes.map(pt => pt.productType))].sort();
     
-    const result = { 
+    const result: ProductTypesData = { 
       productTypesByVendor, 
       allProductTypes: allUniqueProductTypes,
       totalProducts: allProductTypes.length
     };
     
-    // Cache the result
-    await productTypesCache.setAll(result);
+    // Cache the result with proper shop isolation
+    await CacheService.set(shop, 'productTypes', result);
     
     return json(result);
   } catch (error) {
