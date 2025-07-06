@@ -32,11 +32,7 @@ export default function StepFinalReview({
           Review Variant Configuration
         </Text>
 
-        <Banner tone="success">
-          <Text as="p">
-            Your product has been created! Review the variant configuration below.
-          </Text>
-        </Banner>
+
 
         {/* Enhanced Product Information Display Card */}
         <Card>

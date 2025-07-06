@@ -936,12 +936,6 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
             {/* Existing Options Display */}
             {formData.options.length > 0 && (
               <BlockStack gap="500">
-                <Banner tone="success">
-                  <Text as="p">
-                    Great! Your variants are being configured. The system will automatically handle creating all combinations.
-                  </Text>
-                </Banner>
-                
                 {formData.options.map((option, optionIndex) => (
                   <Card key={optionIndex}>
                     <BlockStack gap="500">

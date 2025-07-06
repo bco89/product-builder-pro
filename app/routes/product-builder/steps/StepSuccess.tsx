@@ -56,6 +56,16 @@ export default function StepSuccess({ productId, shop, variantCount, onBuildAnot
           </BlockStack>
         </Box>
 
+        <Banner tone="info">
+          <BlockStack gap="200">
+            <Text variant="headingSm" as="h3">Product Status: Draft</Text>
+            <Text as="p">
+              Your product has been created with a <strong>draft status</strong> and is not yet visible to customers. 
+              Please review your product details and update the status to "Active" when you're ready to make it available for sale.
+            </Text>
+          </BlockStack>
+        </Banner>
+
         <Box borderColor="border" borderWidth="025" padding="400" borderRadius="200">
           <BlockStack gap="300">
             <Text variant="headingSm" as="h3">What's next?</Text>

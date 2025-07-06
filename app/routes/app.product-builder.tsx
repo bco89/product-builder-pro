@@ -523,16 +523,7 @@ export default function ProductBuilder() {
                   </Text>
                 </BlockStack>
                 
-                {productId && (
-                  <Banner tone="success" title="Product Created Successfully">
-                    <Text as="p">
-                      {hasVariants ? 
-                        "Your product has been created. Now configure the variants below." :
-                        "Your product has been created. Now add final SKU and barcode details below."
-                      }
-                    </Text>
-                  </Banner>
-                )}
+
               </BlockStack>
             </Card>
             

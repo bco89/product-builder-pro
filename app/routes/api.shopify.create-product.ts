@@ -103,6 +103,7 @@ export const action = async ({ request }: { request: Request }) => {
             vendor: formData.vendor,
             productType: formData.productType,
             tags: formData.tags,
+            status: "DRAFT",
             ...(formData.category && { category: formData.category.id }),
           },
         },
