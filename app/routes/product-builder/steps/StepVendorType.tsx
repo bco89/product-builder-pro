@@ -407,17 +407,21 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
       return "Select a vendor first to see product type suggestions";
     }
     
-    const suggestedCount = productTypesData?.totalSuggested || 0;
-    if (suggestedCount > 0) {
-      return `Choose a product type that matches your item. ${suggestedCount} suggested types are from existing ${formData.vendor} products.`;
-    }
-    
-    return `Choose a product type that matches your item. No existing ${formData.vendor} products found, showing all available types.`;
+    return "Choose a product type that matches your item.";
   };
 
   return (
-    <Card>
-      <FormLayout>
+    <>
+      <style>
+        {`
+          /* Make Autocomplete header options bold */
+          [role="option"][aria-disabled="true"] {
+            font-weight: bold !important;
+          }
+        `}
+      </style>
+      <Card>
+        <FormLayout>
         <Text variant="headingMd" as="h2">Select Vendor & Product Type</Text>
         
         {hasErrors && (
@@ -589,5 +593,6 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
         </Modal.Section>
       </Modal>
     </Card>
+    </>
   );
 } 
