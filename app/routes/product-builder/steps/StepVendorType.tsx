@@ -79,51 +79,20 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
     }
   });
 
-  // Fetch all product types data (with caching)
-  const { data: allProductTypesData, isLoading: allTypesLoading } = useQuery({
-    queryKey: ['allProductTypes'],
-    queryFn: async () => {
-      const response = await fetch('/api/shopify/all-product-types');
-      if (!response.ok) {
-        throw new Error('Failed to fetch all product types');
-      }
-      const data = await response.json();
-      return data;
-    },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-  });
 
-  // Fetch product types for selected vendor with fallback
-  const { data: vendorProductTypes, isLoading: productTypesLoading, error: productTypesError } = useQuery({
-    queryKey: ['productTypes', formData.vendor],
+
+  // Fetch product types for selected vendor with suggested and all types
+  const { data: productTypesData, isLoading: productTypesLoading, error: productTypesError } = useQuery({
+    queryKey: ['productTypesByVendor', formData.vendor],
     enabled: !!formData.vendor,
     queryFn: async () => {
-      try {
-        // Try vendor-specific query first
-        const response = await fetch(`/api/shopify/products?type=productTypes&vendor=${encodeURIComponent(formData.vendor)}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.productTypes && data.productTypes.length > 0) {
-            return data.productTypes as ProductType[];
-          }
-        }
-        
-        // Fallback to filtering from all types
-        if (allProductTypesData && allProductTypesData.productTypesByVendor) {
-          const vendorTypes = allProductTypesData.productTypesByVendor[formData.vendor] || [];
-          return vendorTypes.map((type: string) => ({ productType: type })) as ProductType[];
-        }
-        
-        return [];
-      } catch (error) {
-        // Use fallback on error
-        if (allProductTypesData && allProductTypesData.productTypesByVendor) {
-          const vendorTypes = allProductTypesData.productTypesByVendor[formData.vendor] || [];
-          return vendorTypes.map((type: string) => ({ productType: type })) as ProductType[];
-        }
-        throw error;
+      const response = await fetch(`/api/shopify/product-types-by-vendor?vendor=${encodeURIComponent(formData.vendor)}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch product types');
       }
-    }
+      return response.json();
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   // Helper function to check if entry exists
@@ -132,8 +101,16 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
   }, [vendorsData]);
 
   const isNewProductType = useCallback((value: string) => {
-    return value && vendorProductTypes && !vendorProductTypes.some((type: ProductType) => type.productType === value);
-  }, [vendorProductTypes]);
+    if (!value || !productTypesData) return false;
+    
+    // Check if the value exists in either suggested or all product types
+    const allTypes = [
+      ...(productTypesData.suggestedProductTypes || []),
+      ...(productTypesData.allProductTypes || [])
+    ];
+    
+    return !allTypes.includes(value);
+  }, [productTypesData]);
 
   // Handle new entry confirmation
   const handleNewEntryConfirmation = useCallback((type: 'vendor' | 'productType', value: string) => {
@@ -230,43 +207,55 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
   const updateProductTypeText = useCallback((value: string) => {
     setProductTypeInputValue(value);
     
-    if (!vendorProductTypes) {
+    if (!productTypesData) {
       setFilteredProductTypes([]);
       return;
     }
     
+    // Combine suggested and all product types for filtering
+    const allTypes = [
+      ...(productTypesData.suggestedProductTypes || []).map((type: string) => ({ productType: type })),
+      ...(productTypesData.allProductTypes || []).map((type: string) => ({ productType: type }))
+    ];
+    
+    // Remove duplicates
+    const uniqueTypes = allTypes.filter((type: ProductType, index: number, self: ProductType[]) => 
+      index === self.findIndex((t: ProductType) => t.productType === type.productType)
+    );
+    
     if (value === '') {
-      setFilteredProductTypes(vendorProductTypes);
+      setFilteredProductTypes(uniqueTypes);
       return;
     }
 
     const filterRegex = new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    const resultProductTypes = vendorProductTypes.filter((type: ProductType) =>
+    const resultProductTypes = uniqueTypes.filter((type: ProductType) =>
       type.productType.match(filterRegex)
     );
     setFilteredProductTypes(resultProductTypes);
-  }, [vendorProductTypes]);
+  }, [productTypesData]);
 
   // Handle product type selection
   const updateProductTypeSelection = useCallback((selected: string[]) => {
     const selectedValue = selected[0];
+    
+    // Skip header/separator options
+    if (selectedValue === 'suggested-header' || selectedValue === 'all-header') {
+      return;
+    }
+    
     if (selectedValue === 'create-new-producttype') {
       handleNewEntryConfirmation('productType', productTypeInputValue);
       return;
     }
 
     if (selectedValue) {
-      const matchedType = filteredProductTypes.find((type: ProductType) => 
-        type.productType === selectedValue
-      );
-      if (matchedType) {
-        setProductTypeInputValue(matchedType.productType);
-        onChange({ 
-          productType: matchedType.productType
-        });
-      }
+      setProductTypeInputValue(selectedValue);
+      onChange({ 
+        productType: selectedValue
+      });
     }
-  }, [filteredProductTypes, onChange, productTypeInputValue, handleNewEntryConfirmation]);
+  }, [onChange, productTypeInputValue, handleNewEntryConfirmation]);
 
   // Vendor options for Combobox
   const vendorOptionsMarkup = useMemo(() => {
@@ -307,12 +296,59 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
     return options.length > 0 ? options : null;
   }, [filteredVendors, vendorInputValue, isNewVendor, formData.vendor]);
 
-  // Product type options for Autocomplete
+  // Product type options for Autocomplete with suggested/all pattern
   const productTypeOptions = useMemo(() => {
-    const options = filteredProductTypes.map((type: ProductType) => ({
-      value: type.productType,
-      label: type.productType
-    }));
+    const options: Array<{ value: string; label: string; disabled?: boolean }> = [];
+    
+    if (!productTypesData) return options;
+    
+    // Filter suggested types based on input
+    const suggestedTypes = (productTypesData.suggestedProductTypes || []).filter((type: string) => {
+      if (!productTypeInputValue) return true;
+      const filterRegex = new RegExp(productTypeInputValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      return type.match(filterRegex);
+    });
+    
+    // Filter all types based on input (excluding suggested ones)
+    const suggestedSet = new Set(productTypesData.suggestedProductTypes || []);
+    const allTypes = (productTypesData.allProductTypes || []).filter((type: string) => {
+      if (suggestedSet.has(type)) return false; // Don't duplicate suggested types
+      if (!productTypeInputValue) return true;
+      const filterRegex = new RegExp(productTypeInputValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      return type.match(filterRegex);
+    });
+    
+    // Add suggested types section
+    if (suggestedTypes.length > 0) {
+      options.push({
+        value: 'suggested-header',
+        label: `Suggested Product Types - From existing ${formData.vendor} products`,
+        disabled: true
+      });
+      
+      suggestedTypes.forEach((type: string) => {
+        options.push({
+          value: type,
+          label: type
+        });
+      });
+    }
+    
+    // Add all types section
+    if (allTypes.length > 0) {
+      options.push({
+        value: 'all-header',
+        label: 'All Product Types',
+        disabled: true
+      });
+      
+      allTypes.forEach((type: string) => {
+        options.push({
+          value: type,
+          label: type
+        });
+      });
+    }
 
     // Add "Create new" option if input doesn't match any existing product type
     if (productTypeInputValue && isNewProductType(productTypeInputValue)) {
@@ -323,7 +359,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
     }
 
     return options;
-  }, [filteredProductTypes, productTypeInputValue, isNewProductType]);
+  }, [productTypesData, productTypeInputValue, formData.vendor, isNewProductType]);
 
   // Initialize filtered data when source data loads
   useMemo(() => {
@@ -333,10 +369,21 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
   }, [vendorsData, filteredVendors.length, vendorInputValue]);
 
   useMemo(() => {
-    if (vendorProductTypes && filteredProductTypes.length === 0 && productTypeInputValue === '') {
-      setFilteredProductTypes(vendorProductTypes);
+    if (productTypesData && filteredProductTypes.length === 0 && productTypeInputValue === '') {
+      // Combine suggested and all product types for initial display
+      const allTypes = [
+        ...(productTypesData.suggestedProductTypes || []).map((type: string) => ({ productType: type })),
+        ...(productTypesData.allProductTypes || []).map((type: string) => ({ productType: type }))
+      ];
+      
+      // Remove duplicates
+      const uniqueTypes = allTypes.filter((type: ProductType, index: number, self: ProductType[]) => 
+        index === self.findIndex((t: ProductType) => t.productType === type.productType)
+      );
+      
+      setFilteredProductTypes(uniqueTypes);
     }
-  }, [vendorProductTypes, filteredProductTypes.length, productTypeInputValue]);
+  }, [productTypesData, filteredProductTypes.length, productTypeInputValue]);
 
   const handleSubmit = () => {
     if (formData.vendor && formData.productType) {
@@ -353,6 +400,19 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
       productType: 'Product Type'
     };
     return typeMap[newEntryConfirmation.type] || 'Entry';
+  };
+
+  const getProductTypeHelpText = () => {
+    if (!formData.vendor) {
+      return "Select a vendor first to see product type suggestions";
+    }
+    
+    const suggestedCount = productTypesData?.totalSuggested || 0;
+    if (suggestedCount > 0) {
+      return `Choose a product type that matches your item. ${suggestedCount} suggested types are from existing ${formData.vendor} products.`;
+    }
+    
+    return `Choose a product type that matches your item. No existing ${formData.vendor} products found, showing all available types.`;
   };
 
   return (
@@ -415,7 +475,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
 
         {/* Enhanced Product Type Selection with Autocomplete */}
         <BlockStack gap="200">
-          <div style={{ height: (productTypesLoading || allTypesLoading) ? '44px' : 'auto' }}>
+          <div style={{ height: productTypesLoading ? '44px' : 'auto' }}>
             {!formData.vendor ? (
               <Autocomplete
                 options={[]}
@@ -430,7 +490,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
                     placeholder="Select a vendor first..."
                     autoComplete="off"
                     disabled={true}
-                    helpText="Choose a product type that matches your item to improve organization and searchability"
+                    helpText={getProductTypeHelpText()}
                   />
                 }
                 emptyState={
@@ -439,7 +499,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
                   </Text>
                 }
               />
-            ) : (productTypesLoading || allTypesLoading) ? (
+            ) : productTypesLoading ? (
               <InlineStack gap="300" align="center">
                 <Spinner accessibilityLabel="Loading product types" size="small" />
                 <Text as="p" variant="bodyMd" tone="subdued">Loading product types...</Text>
@@ -458,7 +518,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
                     placeholder="Search product types or type to create new..."
                     autoComplete="off"
                     disabled={!!productTypesError}
-                    helpText="Choose a product type that matches your item to improve organization and searchability"
+                    helpText={getProductTypeHelpText()}
                   />
                 }
                 emptyState={
@@ -469,7 +529,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
                     }
                   </Text>
                 }
-                loading={productTypesLoading || allTypesLoading}
+                loading={productTypesLoading}
               />
             )}
           </div>
@@ -483,7 +543,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
           <Button 
             variant="primary"
             onClick={handleSubmit} 
-            disabled={!formData.vendor || !formData.productType || vendorsLoading || productTypesLoading || allTypesLoading}
+            disabled={!formData.vendor || !formData.productType || vendorsLoading || productTypesLoading}
           >
             Next
           </Button>
