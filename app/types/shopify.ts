@@ -1,59 +1,293 @@
-// Generic Shopify Edge type
-export interface ShopifyEdge<T> {
-  node: T;
+/**
+ * TypeScript types for Shopify API responses and GraphQL queries
+ */
+
+// Base Shopify GraphQL types
+export interface ShopifyGraphQLResponse<T> {
+  data?: T;
+  errors?: ShopifyGraphQLError[];
 }
 
-// API Response types
-export interface VendorsResponse {
-  data: {
-    shop: {
-      productVendors: {
-        edges: ShopifyEdge<string>[];
-      };
-    };
+export interface ShopifyGraphQLError {
+  message: string;
+  extensions?: {
+    code: string;
+    [key: string]: any;
+  };
+  path?: (string | number)[];
+}
+
+// Product types
+export interface ShopifyProduct {
+  id: string;
+  title: string;
+  description?: string;
+  handle?: string;
+  status: 'ACTIVE' | 'ARCHIVED' | 'DRAFT';
+  vendor?: string;
+  productType?: string;
+  tags: string[];
+  metafields?: ShopifyMetafield[];
+  variants: {
+    edges: Array<{
+      node: ShopifyProductVariant;
+    }>;
   };
 }
 
-export interface ProductTypesResponse {
-  data: {
-    shop: {
-      productTypes: {
-        edges: ShopifyEdge<string>[];
-      };
-    };
-  };
+export interface ShopifyProductVariant {
+  id: string;
+  title: string;
+  sku?: string;
+  barcode?: string;
+  price: string;
+  compareAtPrice?: string;
+  inventoryQuantity?: number;
+  weight?: number;
+  weightUnit?: 'KILOGRAMS' | 'GRAMS' | 'POUNDS' | 'OUNCES';
+  selectedOptions: Array<{
+    name: string;
+    value: string;
+  }>;
 }
 
-export interface ProductTagsResponse {
-  data: {
-    shop: {
-      productTags: {
-        edges: ShopifyEdge<string>[];
-      };
-    };
-  };
+export interface ShopifyMetafield {
+  id?: string;
+  namespace: string;
+  key: string;
+  value: string;
+  type: string;
 }
 
-export interface ProductOption {
+// Product creation/update types
+export interface ProductCreateInput {
+  title: string;
+  descriptionHtml?: string;
+  handle?: string;
+  vendor?: string;
+  productType?: string;
+  tags?: string[];
+  status?: 'ACTIVE' | 'DRAFT';
+  metafields?: MetafieldInput[];
+}
+
+export interface MetafieldInput {
+  namespace: string;
+  key: string;
+  value: string;
+  type: string;
+}
+
+export interface ProductVariantInput {
+  sku?: string;
+  barcode?: string;
+  price?: string;
+  compareAtPrice?: string;
+  weight?: number;
+  weightUnit?: 'KILOGRAMS' | 'GRAMS' | 'POUNDS' | 'OUNCES';
+  inventoryQuantities?: {
+    availableQuantity: number;
+    locationId: string;
+  }[];
+  options?: string[];
+}
+
+export interface ProductVariantsBulkInput {
+  id?: string;
+  sku?: string;
+  barcode?: string;
+  price?: string;
+  compareAtPrice?: string;
+  weight?: number;
+  weightUnit?: 'KILOGRAMS' | 'GRAMS' | 'POUNDS' | 'OUNCES';
+  inventoryQuantities?: {
+    availableQuantity: number;
+    locationId: string;
+  }[];
+}
+
+// Store and settings types
+export interface ShopifyShop {
+  id: string;
   name: string;
-  values: string[];
+  email: string;
+  primaryDomain: {
+    url: string;
+    host: string;
+  };
+  currencyCode: string;
+  weightUnit: 'KILOGRAMS' | 'GRAMS' | 'POUNDS' | 'OUNCES';
 }
 
-export interface ProductOptionsResponse {
-  data: {
-    products: {
-      edges: ShopifyEdge<{
-        options: ProductOption[];
-      }>[];
+export interface ShopifyLocation {
+  id: string;
+  name: string;
+  isActive: boolean;
+  fulfillsOnlineOrders: boolean;
+}
+
+// Query response types
+export interface ProductTypesResponse {
+  shop: {
+    productTypes: {
+      edges: Array<{
+        node: string;
+      }>;
     };
   };
 }
 
-// Cache types
-export interface CacheData<T> {
-  data: T;
-  timestamp: number;
-  expiresAt: number;
+export interface ProductVendorsResponse {
+  shop: {
+    productVendors: {
+      edges: Array<{
+        node: string;
+      }>;
+    };
+  };
 }
 
-export type CacheableDataType = 'vendors' | 'productTypes' | 'tags' | 'options'; 
+export interface StoreMetricsResponse {
+  shop: {
+    name: string;
+    email: string;
+    primaryDomain: {
+      url: string;
+      host: string;
+    };
+    plan: {
+      displayName: string;
+    };
+    allProductsCount: {
+      count: number;
+    };
+    staffMembers: {
+      edges: Array<{
+        node: {
+          id: string;
+        };
+      }>;
+    };
+  };
+}
+
+export interface LocationsResponse {
+  locations: {
+    edges: Array<{
+      node: ShopifyLocation;
+    }>;
+  };
+}
+
+// Mutation response types
+export interface ProductCreateResponse {
+  productCreate: {
+    product?: ShopifyProduct;
+    userErrors: Array<{
+      field: string[];
+      message: string;
+    }>;
+  };
+}
+
+export interface ProductUpdateResponse {
+  productUpdate: {
+    product?: ShopifyProduct;
+    userErrors: Array<{
+      field: string[];
+      message: string;
+    }>;
+  };
+}
+
+export interface ProductVariantsBulkUpdateResponse {
+  productVariantsBulkUpdate: {
+    productVariants?: ShopifyProductVariant[];
+    userErrors: Array<{
+      field: string[];
+      message: string;
+    }>;
+  };
+}
+
+export interface ProductVariantsBulkCreateResponse {
+  productVariantsBulkCreate: {
+    productVariants?: ShopifyProductVariant[];
+    userErrors: Array<{
+      field: string[];
+      message: string;
+    }>;
+  };
+}
+
+// API request/response types for our endpoints
+export interface CreateProductRequest {
+  title: string;
+  description?: string;
+  handle?: string;
+  vendor?: string;
+  productType?: string;
+  tags?: string[];
+  status?: 'ACTIVE' | 'DRAFT';
+  price?: string;
+  compareAtPrice?: string;
+  weight?: number;
+  weightUnit?: 'KILOGRAMS' | 'GRAMS' | 'POUNDS' | 'OUNCES';
+  sku?: string;
+  barcode?: string;
+  quantity?: number;
+  options?: Array<{
+    name: string;
+    values: string[];
+  }>;
+  variants?: Array<{
+    options: string[];
+    sku?: string;
+    barcode?: string;
+    price?: string;
+    compareAtPrice?: string;
+    weight?: number;
+    weightUnit?: 'KILOGRAMS' | 'GRAMS' | 'POUNDS' | 'OUNCES';
+    quantity?: number;
+  }>;
+}
+
+export interface UpdateProductVariantsRequest {
+  productId: string;
+  options?: Array<{
+    name: string;
+    values: string[];
+  }>;
+  skus?: Record<string, string>;
+  barcodes?: Record<string, string>;
+  pricing?: {
+    price?: string;
+    compareAtPrice?: string;
+  };
+  weight?: number;
+  weightUnit?: 'KILOGRAMS' | 'GRAMS' | 'POUNDS' | 'OUNCES';
+}
+
+export interface ValidationResponse {
+  isValid: boolean;
+  exists?: boolean;
+  message?: string;
+  conflictingProducts?: Array<{
+    id: string;
+    title: string;
+    handle?: string;
+  }>;
+}
+
+export interface BatchValidationRequest {
+  values: string[];
+  productId?: string;
+}
+
+export interface BatchValidationResponse {
+  results: Record<string, {
+    isValid: boolean;
+    exists: boolean;
+    productTitle?: string;
+  }>;
+}

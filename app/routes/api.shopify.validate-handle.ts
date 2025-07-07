@@ -1,21 +1,22 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { generateHandle } from "../utils/handleGenerator";
+import { logger } from "../services/logger.server.ts";
+import type { ShopifyGraphQLResponse } from "../types/shopify";
 
-interface ProductHandleData {
-  data: {
-    products: {
-      edges: Array<{
-        node: {
-          handle: string;
-          title: string;
-        };
-      }>;
-    };
+interface ProductHandleQueryResponse {
+  products: {
+    edges: Array<{
+      node: {
+        id: string;
+        handle: string;
+        title: string;
+      };
+    }>;
   };
 }
 
-export const loader = async ({ request }: { request: Request }) => {
+export const loader = async ({ request }: { request: Request }): Promise<Response> => {
   const { admin } = await authenticate.admin(request);
   const url = new URL(request.url);
   const handle = url.searchParams.get('handle');
@@ -31,6 +32,7 @@ export const loader = async ({ request }: { request: Request }) => {
         products(first: 1, query: $handle) {
           edges {
             node {
+              id
               handle
               title
             }
@@ -38,12 +40,16 @@ export const loader = async ({ request }: { request: Request }) => {
         }
       }`;
 
-    const response = await admin.graphql(graphqlQuery, {
+    const response = await admin.graphql<ShopifyGraphQLResponse<ProductHandleQueryResponse>>(graphqlQuery, {
       variables: { handle: `handle:'${handle}'` }
     });
 
-    const data = (await response.json()) as ProductHandleData;
-    const existingProducts = data.data.products.edges;
+    const result = await response.json();
+    if (!result.data) {
+      throw new Error('Invalid GraphQL response');
+    }
+    const data = result.data;
+    const existingProducts = data.products.edges;
     
     const available = existingProducts.length === 0;
     
@@ -61,9 +67,9 @@ export const loader = async ({ request }: { request: Request }) => {
           variables: { handle: `handle:'${suggestion}'` }
         });
         
-        const suggestionData = (await suggestionResponse.json()) as ProductHandleData;
+        const suggestionResult = await suggestionResponse.json() as ShopifyGraphQLResponse<ProductHandleQueryResponse>;
         
-        if (suggestionData.data.products.edges.length === 0) {
+        if (suggestionResult.data && suggestionResult.data.products.edges.length === 0) {
           suggestions.push(suggestion);
           if (suggestions.length >= 3) break; // Limit to 3 suggestions
         }
@@ -83,7 +89,7 @@ export const loader = async ({ request }: { request: Request }) => {
     });
 
   } catch (error) {
-    console.error('Error validating product handle:', error);
+    logger.error('Error validating product handle', error);
     return json(
       { error: 'Failed to validate product handle' },
       { status: 500 }

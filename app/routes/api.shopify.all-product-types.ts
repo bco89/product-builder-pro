@@ -1,6 +1,7 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { CacheService } from "../services/cacheService";
+import { logger } from "../services/logger.server.ts";
 
 interface ProductNode {
   productType: string;
@@ -49,7 +50,7 @@ export const loader = async ({ request }: { request: Request }) => {
     // Check cache first - properly isolated by shop
     const cached = await CacheService.get<ProductTypesData>(shop, 'productTypes');
     if (cached) {
-      console.log("Returning cached product types data for shop:", shop);
+      logger.info("Returning cached product types data for shop:", { shop });
       return json(cached);
     }
 
@@ -125,7 +126,7 @@ export const loader = async ({ request }: { request: Request }) => {
     
     return json(result);
   } catch (error) {
-    console.error("Failed to fetch all product types:", error);
+    logger.error("Failed to fetch all product types:", error);
     return json({ 
       error: "Failed to fetch product types",
       productTypesByVendor: {},

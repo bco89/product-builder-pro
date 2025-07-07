@@ -1,4 +1,4 @@
-import { prisma } from "./db.server";
+import { prisma } from "../db.server.ts";
 import type { Session } from "@prisma/client";
 
 export async function getSession(id: string) {

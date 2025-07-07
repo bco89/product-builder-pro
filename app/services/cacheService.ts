@@ -1,4 +1,4 @@
-import { prisma } from './db.server';
+import { prisma } from '../db.server.ts';
 import type { CacheData, CacheableDataType } from '../types/shopify';
 
 const CACHE_TTL = 1000 * 60 * 15; // 15 minutes in milliseconds

@@ -1,5 +1,6 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
+import { logger } from "../services/logger.server.ts";
 
 function generateVariantCombinations(options: any[]): string[][] {
   const cartesian = (...arrays: string[][]): string[][] => {
@@ -25,11 +26,11 @@ export const action = async ({ request }: { request: Request }) => {
   const { productId, options, skus, barcodes, pricing, weight, weightUnit } = await request.json();
 
   try {
-    console.log("Updating product with variants:", { productId, options });
+    logger.info("Updating product with variants:", { productId, options });
 
     // Check if this is a non-variant product (no options)
     if (!options || options.length === 0) {
-      console.log("Updating non-variant product with SKU and barcode");
+      logger.info("Updating non-variant product with SKU and barcode");
       
       // Get the default variant ID for non-variant products
       const variantResponse = await admin.graphql(
@@ -99,10 +100,10 @@ export const action = async ({ request }: { request: Request }) => {
         );
 
         const updateResponseJson = await updateResponse.json();
-        console.log("Non-variant update response:", JSON.stringify(updateResponseJson, null, 2));
+        logger.debug("Non-variant update response:", JSON.stringify(updateResponseJson, null, 2));
 
         if (updateResponseJson.data?.productVariantsBulkUpdate?.userErrors?.length > 0) {
-          console.error("Error updating non-variant product:", updateResponseJson.data.productVariantsBulkUpdate.userErrors);
+          logger.error("Error updating non-variant product:", updateResponseJson.data.productVariantsBulkUpdate.userErrors);
           return json(
             { error: updateResponseJson.data.productVariantsBulkUpdate.userErrors[0].message },
             { status: 400 }
@@ -119,7 +120,7 @@ export const action = async ({ request }: { request: Request }) => {
     }
 
     // Step 1: Create product options first (for variant products)
-    console.log("Creating product options");
+    logger.info("Creating product options");
     const optionsInput = options.map((option: any, index: number) => ({
       name: option.name,
       position: index + 1,
@@ -169,10 +170,10 @@ export const action = async ({ request }: { request: Request }) => {
     );
 
     const optionsResponseJson = await optionsResponse.json();
-    console.log("Options creation response:", JSON.stringify(optionsResponseJson, null, 2));
+    logger.debug("Options creation response:", JSON.stringify(optionsResponseJson, null, 2));
 
     if (optionsResponseJson.data?.productOptionsCreate?.userErrors?.length > 0) {
-      console.error("Error creating options:", optionsResponseJson.data.productOptionsCreate.userErrors);
+      logger.error("Error creating options:", optionsResponseJson.data.productOptionsCreate.userErrors);
       return json(
         { error: optionsResponseJson.data.productOptionsCreate.userErrors[0].message },
         { status: 400 }
@@ -252,7 +253,7 @@ export const action = async ({ request }: { request: Request }) => {
     
     // Update existing variants if any
     if (variantsToUpdate.length > 0) {
-      console.log("Updating existing variants:", JSON.stringify(variantsToUpdate, null, 2));
+      logger.debug("Updating existing variants:", JSON.stringify(variantsToUpdate, null, 2));
       
       const updateResponse = await admin.graphql(
         `#graphql
@@ -280,10 +281,10 @@ export const action = async ({ request }: { request: Request }) => {
       );
       
       const updateResponseJson = await updateResponse.json();
-      console.log("Variant update response:", JSON.stringify(updateResponseJson, null, 2));
+      logger.debug("Variant update response:", JSON.stringify(updateResponseJson, null, 2));
       
       if (updateResponseJson.data?.productVariantsBulkUpdate?.userErrors?.length > 0) {
-        console.error("Error updating variants:", updateResponseJson.data.productVariantsBulkUpdate.userErrors);
+        logger.error("Error updating variants:", updateResponseJson.data.productVariantsBulkUpdate.userErrors);
         return json(
           { error: updateResponseJson.data.productVariantsBulkUpdate.userErrors[0].message },
           { status: 400 }
@@ -294,7 +295,7 @@ export const action = async ({ request }: { request: Request }) => {
     // Create new variants if any
     let createdVariants = [];
     if (variantsToCreate.length > 0) {
-      console.log("Creating new variants:", JSON.stringify(variantsToCreate, null, 2));
+      logger.debug("Creating new variants:", JSON.stringify(variantsToCreate, null, 2));
       
       const createResponse = await admin.graphql(
         `#graphql
@@ -322,10 +323,10 @@ export const action = async ({ request }: { request: Request }) => {
       );
       
       const createResponseJson = await createResponse.json();
-      console.log("Variant creation response:", JSON.stringify(createResponseJson, null, 2));
+      logger.debug("Variant creation response:", JSON.stringify(createResponseJson, null, 2));
       
       if (createResponseJson.data?.productVariantsBulkCreate?.userErrors?.length > 0) {
-        console.error("Variant creation errors:", createResponseJson.data.productVariantsBulkCreate.userErrors);
+        logger.error("Variant creation errors:", createResponseJson.data.productVariantsBulkCreate.userErrors);
         return json(
           { error: createResponseJson.data.productVariantsBulkCreate.userErrors[0].message },
           { status: 400 }
@@ -340,9 +341,9 @@ export const action = async ({ request }: { request: Request }) => {
       variants: [...(variantsToUpdate.map(v => ({ id: v.id }))), ...createdVariants]
     });
   } catch (error) {
-    console.error("Failed to update product variants:", error);
+    logger.error("Failed to update product variants:", error);
     if (error instanceof Error) {
-      console.error("Error details:", {
+      logger.error("Error details:", {
         message: error.message,
         stack: error.stack,
         name: error.name

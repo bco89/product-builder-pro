@@ -1,21 +1,22 @@
 import { redirect } from "@remix-run/node";
 import { Form, useLoaderData } from "@remix-run/react";
 import { login } from "../../shopify.server";
+import { logger } from "../../services/logger.server.ts";
 import styles from "./styles.module.css";
 
 export const loader = async ({ request }) => {
-  console.log("[_index loader] Request URL:", request.url);
+  logger.debug("Index loader - Request URL", { url: request.url });
   const url = new URL(request.url);
   const shop = url.searchParams.get("shop");
   
-  console.log("[_index loader] Shop param:", shop);
+  logger.debug("Index loader - Shop param", { shop });
   
   if (shop) {
-    console.log("[_index loader] Redirecting to /app");
+    logger.info("Index loader - Redirecting to /app", { shop });
     throw redirect(`/app?${url.searchParams.toString()}`);
   }
 
-  console.log("[_index loader] Showing login form");
+  logger.debug("Index loader - Showing login form");
   return { showForm: Boolean(login) };
 };
 

@@ -1,5 +1,6 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
+import { logger } from "../services/logger.server.ts";
 
 interface TaxonomyCategory {
   id: string;
@@ -44,7 +45,7 @@ export const loader = async ({ request }: { request: Request }) => {
     });
 
   } catch (error) {
-    console.error("Failed to fetch taxonomy categories:", error);
+    logger.error("Failed to fetch taxonomy categories:", error);
     
     const fallbackCategories = [
       {
@@ -169,13 +170,14 @@ async function fetchSuggestedCategories(admin: any, productType: string): Promis
     const suggestedCategories = Array.from(categoryMap.values())
       .sort((a: TaxonomyCategory, b: TaxonomyCategory) => a.name.localeCompare(b.name));
 
-    console.log(`Found ${suggestedCategories.length} suggested categories for ${productType}:`, 
-      suggestedCategories.map(cat => cat.name));
+    logger.info(`Found ${suggestedCategories.length} suggested categories for ${productType}`, {
+      categories: suggestedCategories.map(cat => cat.name)
+    });
     
     return suggestedCategories;
 
   } catch (error) {
-    console.error("Failed to fetch suggested categories:", error);
+    logger.error("Failed to fetch suggested categories:", error);
     return [];
   }
 }

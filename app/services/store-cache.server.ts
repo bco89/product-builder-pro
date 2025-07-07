@@ -1,4 +1,4 @@
-import { prisma } from "./db.server";
+import { prisma } from "../db.server.ts";
 import type { StoreCache } from "@prisma/client";
 
 export async function getCacheEntry(shop: string, dataType: string) {

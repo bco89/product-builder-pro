@@ -1,10 +1,8 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-
-interface BatchValidationRequest {
-  skus: string[];
-  barcodes?: string[];
-}
+import { batchValidateSkus, batchValidateBarcodes } from "../utils/validation";
+import { logger } from "../services/logger.server.ts";
+import type { BatchValidationRequest } from "../types/shopify";
 
 interface ValidationConflict {
   type: 'sku' | 'barcode';
@@ -21,9 +19,10 @@ interface BatchValidationResult {
   conflicts: ValidationConflict[];
 }
 
-export const action = async ({ request }: { request: Request }) => {
+export const action = async ({ request }: { request: Request }): Promise<Response> => {
   const { admin } = await authenticate.admin(request);
-  const { skus, barcodes = [] }: BatchValidationRequest = await request.json();
+  const requestData: BatchValidationRequest & { barcodes?: string[] } = await request.json();
+  const { values: skus, barcodes = [], productId } = requestData;
 
   if (!skus || skus.length === 0) {
     return json({ error: 'SKUs array is required' }, { status: 400 });
@@ -33,123 +32,55 @@ export const action = async ({ request }: { request: Request }) => {
     const conflicts: ValidationConflict[] = [];
 
     // Validate SKUs
-    if (skus.length > 0) {
-      const skuQueryString = skus.filter(Boolean).map(sku => `sku:${sku}`).join(' OR ');
-      
-      if (skuQueryString) {
-        const skuQuery = `#graphql
-          query checkProductSKUs($query: String!) {
-            products(first: 250, query: $query) {
-              edges {
-                node {
-                  id
-                  title
-                  handle
-                  variants(first: 250) {
-                    edges {
-                      node {
-                        sku
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }`;
-
-        const skuResponse = await admin.graphql(skuQuery, {
-          variables: { query: skuQueryString }
+    const skuValidation = await batchValidateSkus(admin, skus, productId);
+    
+    for (const [sku, result] of Object.entries(skuValidation.results)) {
+      if (!result.isValid && result.exists) {
+        conflicts.push({
+          type: 'sku',
+          value: sku,
+          conflictingProduct: {
+            id: '', // The batch validation doesn't return IDs, but that's OK for conflict detection
+            title: result.productTitle || 'Unknown Product',
+            handle: '',
+          },
         });
-
-        const skuData = await skuResponse.json();
-        const skuProducts = skuData.data.products.edges;
-
-        // Check for conflicts
-        for (const productEdge of skuProducts) {
-          const product = productEdge.node;
-          for (const variantEdge of product.variants.edges) {
-            const variantSku = variantEdge.node.sku;
-            if (variantSku && skus.includes(variantSku)) {
-              conflicts.push({
-                type: 'sku',
-                value: variantSku,
-                conflictingProduct: {
-                  id: product.id,
-                  title: product.title,
-                  handle: product.handle
-                }
-              });
-            }
-          }
-        }
       }
     }
 
-    // Validate Barcodes
+    // Validate Barcodes if provided
     if (barcodes.length > 0) {
-      const barcodeQueryString = barcodes.filter(Boolean).map(barcode => `barcode:${barcode}`).join(' OR ');
+      const barcodeValidation = await batchValidateBarcodes(admin, barcodes, productId);
       
-      if (barcodeQueryString) {
-        const barcodeQuery = `#graphql
-          query checkProductBarcodes($query: String!) {
-            products(first: 250, query: $query) {
-              edges {
-                node {
-                  id
-                  title
-                  handle
-                  variants(first: 250) {
-                    edges {
-                      node {
-                        barcode
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }`;
-
-        const barcodeResponse = await admin.graphql(barcodeQuery, {
-          variables: { query: barcodeQueryString }
-        });
-
-        const barcodeData = await barcodeResponse.json();
-        const barcodeProducts = barcodeData.data.products.edges;
-
-        // Check for conflicts
-        for (const productEdge of barcodeProducts) {
-          const product = productEdge.node;
-          for (const variantEdge of product.variants.edges) {
-            const variantBarcode = variantEdge.node.barcode;
-            if (variantBarcode && barcodes.includes(variantBarcode)) {
-              conflicts.push({
-                type: 'barcode',
-                value: variantBarcode,
-                conflictingProduct: {
-                  id: product.id,
-                  title: product.title,
-                  handle: product.handle
-                }
-              });
-            }
-          }
+      for (const [barcode, result] of Object.entries(barcodeValidation.results)) {
+        if (!result.isValid && result.exists) {
+          conflicts.push({
+            type: 'barcode',
+            value: barcode,
+            conflictingProduct: {
+              id: '',
+              title: result.productTitle || 'Unknown Product',
+              handle: '',
+            },
+          });
         }
       }
     }
 
-    const result: BatchValidationResult = {
+    const response: BatchValidationResult = {
       valid: conflicts.length === 0,
-      conflicts
+      conflicts,
     };
 
-    return json(result);
-
+    return json(response);
   } catch (error) {
-    console.error('Error validating SKUs/Barcodes batch:', error);
+    logger.error('Error in batch validation', error, { 
+      skuCount: skus.length, 
+      barcodeCount: barcodes.length 
+    });
     return json(
-      { error: 'Failed to validate SKUs/Barcodes' },
+      { error: 'Failed to validate SKUs and barcodes' },
       { status: 500 }
     );
   }
-}; 
+};

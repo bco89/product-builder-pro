@@ -1,18 +1,20 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
+import { logger } from "../services/logger.server.ts";
+import type { CreateProductRequest, ProductCreateResponse, ShopifyGraphQLResponse } from "../types/shopify";
 
-export const action = async ({ request }: { request: Request }) => {
+export const action = async ({ request }: { request: Request }): Promise<Response> => {
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
   const { admin } = await authenticate.admin(request);
-  const formData = await request.json();
+  const formData: CreateProductRequest = await request.json();
 
   try {
-    console.log("Creating basic product:", JSON.stringify(formData, null, 2));
+    logger.info("Creating basic product:", { formData });
 
-    const response = await admin.graphql(
+    const response = await admin.graphql<ShopifyGraphQLResponse<ProductCreateResponse>>(
       `#graphql
       mutation productCreate($product: ProductCreateInput!) {
         productCreate(product: $product) {
@@ -51,10 +53,10 @@ export const action = async ({ request }: { request: Request }) => {
     );
 
     const responseJson = await response.json();
-    console.log("Product creation response:", JSON.stringify(responseJson, null, 2));
+    logger.info("Product creation response:", { responseJson });
     
     if (responseJson.data?.productCreate?.userErrors?.length > 0) {
-      console.error("Product creation errors:", responseJson.data.productCreate.userErrors);
+      logger.error("Product creation errors:", undefined, { userErrors: responseJson.data.productCreate.userErrors });
       return json(
         { error: responseJson.data.productCreate.userErrors[0].message },
         { status: 400 }
@@ -62,7 +64,7 @@ export const action = async ({ request }: { request: Request }) => {
     }
 
     if (!responseJson.data?.productCreate?.product) {
-      console.error("No product data in response");
+      logger.error("No product data in response");
       return json(
         { error: "Failed to create product: No product data returned" },
         { status: 500 }
@@ -74,7 +76,7 @@ export const action = async ({ request }: { request: Request }) => {
 
     // Update default variant with initial pricing if provided
     if (defaultVariantId && formData.pricing) {
-      console.log("Updating default variant with pricing");
+      logger.info("Updating default variant with pricing");
       const updateResponse = await admin.graphql(
         `#graphql
         mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
@@ -101,7 +103,7 @@ export const action = async ({ request }: { request: Request }) => {
       );
 
       const updateResponseJson = await updateResponse.json();
-      console.log("Variant update response:", JSON.stringify(updateResponseJson, null, 2));
+      logger.info("Variant update response:", { updateResponseJson });
     }
 
     return json({
@@ -110,13 +112,9 @@ export const action = async ({ request }: { request: Request }) => {
       title: product.title
     });
   } catch (error) {
-    console.error("Failed to create product:", error);
+    logger.error("Failed to create product:", error);
     if (error instanceof Error) {
-      console.error("Error details:", {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
+      logger.error("Error details:", error);
       return json(
         { error: `Failed to create product: ${error.message}` },
         { status: 500 }

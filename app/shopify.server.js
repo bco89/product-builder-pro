@@ -5,7 +5,8 @@ import {
   shopifyApp,
 } from "@shopify/shopify-app-remix/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
-import prisma from "./db.server";
+import prisma from "./db.server.ts";
+import { logger } from "./services/logger.server.ts";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -19,7 +20,7 @@ const shopify = shopifyApp({
   isEmbeddedApp: true,
   hooks: {
     afterAuth: async ({ session }) => {
-      console.log("[afterAuth] Session created:", session);
+      logger.auth("Session created", { sessionId: session.id, shop: session.shop });
       await shopify.registerWebhooks({ session });
     },
   },
@@ -28,25 +29,7 @@ const shopify = shopifyApp({
   },
 });
 
-// Add logging to authenticate function
-const originalAuthenticate = shopify.authenticate;
-shopify.authenticate = {
-  ...originalAuthenticate,
-  admin: async (request) => {
-    console.log("[authenticate.admin] Request URL:", request.url);
-    try {
-      const result = await originalAuthenticate.admin(request);
-      console.log("[authenticate.admin] Authentication successful:", {
-        hasSession: !!result.session,
-        hasAdmin: !!result.admin
-      });
-      return result;
-    } catch (error) {
-      console.error("[authenticate.admin] Authentication failed:", error);
-      throw error;
-    }
-  }
-};
+// Authentication is now handled through auth.server.ts service
 
 export default shopify;
 export const apiVersion = ApiVersion.October24;
