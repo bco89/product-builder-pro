@@ -35,6 +35,14 @@ export default function App() {
                 label: "Product Builder",
                 destination: "/app/product-builder",
               },
+              {
+                label: "Improve Descriptions",
+                destination: "/app/improve-descriptions",
+              },
+              {
+                label: "Settings",
+                destination: "/app/settings",
+              },
             ]}
           />
           <Outlet />

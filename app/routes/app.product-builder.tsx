@@ -25,6 +25,7 @@ import type { PricingData } from './product-builder/FormContext';
 // Step Components
 import StepVendorType from './product-builder/steps/StepVendorType';
 import StepProductDetails from './product-builder/steps/StepProductDetails';
+import StepAIDescription from './product-builder/steps/StepAIDescription';
 import StepVariants from './product-builder/steps/StepVariants';
 import StepSKUBarcode from './product-builder/steps/StepSKUBarcode';
 import StepPricing from './product-builder/steps/StepPricing';
@@ -74,6 +75,8 @@ export default function ProductBuilder() {
     googleCategory: '',
     title: '',
     description: '',
+    seoTitle: '',
+    seoDescription: '',
     handle: '',
     images: [] as File[],
     addImagesLater: false,
@@ -95,6 +98,7 @@ export default function ProductBuilder() {
       return [
         { title: 'Vendor & Type', component: StepVendorType, phase: 1 },
         { title: 'Product Details', component: StepProductDetails, phase: 1 },
+        { title: 'AI Description', component: StepAIDescription, phase: 1 },
         { title: 'Tags', component: StepTags, phase: 1 },
         { title: 'Pricing', component: StepPricing, phase: 1 },
         { title: 'Variants?', component: StepVariantDecision, phase: 1 }
@@ -106,6 +110,7 @@ export default function ProductBuilder() {
         return [
           { title: 'Vendor & Type', component: StepVendorType, phase: 1 },
           { title: 'Product Details', component: StepProductDetails, phase: 1 },
+          { title: 'AI Description', component: StepAIDescription, phase: 1 },
           { title: 'Tags', component: StepTags, phase: 1 },
           { title: 'Pricing', component: StepPricing, phase: 1 },
           { title: 'Variants?', component: StepVariantDecision, phase: 1 }
@@ -125,6 +130,7 @@ export default function ProductBuilder() {
         return [
           { title: 'Vendor & Type', component: StepVendorType, phase: 1 },
           { title: 'Product Details', component: StepProductDetails, phase: 1 },
+          { title: 'AI Description', component: StepAIDescription, phase: 1 },
           { title: 'Tags', component: StepTags, phase: 1 },
           { title: 'Pricing', component: StepPricing, phase: 1 },
           { title: 'Variants?', component: StepVariantDecision, phase: 1 }
@@ -257,6 +263,8 @@ export default function ProductBuilder() {
         body: JSON.stringify({
           title: formData.title,
           description: formData.description,
+          seoTitle: formData.seoTitle,
+          seoDescription: formData.seoDescription,
           handle: formData.handle,
           vendor: formData.vendor,
           productType: formData.productType,
@@ -286,6 +294,8 @@ export default function ProductBuilder() {
             body: JSON.stringify({
               title: formData.title,
               description: formData.description,
+              seoTitle: formData.seoTitle,
+              seoDescription: formData.seoDescription,
               handle: formData.handle,
               vendor: formData.vendor,
               productType: formData.productType,

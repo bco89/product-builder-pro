@@ -76,3 +76,47 @@ model StoreCache {
   @@index([shop])
   @@index([expiresAt])
 }
+
+model ShopSettings {
+  id            String    @id @default(uuid()) @db.VarChar(36)
+  shop          String    @unique @db.VarChar(255)
+  
+  // Customer Avatar Fields
+  targetCustomer        String?   @db.Text
+  customerPainPoints    String?   @db.Text
+  customerDesires       String?   @db.Text
+  
+  // Brand Identity Fields
+  uniqueSellingPoints   String?   @db.Text
+  coreValues           String?   @db.Text
+  brandPersonality     String?   @db.Text
+  
+  // Customer Psychology Fields
+  lifestyleHabits      String?   @db.Text
+  aspirations          String?   @db.Text
+  buyingMotivations    String?   @db.Text
+  
+  // Store Information
+  storeName            String?   @db.VarChar(255)
+  storeLocation        String?   @db.VarChar(255)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([shop])
+}
+
+model AIGenerationLog {
+  id            String    @id @default(uuid()) @db.VarChar(36)
+  shop          String    @db.VarChar(255)
+  productId     String?   @db.VarChar(255)
+  generationType String   @db.VarChar(50) // 'description', 'seo_title', 'seo_description'
+  prompt        String    @db.Text
+  response      String    @db.Text
+  regenerations Int       @default(0)
+  
+  createdAt     DateTime  @default(now())
+  
+  @@index([shop])
+  @@index([productId])
+}

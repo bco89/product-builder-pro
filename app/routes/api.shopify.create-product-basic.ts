@@ -19,6 +19,8 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
     imageUrls?: string[];
     category?: { id: string; name: string; };
     pricing?: { price: string; };
+    seoTitle?: string;
+    seoDescription?: string;
   };
 
   try {
@@ -66,6 +68,12 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
             tags: formData.tags,
             status: "DRAFT",
             ...(formData.category && { category: formData.category.id }),
+            ...(formData.seoTitle || formData.seoDescription ? {
+              seo: {
+                ...(formData.seoTitle && { title: formData.seoTitle }),
+                ...(formData.seoDescription && { description: formData.seoDescription })
+              }
+            } : {}),
           },
           media: media.length > 0 ? media : undefined
         }
