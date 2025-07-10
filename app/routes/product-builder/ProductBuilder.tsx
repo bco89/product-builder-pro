@@ -11,6 +11,11 @@ export default function ProductBuilder() {
     vendor: '',
     productType: '',
     category: null,
+    title: '',
+    description: '',
+    handle: '',
+    images: [],
+    addImagesLater: false,
     tags: [],
     options: [],
     pricing: [{

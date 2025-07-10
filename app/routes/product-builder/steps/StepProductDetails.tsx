@@ -359,8 +359,8 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
                 }}
                 placeholder="Enter weight"
                 autoComplete="off"
-                step="0.01"
-                min="0"
+                step={0.01}
+                min={0}
               />
             </div>
             <div style={{ width: '60px' }}>
