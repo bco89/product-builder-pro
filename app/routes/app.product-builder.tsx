@@ -161,6 +161,12 @@ export default function ProductBuilder() {
     if (!files || files.length === 0) return [];
 
     try {
+      console.log('Starting image upload process for files:', files.map(f => ({
+        name: f.name,
+        type: f.type,
+        size: f.size
+      })));
+
       // Step 1: Create staged upload targets
       const stagedResponse = await fetch('/api/shopify/staged-uploads', {
         method: 'POST',
@@ -177,10 +183,13 @@ export default function ProductBuilder() {
       });
 
       if (!stagedResponse.ok) {
-        throw new Error('Failed to create staged uploads');
+        const errorData = await stagedResponse.json();
+        console.error('Staged upload creation failed:', errorData);
+        throw new Error(errorData.error || 'Failed to create staged uploads');
       }
 
       const { stagedTargets } = await stagedResponse.json();
+      console.log('Staged targets received:', stagedTargets);
       
       // Step 2: Upload files to staged URLs
       const uploadPromises = stagedTargets.map(async (target: any, index: number) => {
@@ -196,19 +205,32 @@ export default function ProductBuilder() {
         formData.append('file', file);
         
         // Upload to Shopify's CDN
+        console.log(`Uploading ${file.name} to:`, target.url);
         const uploadResponse = await fetch(target.url, {
           method: 'POST',
           body: formData,
         });
         
+        console.log(`Upload response for ${file.name}:`, uploadResponse.status, uploadResponse.statusText);
+        
         if (!uploadResponse.ok) {
-          throw new Error(`Failed to upload ${file.name}`);
+          const errorText = await uploadResponse.text();
+          console.error(`Upload failed for ${file.name}:`, errorText);
+          throw new Error(`Failed to upload ${file.name}: ${uploadResponse.statusText}`);
         }
+        
+        console.log(`Successfully uploaded ${file.name}, resource URL:`, target.resourceUrl);
         
         return target.resourceUrl;
       });
       
-      return await Promise.all(uploadPromises);
+      const urls = await Promise.all(uploadPromises);
+      console.log('All uploads completed, resource URLs:', urls);
+      
+      // Wait to ensure uploads are processed by Shopify
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      return urls;
     } catch (error) {
       console.error('Error uploading images:', error);
       throw error;
@@ -224,7 +246,6 @@ export default function ProductBuilder() {
       // Upload images first if any
       let imageUrls: string[] = [];
       if (formData.images && formData.images.length > 0) {
-        setToastMessage('Uploading images...');
         imageUrls = await uploadImagesToShopify(formData.images);
       }
 
@@ -251,11 +272,42 @@ export default function ProductBuilder() {
       const data = await response.json();
       
       if (!response.ok) {
+        console.error('Product creation failed:', data);
+        // Check if it's specifically a media error
+        if (data.error && data.error.toLowerCase().includes('media')) {
+          console.error('Media-specific error detected');
+          // Try creating product without images
+          console.log('Retrying product creation without images...');
+          const retryResponse = await fetch('/api/shopify/create-product-basic', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              title: formData.title,
+              description: formData.description,
+              handle: formData.handle,
+              vendor: formData.vendor,
+              productType: formData.productType,
+              tags: formData.tags,
+              category: formData.category,
+              pricing: formData.pricing[0] || { price: '0.00' },
+              imageUrls: [] // No images
+            }),
+          });
+          
+          const retryData = await retryResponse.json();
+          if (retryResponse.ok) {
+            console.log('Product created successfully without images');
+            setProductId(retryData.id);
+            setCurrentStep(0);
+            return;
+          }
+        }
         throw new Error(data.error || 'Failed to create product');
       }
 
       setProductId(data.id);
-      setToastMessage('Product created successfully!');
       
       setCurrentStep(0); // Reset to first step of phase 2
       

@@ -30,6 +30,8 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
       originalSource: url,
       alt: `${formData.title} - Image ${index + 1}`
     })) || [];
+    
+    logger.info("Media input prepared:", { media });
 
     const response = await admin.graphql(
       `#graphql
@@ -65,13 +67,26 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
             status: "DRAFT",
             ...(formData.category && { category: formData.category.id }),
           },
-          ...(media.length > 0 && { media })
+          media: media.length > 0 ? media : undefined
         }
       }
     );
 
     const responseJson = await response.json();
     logger.info("Product creation response:", { responseJson });
+    
+    // Check for GraphQL errors
+    if (responseJson.errors) {
+      logger.error("GraphQL errors:", undefined, { errors: responseJson.errors });
+      const mediaError = responseJson.errors.find((err: any) => 
+        err.message?.toLowerCase().includes('media') || 
+        err.extensions?.code === 'MEDIA_ERROR'
+      );
+      return json(
+        { error: mediaError?.message || responseJson.errors[0].message || 'GraphQL error occurred' },
+        { status: 400 }
+      );
+    }
     
     if (responseJson.data?.productCreate?.userErrors?.length > 0) {
       logger.error("Product creation errors:", undefined, { userErrors: responseJson.data.productCreate.userErrors });

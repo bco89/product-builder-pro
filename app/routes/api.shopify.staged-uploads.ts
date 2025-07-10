@@ -26,7 +26,7 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
       filename: file.filename,
       mimeType: file.mimeType,
       httpMethod: "POST",
-      resource: "PRODUCT_IMAGE",
+      resource: "IMAGE", // Changed from PRODUCT_IMAGE to IMAGE
       ...(file.fileSize && { fileSize: file.fileSize.toString() })
     }));
 
