@@ -1,7 +1,13 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { logger } from "../services/logger.server.ts";
-import type { CreateProductRequest, ProductCreateResponse, ShopifyGraphQLResponse } from "../types/shopify";
+import type { CreateProductRequest } from "../types/shopify";
+
+interface CreateMediaInput {
+  alt?: string;
+  mediaContentType: string;
+  originalSource: string;
+}
 
 export const action = async ({ request }: { request: Request }): Promise<Response> => {
   if (request.method !== "POST") {
@@ -9,15 +15,26 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
   }
 
   const { admin } = await authenticate.admin(request);
-  const formData: CreateProductRequest = await request.json();
+  const formData = await request.json() as CreateProductRequest & { 
+    imageUrls?: string[];
+    category?: { id: string; name: string; };
+    pricing?: { price: string; };
+  };
 
   try {
     logger.info("Creating basic product:", { formData });
 
-    const response = await admin.graphql<ShopifyGraphQLResponse<ProductCreateResponse>>(
+    // Prepare media input if images are provided
+    const media: CreateMediaInput[] = formData.imageUrls?.map((url, index) => ({
+      mediaContentType: "IMAGE",
+      originalSource: url,
+      alt: `${formData.title} - Image ${index + 1}`
+    })) || [];
+
+    const response = await admin.graphql(
       `#graphql
-      mutation productCreate($product: ProductCreateInput!) {
-        productCreate(product: $product) {
+      mutation productCreate($product: ProductCreateInput!, $media: [CreateMediaInput!]) {
+        productCreate(product: $product, media: $media) {
           product {
             id
             title
@@ -47,7 +64,8 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
             tags: formData.tags,
             status: "DRAFT",
             ...(formData.category && { category: formData.category.id }),
-          }
+          },
+          ...(media.length > 0 && { media })
         }
       }
     );

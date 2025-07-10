@@ -156,12 +156,78 @@ export default function ProductBuilder() {
     };
   };
 
+  // Upload images to Shopify's CDN using staged upload
+  const uploadImagesToShopify = async (files: File[]): Promise<string[]> => {
+    if (!files || files.length === 0) return [];
+
+    try {
+      // Step 1: Create staged upload targets
+      const stagedResponse = await fetch('/api/shopify/staged-uploads', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          files: files.map(file => ({
+            filename: file.name,
+            mimeType: file.type,
+            fileSize: file.size
+          }))
+        }),
+      });
+
+      if (!stagedResponse.ok) {
+        throw new Error('Failed to create staged uploads');
+      }
+
+      const { stagedTargets } = await stagedResponse.json();
+      
+      // Step 2: Upload files to staged URLs
+      const uploadPromises = stagedTargets.map(async (target: any, index: number) => {
+        const file = files[index];
+        const formData = new FormData();
+        
+        // Add parameters from staged upload response
+        target.parameters.forEach((param: { name: string; value: string }) => {
+          formData.append(param.name, param.value);
+        });
+        
+        // Add the file
+        formData.append('file', file);
+        
+        // Upload to Shopify's CDN
+        const uploadResponse = await fetch(target.url, {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (!uploadResponse.ok) {
+          throw new Error(`Failed to upload ${file.name}`);
+        }
+        
+        return target.resourceUrl;
+      });
+      
+      return await Promise.all(uploadPromises);
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      throw error;
+    }
+  };
+
   // Create product mid-flow for both variant and non-variant products
   const createProductMidFlow = useCallback(async () => {
     setIsCreatingProduct(true);
     setErrorBanner('');
     
     try {
+      // Upload images first if any
+      let imageUrls: string[] = [];
+      if (formData.images && formData.images.length > 0) {
+        setToastMessage('Uploading images...');
+        imageUrls = await uploadImagesToShopify(formData.images);
+      }
+
       const response = await fetch('/api/shopify/create-product-basic', {
         method: 'POST',
         headers: {
@@ -176,7 +242,9 @@ export default function ProductBuilder() {
           tags: formData.tags,
           category: formData.category,
           // Include initial pricing for default variant
-          pricing: formData.pricing[0] || { price: '0.00' }
+          pricing: formData.pricing[0] || { price: '0.00' },
+          // Include uploaded image URLs
+          imageUrls
         }),
       });
 
@@ -187,6 +255,7 @@ export default function ProductBuilder() {
       }
 
       setProductId(data.id);
+      setToastMessage('Product created successfully!');
       
       setCurrentStep(0); // Reset to first step of phase 2
       
@@ -197,7 +266,7 @@ export default function ProductBuilder() {
     } finally {
       setIsCreatingProduct(false);
     }
-  }, [formData, hasVariants]);
+  }, [formData, hasVariants, uploadImagesToShopify]);
 
   // Handle variant decision
   const handleVariantDecision = useCallback((hasVariantsDecision: boolean) => {
