@@ -37,17 +37,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
   
   const settings = {
-    targetCustomer: formData.get('targetCustomer')?.toString() || '',
-    customerPainPoints: formData.get('customerPainPoints')?.toString() || '',
-    customerDesires: formData.get('customerDesires')?.toString() || '',
+    storeName: formData.get('storeName')?.toString() || '',
+    storeLocation: formData.get('storeLocation')?.toString() || '',
     uniqueSellingPoints: formData.get('uniqueSellingPoints')?.toString() || '',
     coreValues: formData.get('coreValues')?.toString() || '',
     brandPersonality: formData.get('brandPersonality')?.toString() || '',
-    lifestyleHabits: formData.get('lifestyleHabits')?.toString() || '',
-    aspirations: formData.get('aspirations')?.toString() || '',
-    buyingMotivations: formData.get('buyingMotivations')?.toString() || '',
-    storeName: formData.get('storeName')?.toString() || '',
-    storeLocation: formData.get('storeLocation')?.toString() || '',
+    targetCustomerOverride: formData.get('targetCustomerOverride')?.toString() || '',
+    additionalCustomerInsights: formData.get('additionalCustomerInsights')?.toString() || '',
+    excludedCustomerSegments: formData.get('excludedCustomerSegments')?.toString() || '',
   };
 
   await prisma.shopSettings.upsert({
@@ -73,15 +70,12 @@ export default function Settings() {
   const [formData, setFormData] = useState({
     storeName: settings?.storeName || '',
     storeLocation: settings?.storeLocation || '',
-    targetCustomer: settings?.targetCustomer || '',
-    customerPainPoints: settings?.customerPainPoints || '',
-    customerDesires: settings?.customerDesires || '',
     uniqueSellingPoints: settings?.uniqueSellingPoints || '',
     coreValues: settings?.coreValues || '',
     brandPersonality: settings?.brandPersonality || '',
-    lifestyleHabits: settings?.lifestyleHabits || '',
-    aspirations: settings?.aspirations || '',
-    buyingMotivations: settings?.buyingMotivations || '',
+    targetCustomerOverride: settings?.targetCustomerOverride || '',
+    additionalCustomerInsights: settings?.additionalCustomerInsights || '',
+    excludedCustomerSegments: settings?.excludedCustomerSegments || '',
   });
   
   const isSubmitting = navigation.state === 'submitting';
@@ -144,44 +138,44 @@ export default function Settings() {
                 </BlockStack>
               </Card>
 
-              {/* Customer Avatar */}
+              {/* Customer Customization */}
               <Card>
                 <BlockStack gap="400">
-                  <Text variant="headingMd" as="h2">Customer Avatar</Text>
+                  <Text variant="headingMd" as="h2">Customer Customization (Optional)</Text>
                   <Banner tone="info">
                     <Text as="p">
-                      Creating a detailed customer avatar helps AI write product descriptions that deeply resonate with your target audience.
+                      Our AI already understands typical customers for each product type. Use these fields only if your store serves a very specific niche or needs to exclude certain segments.
                     </Text>
                   </Banner>
                   
                   <FormLayout>
                     <TextField
-                      label="Who are your ideal customers?"
-                      name="targetCustomer"
-                      value={formData.targetCustomer}
-                      onChange={handleChange('targetCustomer')}
-                      multiline={3}
-                      helpText="Describe demographics, interests, and characteristics. Example: 'Busy professionals aged 25-45 who value quality and sustainability'"
+                      label="Target Customer Override (Optional)"
+                      name="targetCustomerOverride"
+                      value={formData.targetCustomerOverride}
+                      onChange={handleChange('targetCustomerOverride')}
+                      multiline={2}
+                      helpText="Only fill this if your store serves a VERY specific niche different from typical product buyers. Example: 'Only eco-conscious millennials' or 'Exclusively B2B corporate buyers'"
                       autoComplete="off"
                     />
                     
                     <TextField
-                      label="What problems do they face?"
-                      name="customerPainPoints"
-                      value={formData.customerPainPoints}
-                      onChange={handleChange('customerPainPoints')}
-                      multiline={3}
-                      helpText="What frustrations or challenges do your products solve? Example: 'Lack of time for self-care, difficulty finding eco-friendly options'"
+                      label="Additional Customer Insights (Optional)"
+                      name="additionalCustomerInsights"
+                      value={formData.additionalCustomerInsights}
+                      onChange={handleChange('additionalCustomerInsights')}
+                      multiline={2}
+                      helpText="Any unique insights about your customers that supplement (not replace) standard customer profiles. Example: 'Our customers particularly value handmade craftsmanship' or 'Most buyers are repeat customers'"
                       autoComplete="off"
                     />
                     
                     <TextField
-                      label="What do they desire?"
-                      name="customerDesires"
-                      value={formData.customerDesires}
-                      onChange={handleChange('customerDesires')}
-                      multiline={3}
-                      helpText="What outcomes or feelings are they seeking? Example: 'To feel confident, save time, make sustainable choices'"
+                      label="Excluded Customer Segments (Optional)"
+                      name="excludedCustomerSegments"
+                      value={formData.excludedCustomerSegments}
+                      onChange={handleChange('excludedCustomerSegments')}
+                      multiline={2}
+                      helpText="Specify any customer segments you explicitly DON'T serve. Example: 'Not for bargain hunters' or 'Not suitable for beginners'"
                       autoComplete="off"
                     />
                   </FormLayout>
@@ -227,44 +221,6 @@ export default function Settings() {
                 </BlockStack>
               </Card>
 
-              {/* Customer Psychology */}
-              <Card>
-                <BlockStack gap="400">
-                  <Text variant="headingMd" as="h2">Customer Psychology</Text>
-                  
-                  <FormLayout>
-                    <TextField
-                      label="Lifestyle and Daily Habits"
-                      name="lifestyleHabits"
-                      value={formData.lifestyleHabits}
-                      onChange={handleChange('lifestyleHabits')}
-                      multiline={3}
-                      helpText="How do your customers live? Example: 'Active lifestyle, shops online during lunch breaks, values experiences over possessions'"
-                      autoComplete="off"
-                    />
-                    
-                    <TextField
-                      label="Aspirations & Desired Identity"
-                      name="aspirations"
-                      value={formData.aspirations}
-                      onChange={handleChange('aspirations')}
-                      multiline={3}
-                      helpText="Who do they want to become? Example: 'Want to be seen as successful, eco-conscious, trendsetter'"
-                      autoComplete="off"
-                    />
-                    
-                    <TextField
-                      label="Buying Motivations and Triggers"
-                      name="buyingMotivations"
-                      value={formData.buyingMotivations}
-                      onChange={handleChange('buyingMotivations')}
-                      multiline={3}
-                      helpText="What drives purchase decisions? Example: 'Social proof, limited editions, solving immediate problems, FOMO'"
-                      autoComplete="off"
-                    />
-                  </FormLayout>
-                </BlockStack>
-              </Card>
 
               <Button variant="primary" submit loading={isSubmitting}>
                 Save Settings
