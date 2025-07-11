@@ -69,6 +69,21 @@ export default function Settings() {
   const [toastActive, setToastActive] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   
+  // Initialize form state with settings data
+  const [formData, setFormData] = useState({
+    storeName: settings?.storeName || '',
+    storeLocation: settings?.storeLocation || '',
+    targetCustomer: settings?.targetCustomer || '',
+    customerPainPoints: settings?.customerPainPoints || '',
+    customerDesires: settings?.customerDesires || '',
+    uniqueSellingPoints: settings?.uniqueSellingPoints || '',
+    coreValues: settings?.coreValues || '',
+    brandPersonality: settings?.brandPersonality || '',
+    lifestyleHabits: settings?.lifestyleHabits || '',
+    aspirations: settings?.aspirations || '',
+    buyingMotivations: settings?.buyingMotivations || '',
+  });
+  
   const isSubmitting = navigation.state === 'submitting';
 
   // Show onboarding if settings don't exist (first time user)
@@ -78,9 +93,17 @@ export default function Settings() {
     }
   }, [settings]);
 
+  const handleChange = (field: string) => (value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    submit(event.currentTarget, { method: 'post' });
+    const formDataToSubmit = new FormData();
+    Object.entries(formData).forEach(([key, value]) => {
+      formDataToSubmit.append(key, value);
+    });
+    submit(formDataToSubmit, { method: 'post' });
     setToastActive(true);
   };
 
@@ -105,13 +128,15 @@ export default function Settings() {
                     <TextField
                       label="Store Name"
                       name="storeName"
-                      defaultValue={settings?.storeName || ''}
+                      value={formData.storeName}
+                      onChange={handleChange('storeName')}
                       autoComplete="off"
                     />
                     <TextField
                       label="Store Location"
                       name="storeLocation"
-                      defaultValue={settings?.storeLocation || ''}
+                      value={formData.storeLocation}
+                      onChange={handleChange('storeLocation')}
                       helpText="e.g., 'Austin, Texas' or 'Made in USA'"
                       autoComplete="off"
                     />
@@ -133,7 +158,8 @@ export default function Settings() {
                     <TextField
                       label="Who are your ideal customers?"
                       name="targetCustomer"
-                      defaultValue={settings?.targetCustomer || ''}
+                      value={formData.targetCustomer}
+                      onChange={handleChange('targetCustomer')}
                       multiline={3}
                       helpText="Describe demographics, interests, and characteristics. Example: 'Busy professionals aged 25-45 who value quality and sustainability'"
                       autoComplete="off"
@@ -142,7 +168,8 @@ export default function Settings() {
                     <TextField
                       label="What problems do they face?"
                       name="customerPainPoints"
-                      defaultValue={settings?.customerPainPoints || ''}
+                      value={formData.customerPainPoints}
+                      onChange={handleChange('customerPainPoints')}
                       multiline={3}
                       helpText="What frustrations or challenges do your products solve? Example: 'Lack of time for self-care, difficulty finding eco-friendly options'"
                       autoComplete="off"
@@ -151,7 +178,8 @@ export default function Settings() {
                     <TextField
                       label="What do they desire?"
                       name="customerDesires"
-                      defaultValue={settings?.customerDesires || ''}
+                      value={formData.customerDesires}
+                      onChange={handleChange('customerDesires')}
                       multiline={3}
                       helpText="What outcomes or feelings are they seeking? Example: 'To feel confident, save time, make sustainable choices'"
                       autoComplete="off"
@@ -169,7 +197,8 @@ export default function Settings() {
                     <TextField
                       label="Unique Selling Points"
                       name="uniqueSellingPoints"
-                      defaultValue={settings?.uniqueSellingPoints || ''}
+                      value={formData.uniqueSellingPoints}
+                      onChange={handleChange('uniqueSellingPoints')}
                       multiline={3}
                       helpText="What makes your products special? Example: 'Handcrafted in small batches, 10% of profits donated to charity'"
                       autoComplete="off"
@@ -178,7 +207,8 @@ export default function Settings() {
                     <TextField
                       label="Core Values & Beliefs"
                       name="coreValues"
-                      defaultValue={settings?.coreValues || ''}
+                      value={formData.coreValues}
+                      onChange={handleChange('coreValues')}
                       multiline={3}
                       helpText="What principles guide your business? Example: 'Sustainability, transparency, community support'"
                       autoComplete="off"
@@ -187,7 +217,8 @@ export default function Settings() {
                     <TextField
                       label="Brand Personality"
                       name="brandPersonality"
-                      defaultValue={settings?.brandPersonality || ''}
+                      value={formData.brandPersonality}
+                      onChange={handleChange('brandPersonality')}
                       multiline={2}
                       helpText="How would you describe your brand's voice? Example: 'Friendly, authentic, inspiring, professional yet approachable'"
                       autoComplete="off"
@@ -205,7 +236,8 @@ export default function Settings() {
                     <TextField
                       label="Lifestyle and Daily Habits"
                       name="lifestyleHabits"
-                      defaultValue={settings?.lifestyleHabits || ''}
+                      value={formData.lifestyleHabits}
+                      onChange={handleChange('lifestyleHabits')}
                       multiline={3}
                       helpText="How do your customers live? Example: 'Active lifestyle, shops online during lunch breaks, values experiences over possessions'"
                       autoComplete="off"
@@ -214,7 +246,8 @@ export default function Settings() {
                     <TextField
                       label="Aspirations & Desired Identity"
                       name="aspirations"
-                      defaultValue={settings?.aspirations || ''}
+                      value={formData.aspirations}
+                      onChange={handleChange('aspirations')}
                       multiline={3}
                       helpText="Who do they want to become? Example: 'Want to be seen as successful, eco-conscious, trendsetter'"
                       autoComplete="off"
@@ -223,7 +256,8 @@ export default function Settings() {
                     <TextField
                       label="Buying Motivations and Triggers"
                       name="buyingMotivations"
-                      defaultValue={settings?.buyingMotivations || ''}
+                      value={formData.buyingMotivations}
+                      onChange={handleChange('buyingMotivations')}
                       multiline={3}
                       helpText="What drives purchase decisions? Example: 'Social proof, limited editions, solving immediate problems, FOMO'"
                       autoComplete="off"
