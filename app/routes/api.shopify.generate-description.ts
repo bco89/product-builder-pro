@@ -48,7 +48,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               return json({ 
                 error: 'URL analysis is currently unavailable. Please try the manual method or generate from context.',
                 code: error.code,
-                details: 'The URL analysis service is temporarily unavailable. You can still generate descriptions using the manual input or context-based methods.'
+                details: 'The URL analysis service is temporarily unavailable. You can still generate descriptions using the manual input or context-based methods.',
+                debug: error.details // This will include hasApiKey info in production logs
               }, { status: 503 });
             
             case 'TIMEOUT':
@@ -64,6 +65,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 code: error.code,
                 details: error.details?.message || 'The scraping service encountered an error. Please try a different URL or try again later.'
               }, { status: 502 });
+            
+            case 'INITIALIZATION_ERROR':
+              return json({ 
+                error: 'URL analysis service initialization failed. Please try again later.',
+                code: error.code,
+                details: 'The service could not be initialized properly. Please contact support if this issue persists.'
+              }, { status: 503 });
             
             default:
               throw error;

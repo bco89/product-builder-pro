@@ -1,4 +1,4 @@
-import FirecrawlApp from '@mendable/firecrawl-js';
+import FirecrawlApp, { ScrapeResponse } from '@mendable/firecrawl-js';
 import { logger } from './logger.server';
 
 interface ScrapedProductData {
@@ -14,7 +14,7 @@ interface ScrapedProductData {
 export class ProductScraperError extends Error {
   constructor(
     message: string,
-    public code: 'INVALID_URL' | 'API_ERROR' | 'TIMEOUT' | 'PARSING_ERROR' | 'NO_API_KEY',
+    public code: 'INVALID_URL' | 'API_ERROR' | 'TIMEOUT' | 'PARSING_ERROR' | 'NO_API_KEY' | 'INITIALIZATION_ERROR',
     public details?: any
   ) {
     super(message);
@@ -29,11 +29,25 @@ export class ProductScraperService {
   private firecrawl: FirecrawlApp | null = null;
 
   constructor() {
+    logger.info('ProductScraperService constructor called');
+    
     const apiKey = process.env.FIRECRAWL_API_KEY;
+    logger.info('FIRECRAWL_API_KEY environment variable exists:', !!apiKey);
+    
     if (apiKey) {
-      this.firecrawl = new FirecrawlApp({ apiKey });
+      try {
+        // Ensure API key has proper prefix
+        const formattedApiKey = apiKey.startsWith('fc-') ? apiKey : `fc-${apiKey}`;
+        logger.info('Initializing FirecrawlApp with API key (prefix check):', formattedApiKey.substring(0, 6) + '...');
+        
+        this.firecrawl = new FirecrawlApp({ apiKey: formattedApiKey });
+        logger.info('FirecrawlApp initialized successfully');
+      } catch (error) {
+        logger.error('Failed to initialize FirecrawlApp:', error);
+        this.firecrawl = null;
+      }
     } else {
-      logger.warn('FIRECRAWL_API_KEY not configured - URL scraping will use mock data');
+      logger.warn('FIRECRAWL_API_KEY not configured - URL scraping will be unavailable');
     }
   }
 
@@ -42,60 +56,122 @@ export class ProductScraperService {
     
     try {
       // Validate URL
-      const validUrl = new URL(url);
+      let validUrl: URL;
+      try {
+        validUrl = new URL(url);
+        logger.info(`URL validated: ${validUrl.hostname}`);
+      } catch (urlError) {
+        logger.error('Invalid URL format:', urlError);
+        throw new ProductScraperError(
+          'Invalid URL format',
+          'INVALID_URL',
+          { url, error: urlError instanceof Error ? urlError.message : 'Invalid URL' }
+        );
+      }
       
       // Check if we have Firecrawl configured
       if (!this.firecrawl) {
-        logger.warn('Using mock data - Firecrawl not configured');
-        // In development, return mock data
-        if (process.env.NODE_ENV === 'development') {
-          return this.getMockScrapedData(validUrl);
-        }
+        logger.warn('Firecrawl not initialized - checking environment');
+        
         // In production, throw error for proper handling
         throw new ProductScraperError(
           'URL analysis service is temporarily unavailable',
           'NO_API_KEY',
-          { message: 'The service is not properly configured' }
+          { 
+            message: 'The Firecrawl service is not properly configured',
+            environment: process.env.NODE_ENV,
+            hasApiKey: !!process.env.FIRECRAWL_API_KEY
+          }
         );
       }
 
+      logger.info('Calling Firecrawl scrapeUrl with parameters');
+      
       // Scrape with Firecrawl
-      const scrapeResult = await this.firecrawl.scrapeUrl(url, {
-        formats: ['markdown', 'html'],
-        timeout: 30000, // 30 second timeout
-        waitFor: 2000, // Wait 2 seconds for dynamic content
-      });
+      let scrapeResult: ScrapeResponse;
+      try {
+        scrapeResult = await this.firecrawl.scrapeUrl(url, {
+          formats: ['markdown', 'html'],
+          timeout: 30000, // 30 second timeout
+          waitFor: 2000, // Wait 2 seconds for dynamic content
+        });
+        
+        logger.info('Firecrawl scrapeUrl completed, response received:', {
+          hasResponse: !!scrapeResult,
+          responseType: typeof scrapeResult,
+          hasSuccess: scrapeResult ? 'success' in scrapeResult : false
+        });
+      } catch (scrapeError) {
+        logger.error('Firecrawl scrapeUrl threw error:', scrapeError);
+        
+        // Check for timeout
+        if (scrapeError instanceof Error && scrapeError.message.includes('timeout')) {
+          throw new ProductScraperError(
+            'The website took too long to respond',
+            'TIMEOUT',
+            { url, error: scrapeError.message }
+          );
+        }
+        
+        throw new ProductScraperError(
+          'Failed to connect to the website',
+          'API_ERROR',
+          { 
+            url, 
+            error: scrapeError instanceof Error ? scrapeError.message : 'Unknown error',
+            errorType: scrapeError?.constructor?.name
+          }
+        );
+      }
 
-      if (!scrapeResult.success) {
+      // Check if scrape was successful
+      if (!scrapeResult || !scrapeResult.success) {
+        logger.error('Scrape was not successful:', {
+          hasResult: !!scrapeResult,
+          success: scrapeResult?.success,
+          error: scrapeResult?.error,
+          statusCode: scrapeResult?.statusCode
+        });
+        
         throw new ProductScraperError(
           'Failed to scrape URL',
           'API_ERROR',
-          scrapeResult.error
+          {
+            error: scrapeResult?.error || 'Unknown error',
+            statusCode: scrapeResult?.statusCode,
+            url
+          }
         );
       }
 
+      logger.info('Scrape successful, extracting product data');
+      
       // Extract product data from scraped content
       const extractedData = this.extractProductData(scrapeResult);
+      
+      logger.info('Product data extracted successfully:', {
+        hasTitle: !!extractedData.title,
+        hasDescription: !!extractedData.description,
+        featuresCount: extractedData.features?.length || 0,
+        hasPrice: !!extractedData.price
+      });
       
       return extractedData;
     } catch (error) {
       if (error instanceof ProductScraperError) {
+        logger.error(`ProductScraperError [${error.code}]:`, error.message, error.details);
         throw error;
       }
       
-      if (error instanceof TypeError && error.message.includes('URL')) {
-        throw new ProductScraperError(
-          'Invalid URL format',
-          'INVALID_URL',
-          { url, error: error.message }
-        );
-      }
-
-      logger.error('Failed to scrape product URL:', error);
+      logger.error('Unexpected error in scrapeProductInfo:', error);
       throw new ProductScraperError(
         'Failed to scrape product information',
         'API_ERROR',
-        error
+        {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          errorType: error?.constructor?.name,
+          url
+        }
       );
     }
   }
@@ -103,19 +179,44 @@ export class ProductScraperService {
   /**
    * Extract product data from Firecrawl scraped content
    */
-  private extractProductData(scrapeResult: any): ScrapedProductData {
-    const markdown = scrapeResult.markdown || '';
-    const html = scrapeResult.html || '';
+  private extractProductData(scrapeResult: ScrapeResponse): ScrapedProductData {
+    logger.info('Extracting product data from scrape result:', {
+      hasData: !!scrapeResult.data,
+      dataKeys: scrapeResult.data ? Object.keys(scrapeResult.data) : [],
+      hasMarkdown: !!scrapeResult.data?.markdown,
+      hasHtml: !!scrapeResult.data?.html,
+      hasMetadata: !!scrapeResult.data?.metadata
+    });
+    
+    // Access the data property which contains the scraped content
+    const scrapedData = scrapeResult.data || {};
+    const markdown = scrapedData.markdown || '';
+    const html = scrapedData.html || '';
+    const metadata = scrapedData.metadata || {};
+    
+    logger.info('Content lengths:', {
+      markdownLength: markdown.length,
+      htmlLength: html.length,
+      metadataKeys: Object.keys(metadata)
+    });
     
     const data: ScrapedProductData = {
       rawContent: markdown,
     };
 
     // Try to extract structured data if available
-    if (scrapeResult.metadata) {
-      data.title = scrapeResult.metadata.title || this.extractTitle(markdown);
-      data.description = scrapeResult.metadata.description || this.extractDescription(markdown);
-      data.images = scrapeResult.metadata.images || this.extractImages(html);
+    if (metadata && Object.keys(metadata).length > 0) {
+      data.title = metadata.title || this.extractTitle(markdown);
+      data.description = metadata.description || this.extractDescription(markdown);
+      
+      // Handle different possible image formats in metadata
+      if (metadata.image) {
+        data.images = Array.isArray(metadata.image) ? metadata.image : [metadata.image];
+      } else if (metadata.images) {
+        data.images = Array.isArray(metadata.images) ? metadata.images : [metadata.images];
+      } else {
+        data.images = this.extractImages(html);
+      }
     } else {
       // Fallback to content parsing
       data.title = this.extractTitle(markdown);
@@ -127,6 +228,17 @@ export class ProductScraperService {
     data.features = this.extractFeatures(markdown);
     data.specifications = this.extractSpecifications(markdown);
     data.price = this.extractPrice(markdown);
+
+    logger.info('Extracted data summary:', {
+      hasTitle: !!data.title,
+      titleLength: data.title?.length || 0,
+      hasDescription: !!data.description,
+      descriptionLength: data.description?.length || 0,
+      featuresCount: data.features?.length || 0,
+      specificationsCount: Object.keys(data.specifications || {}).length,
+      hasPrice: !!data.price,
+      imagesCount: data.images?.length || 0
+    });
 
     return data;
   }
