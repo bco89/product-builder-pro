@@ -124,21 +124,24 @@ export class ProductScraperService {
         );
       }
 
-      // Check if scrape was successful
-      if (!scrapeResult || !scrapeResult.success) {
-        logger.error('Scrape was not successful:', {
+      // Check if scrape was successful - Firecrawl returns success directly on response
+      // Note: success property might not exist on the response, check for content instead
+      const hasContent = scrapeResult && (scrapeResult.markdown || scrapeResult.html || scrapeResult.data);
+      
+      if (!hasContent) {
+        logger.error('Scrape returned no content:', {
           hasResult: !!scrapeResult,
-          success: scrapeResult?.success,
-          error: scrapeResult?.error,
-          statusCode: scrapeResult?.statusCode
+          hasMarkdown: !!scrapeResult?.markdown,
+          hasHtml: !!scrapeResult?.html,
+          hasData: !!scrapeResult?.data,
+          keys: scrapeResult ? Object.keys(scrapeResult).slice(0, 10) : []
         });
         
         throw new ProductScraperError(
-          'Failed to scrape URL',
+          'Failed to scrape URL - no content returned',
           'API_ERROR',
           {
-            error: scrapeResult?.error || 'Unknown error',
-            statusCode: scrapeResult?.statusCode,
+            error: 'No content found on the page',
             url
           }
         );
@@ -185,14 +188,17 @@ export class ProductScraperService {
       dataKeys: scrapeResult.data ? Object.keys(scrapeResult.data) : [],
       hasMarkdown: !!scrapeResult.data?.markdown,
       hasHtml: !!scrapeResult.data?.html,
-      hasMetadata: !!scrapeResult.data?.metadata
+      hasMetadata: !!scrapeResult.data?.metadata,
+      // Also check if content is directly on the response
+      directMarkdown: !!scrapeResult.markdown,
+      directHtml: !!scrapeResult.html,
+      allKeys: Object.keys(scrapeResult)
     });
     
-    // Access the data property which contains the scraped content
-    const scrapedData = scrapeResult.data || {};
-    const markdown = scrapedData.markdown || '';
-    const html = scrapedData.html || '';
-    const metadata = scrapedData.metadata || {};
+    // Firecrawl might return content directly on the response or nested in data
+    const markdown = scrapeResult.markdown || scrapeResult.data?.markdown || '';
+    const html = scrapeResult.html || scrapeResult.data?.html || '';
+    const metadata = scrapeResult.metadata || scrapeResult.data?.metadata || {};
     
     logger.info('Content lengths:', {
       markdownLength: markdown.length,

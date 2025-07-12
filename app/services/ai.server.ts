@@ -335,7 +335,7 @@ IMPORTANT INSTRUCTIONS:
 2. ${config.includeBestFor ? 'Include "Best For" section with 2-3 specific user types' : 'Use "You\'ll love this because..." framing'}
 3. Customer journey focus areas: ${config.customerJourneySteps.join(' → ')}
 4. Primary keyword "${params.keywords[0]}" MUST appear in the H2 headline and 2-3 times naturally
-5. ${params.additionalContext?.includes('size chart') || params.scrapedData?.includes('size') ? 'INCLUDE the size chart as a formatted table at the end' : 'No size chart needed'}
+5. ${params.additionalContext?.includes('size chart') || (typeof params.scrapedData === 'string' && params.scrapedData.includes('size')) || (params.scrapedData?.rawContent && params.scrapedData.rawContent.includes('size')) ? 'INCLUDE the size chart as a formatted table at the end' : 'No size chart needed'}
 6. Write for someone at step 1 of the journey: "${config.customerJourneySteps[0]}"
 
 TEMPLATE STRUCTURE TO FOLLOW:
