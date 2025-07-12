@@ -5,6 +5,7 @@ import { logger } from './logger.server';
 import { getProductTypePrompt, getProductTypeConfig } from './prompts/product-type-prompts';
 import { formatProductDescription } from './prompts/formatting';
 import { getProductTypeCustomer } from './prompts/product-type-customers';
+import { saveLLMPrompt } from './prompt-logger.server';
 import type { ProductTypeConfig } from './prompts/product-type-prompts';
 import type { ProductTypeCustomer } from './prompts/product-type-customers';
 
@@ -231,6 +232,15 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
   }
 
   async generateProductDescription(params: AIGenerationParams): Promise<AIGenerationResult> {
+    logger.info('\n=== AI DESCRIPTION GENERATION START ===');
+    logger.info('Initial parameters', {
+      shop: params.shop,
+      title: params.productTitle,
+      type: params.productType,
+      hasScrapedData: !!params.scrapedData,
+      hasEnhancedDescriptionData: !!params.scrapedData?.descriptionData
+    });
+    
     // If productType is not provided or is generic, categorize first
     let productType = params.productType;
     if (!productType || productType === 'Other' || productType === 'General') {
@@ -251,6 +261,15 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
 
     const systemPrompt = getProductTypePrompt(productType);
     const userPrompt = this.buildUserPrompt({ ...params, productType });
+    
+    // Save the prompts to files
+    const scrapedDataSection = params.scrapedData ? this.formatScrapedDataForPrompt(params.scrapedData) : undefined;
+    await saveLLMPrompt(
+      params.productTitle,
+      systemPrompt,
+      userPrompt,
+      scrapedDataSection
+    );
 
     try {
       let response: string;
@@ -282,7 +301,7 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
       }
 
       // Log the generation
-      await prisma.AIGenerationLog.create({
+      await prisma.aIGenerationLog.create({
         data: {
           shop: params.shop,
           generationType: 'description',
@@ -291,9 +310,24 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
         }
       });
 
-      return this.parseAIResponse(response);
+      const result = this.parseAIResponse(response);
+      
+      logger.info('\n--- AI GENERATION RESULT ---');
+      logger.info('Generated content summary', {
+        descriptionLength: result.description.length,
+        seoTitleLength: result.seoTitle.length,
+        seoDescriptionLength: result.seoDescription.length,
+        hasDescription: !!result.description,
+        hasSeoTitle: !!result.seoTitle,
+        hasSeoDescription: !!result.seoDescription
+      });
+      
+      logger.info('=== AI DESCRIPTION GENERATION COMPLETE ===\n');
+      
+      return result;
     } catch (error) {
       logger.error('AI generation failed:', error);
+      logger.error('=== AI DESCRIPTION GENERATION FAILED ===\n');
       // Return mock response on error for development
       return this.parseAIResponse(this.getMockResponse(params));
     }
@@ -314,7 +348,18 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
     // Format scraped data for better AI comprehension
     const formattedScrapedData = this.formatScrapedDataForPrompt(params.scrapedData);
     
-    return `
+    // Log what we're sending to the AI
+    logger.info('\n=== AI PROMPT GENERATION ===');
+    logger.info('AI Generation Parameters', {
+      productTitle: params.productTitle,
+      productType: params.productType,
+      primaryKeyword: params.keywords[0],
+      hasScrapedData: !!params.scrapedData,
+      hasEnhancedData: !!params.scrapedData?.descriptionData,
+      templateType: useDetailedTemplate ? 'TECHNICAL' : 'LIFESTYLE'
+    });
+    
+    const fullPrompt = `
 STORE CONTEXT:
 ${this.formatStoreContext(settings)}
 
@@ -351,6 +396,23 @@ Format as JSON with these exact keys:
   "seoDescription": "Meta description (max 155 chars) with compelling action"
 }
 `;
+
+    // Log the complete prompt being sent to AI
+    logger.info('\n--- FULL AI PROMPT ---');
+    logger.info('Prompt length', { characters: fullPrompt.length });
+    
+    // Log the scraped data section specifically
+    if (formattedScrapedData) {
+      logger.info('\n--- SCRAPED DATA SECTION FOR AI ---');
+      logger.info('Scraped data formatted for AI', { 
+        content: formattedScrapedData,
+        length: formattedScrapedData.length 
+      });
+    }
+    
+    logger.info('=== END AI PROMPT GENERATION ===\n');
+    
+    return fullPrompt;
   }
 
   private formatStoreContext(settings: any): string {

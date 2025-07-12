@@ -136,7 +136,9 @@ export class ProductScraperService {
       
       // Try enhanced extraction first
       try {
-        const extractionResult = await extractForDescriptionGeneration(url, this.firecrawl);
+        // Try to get product title from scraped data for file naming
+        const productTitle = validUrl.pathname.split('/').pop()?.replace(/-/g, ' ') || 'product';
+        const extractionResult = await extractForDescriptionGeneration(url, this.firecrawl, productTitle);
         
         if (extractionResult.success && extractionResult.data) {
           logger.info('Enhanced extraction successful', {

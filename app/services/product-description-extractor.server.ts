@@ -6,6 +6,7 @@
 
 import type FirecrawlApp from '@mendable/firecrawl-js';
 import { logger } from './logger.server';
+import { saveExtractedData } from './prompt-logger.server';
 
 /**
  * Firecrawl configuration optimized for description-relevant content
@@ -279,6 +280,10 @@ export async function extractProductDescriptionData(
   firecrawlClient: FirecrawlApp
 ): Promise<ExtractionResult> {
   try {
+    logger.info('\n=== FIRECRAWL EXTRACTION START ===');
+    logger.info('Extracting from URL', { url });
+    logger.info('Using scrape config', { config: FIRECRAWL_SCRAPE_CONFIG });
+    
     // Use Firecrawl's extract feature for structured data
     const response: any = await firecrawlClient.scrapeUrl(url, {
       ...FIRECRAWL_SCRAPE_CONFIG,
@@ -316,10 +321,22 @@ export async function extractProductDescriptionData(
       }
     } as any); // Type assertion needed due to Firecrawl type definitions
 
+    // Log the raw Firecrawl response
+    logger.info('\n--- RAW FIRECRAWL RESPONSE ---');
+    logger.info('Response structure', {
+      keys: Object.keys(response || {}),
+      hasMarkdown: !!response?.markdown,
+      hasHtml: !!response?.html,
+      hasExtract: !!(response?.extract || response?.data?.extract)
+    });
+    
     // Check if response has extract data
     const extractedData = (response as any).extract || (response as any).data?.extract;
     
     if (extractedData) {
+      logger.info('\n--- EXTRACTED DATA FROM LLM ---');
+      logger.info('LLM extracted data', { data: extractedData });
+      
       return {
         success: true,
         data: cleanExtractedData(extractedData),
@@ -331,7 +348,17 @@ export async function extractProductDescriptionData(
       };
     } else {
       // Fallback to basic extraction if LLM extraction didn't work
+      logger.warn('\n--- FALLBACK EXTRACTION ---');
       logger.warn('No extract data found, falling back to basic extraction');
+      
+      // Log what content we have for fallback
+      if (response?.markdown) {
+        logger.info('Fallback content available', {
+          markdownLength: response.markdown.length,
+          markdownPreview: response.markdown.substring(0, 500) + '...'
+        });
+      }
+      
       const fallbackData = fallbackExtractDescriptionData(response);
       
       return {
@@ -347,7 +374,8 @@ export async function extractProductDescriptionData(
     }
 
   } catch (error) {
-    logger.error('Firecrawl extraction error:', error);
+    logger.error('\n=== FIRECRAWL EXTRACTION ERROR ===');
+    logger.error('Error details:', error);
     
     // Try fallback extraction if we have any response data
     if (error && typeof error === 'object' && 'response' in error) {
@@ -725,20 +753,59 @@ export function cleanExtractedData(rawData: any): ExtractedDescriptionData {
  * Main extraction function optimized for description generation
  * @param {string} url - Product page URL
  * @param {Object} firecrawlClient - Firecrawl client instance
+ * @param {string} productTitle - Product title for file naming
  * @returns {Object} Extraction result optimized for description generation
  */
 export async function extractForDescriptionGeneration(
   url: string, 
-  firecrawlClient: FirecrawlApp
+  firecrawlClient: FirecrawlApp,
+  productTitle?: string
 ): Promise<ExtractionResult> {
   try {
-    logger.info(`Extracting product description data from: ${url}`);
+    logger.info('\n=== PRODUCT DESCRIPTION EXTRACTION ===');
+    logger.info(`Starting extraction from URL: ${url}`);
     
     // Extract with Firecrawl
     const extractionResult = await extractProductDescriptionData(url, firecrawlClient);
     
     if (!extractionResult.success || !extractionResult.data) {
       throw new Error(extractionResult.error || 'Extraction failed');
+    }
+
+    // Log the final cleaned data that will be sent to AI
+    logger.info('\n--- FINAL CLEANED DATA FOR AI ---');
+    logger.info('Extraction summary', {
+      productTitle: extractionResult.data.productTitle,
+      brandVendor: extractionResult.data.brandVendor,
+      category: extractionResult.data.productCategory,
+      keyFeaturesCount: extractionResult.data.keyFeatures.length,
+      benefitsCount: extractionResult.data.benefits.length,
+      materialsCount: extractionResult.data.materials.length,
+      variantsCount: extractionResult.data.variants.length,
+      hasSizeChart: extractionResult.data.sizeChart.available,
+      technologiesCount: extractionResult.data.technologies.length,
+      useCasesCount: extractionResult.data.useCases.length
+    });
+    
+    // Log a sample of the detailed content
+    if (extractionResult.data.detailedDescription) {
+      logger.info('Content preview', {
+        descriptionPreview: extractionResult.data.detailedDescription.substring(0, 300) + '...',
+        keyFeatures: extractionResult.data.keyFeatures.slice(0, 3),
+        benefits: extractionResult.data.benefits.slice(0, 3)
+      });
+    }
+    
+    logger.info('\n=== EXTRACTION COMPLETE ===\n');
+    
+    // Save the extracted data to files
+    if (extractionResult.data) {
+      const titleForFile = productTitle || extractionResult.data.productTitle || 'unknown-product';
+      await saveExtractedData(
+        titleForFile,
+        extractionResult.data,
+        extractionResult.metadata
+      );
     }
 
     return {
