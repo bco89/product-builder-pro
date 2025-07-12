@@ -311,6 +311,9 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
     // Build customer avatar combining store settings and product type
     const customerAvatar = this.buildCustomerAvatar(settings, config, params.productType);
     
+    // Format scraped data for better AI comprehension
+    const formattedScrapedData = this.formatScrapedDataForPrompt(params.scrapedData);
+    
     return `
 STORE CONTEXT:
 ${this.formatStoreContext(settings)}
@@ -327,7 +330,7 @@ PRODUCT INFORMATION:
 - Primary Keyword: ${params.keywords[0]}
 - Secondary Keywords: ${params.keywords.slice(1).join(', ')}
 ${params.additionalContext ? `- Additional Details: ${params.additionalContext}` : ''}
-${params.scrapedData ? `- Scraped Information: ${JSON.stringify(params.scrapedData)}` : ''}
+${formattedScrapedData ? `\n${formattedScrapedData}` : ''}
 ${params.imageAnalysis ? `- Visual Analysis: ${params.imageAnalysis}` : ''}
 
 IMPORTANT INSTRUCTIONS:
@@ -335,7 +338,7 @@ IMPORTANT INSTRUCTIONS:
 2. ${config.includeBestFor ? 'Include "Best For" section with 2-3 specific user types' : 'Use "You\'ll love this because..." framing'}
 3. Customer journey focus areas: ${config.customerJourneySteps.join(' → ')}
 4. Primary keyword "${params.keywords[0]}" MUST appear in the H2 headline and 2-3 times naturally
-5. ${params.additionalContext?.includes('size chart') || (typeof params.scrapedData === 'string' && params.scrapedData.includes('size')) || (params.scrapedData?.rawContent && params.scrapedData.rawContent.includes('size')) ? 'INCLUDE the size chart as a formatted table at the end' : 'No size chart needed'}
+5. ${this.checkForSizeChart(params) ? 'INCLUDE the size chart as a formatted table at the end' : 'No size chart needed'}
 6. Write for someone at step 1 of the journey: "${config.customerJourneySteps[0]}"
 
 TEMPLATE STRUCTURE TO FOLLOW:
@@ -520,5 +523,97 @@ Format as JSON with these exact keys:
       seoTitle: `${keyword} - Premium ${params.productType} | ${params.vendor}`,
       seoDescription: `Shop our ${keyword} - exceptional quality ${params.productType} with premium features. Free shipping available. Shop now and experience the difference!`
     });
+  }
+
+  /**
+   * Format scraped data for the AI prompt
+   */
+  private formatScrapedDataForPrompt(scrapedData: any): string {
+    if (!scrapedData) return '';
+    
+    // Check if we have enhanced description data
+    if (scrapedData.descriptionData) {
+      const data = scrapedData.descriptionData;
+      let formatted = 'SCRAPED PRODUCT INFORMATION:';
+      
+      if (data.productTitle) {
+        formatted += `\n- Product Name: ${data.productTitle}`;
+      }
+      
+      if (data.brandVendor) {
+        formatted += `\n- Brand/Manufacturer: ${data.brandVendor}`;
+      }
+      
+      if (data.keyFeatures && data.keyFeatures.length > 0) {
+        formatted += `\n- Key Features:\n  ${data.keyFeatures.map((f: string) => `• ${f}`).join('\n  ')}`;
+      }
+      
+      if (data.benefits && data.benefits.length > 0) {
+        formatted += `\n- Benefits:\n  ${data.benefits.map((b: string) => `• ${b}`).join('\n  ')}`;
+      }
+      
+      if (data.materials && data.materials.length > 0) {
+        formatted += `\n- Materials: ${data.materials.join(', ')}`;
+      }
+      
+      if (data.targetAudience) {
+        formatted += `\n- Target Audience: ${data.targetAudience}`;
+      }
+      
+      if (data.useCases && data.useCases.length > 0) {
+        formatted += `\n- Use Cases: ${data.useCases.join(', ')}`;
+      }
+      
+      if (data.variants && data.variants.length > 0) {
+        formatted += `\n- Product Options:`;
+        data.variants.forEach((v: any) => {
+          formatted += `\n  • ${v.optionName}: ${v.availableValues.join(', ')}`;
+        });
+      }
+      
+      if (data.sizeChart && data.sizeChart.available) {
+        formatted += `\n- Size Chart Available: Yes`;
+        if (data.sizeChart.fitNotes) {
+          formatted += `\n  Fit Notes: ${data.sizeChart.fitNotes}`;
+        }
+      }
+      
+      if (data.technologies && data.technologies.length > 0) {
+        formatted += `\n- Technologies:`;
+        data.technologies.forEach((t: any) => {
+          formatted += `\n  • ${t.name}${t.description ? `: ${t.description}` : ''}`;
+        });
+      }
+      
+      if (data.careInstructions && data.careInstructions.length > 0) {
+        formatted += `\n- Care Instructions:\n  ${data.careInstructions.map((c: string) => `• ${c}`).join('\n  ')}`;
+      }
+      
+      if (data.awards && data.awards.length > 0) {
+        formatted += `\n- Awards/Certifications: ${data.awards.join(', ')}`;
+      }
+      
+      return formatted;
+    }
+    
+    // Fallback to simple scraped data format
+    return `- Scraped Information: ${JSON.stringify(scrapedData)}`;
+  }
+  
+  /**
+   * Check if size chart information is available
+   */
+  private checkForSizeChart(params: AIGenerationParams): boolean {
+    // Check additional context
+    if (params.additionalContext?.includes('size chart')) return true;
+    
+    // Check raw scraped content
+    if (typeof params.scrapedData === 'string' && params.scrapedData.includes('size')) return true;
+    if (params.scrapedData?.rawContent && params.scrapedData.rawContent.includes('size')) return true;
+    
+    // Check enhanced description data
+    if (params.scrapedData?.descriptionData?.sizeChart?.available === true) return true;
+    
+    return false;
   }
 }

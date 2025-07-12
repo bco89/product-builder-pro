@@ -1,5 +1,6 @@
-import FirecrawlApp, { ScrapeResponse } from '@mendable/firecrawl-js';
+import FirecrawlApp from '@mendable/firecrawl-js';
 import { logger } from './logger.server';
+import { extractForDescriptionGeneration } from './product-description-extractor.server';
 
 interface ScrapedProductData {
   title?: string;
@@ -9,6 +10,52 @@ interface ScrapedProductData {
   price?: string;
   images?: string[];
   rawContent?: string;
+  // Enhanced description-focused data
+  descriptionData?: {
+    productTitle: string;
+    brandVendor?: string;
+    productCategory?: string;
+    keyFeatures: string[];
+    benefits: string[];
+    detailedDescription: string;
+    materials: string[];
+    construction: {
+      method?: string;
+      details: string[];
+      quality?: string;
+    };
+    specifications: {
+      dimensions: Record<string, string>;
+      performance: {
+        level?: string;
+        conditions?: string;
+        capacity?: string;
+      };
+      technical: string[];
+    };
+    variants: Array<{
+      optionName: string;
+      availableValues: string[];
+      description?: string;
+    }>;
+    sizeChart: {
+      available: boolean;
+      measurements?: Array<{
+        size: string;
+        measurements: Record<string, any>;
+        recommendations?: string;
+      }>;
+      fitNotes?: string;
+    };
+    targetAudience?: string;
+    useCases: string[];
+    careInstructions: string[];
+    technologies: Array<{
+      name: string;
+      description?: string;
+    }>;
+    awards: string[];
+  };
 }
 
 export class ProductScraperError extends Error {
@@ -85,10 +132,47 @@ export class ProductScraperService {
         );
       }
 
-      logger.info('Calling Firecrawl scrapeUrl with parameters');
+      logger.info('Using enhanced description extraction with Firecrawl');
       
-      // Scrape with Firecrawl
-      let scrapeResult: ScrapeResponse;
+      // Try enhanced extraction first
+      try {
+        const extractionResult = await extractForDescriptionGeneration(url, this.firecrawl);
+        
+        if (extractionResult.success && extractionResult.data) {
+          logger.info('Enhanced extraction successful', {
+            hasDescriptionData: true,
+            featuresCount: extractionResult.data.keyFeatures.length,
+            benefitsCount: extractionResult.data.benefits.length,
+            variantsCount: extractionResult.data.variants.length
+          });
+          
+          // Return enhanced data structure
+          const enhancedData: ScrapedProductData = {
+            title: extractionResult.data.productTitle,
+            description: extractionResult.data.detailedDescription,
+            features: extractionResult.data.keyFeatures,
+            specifications: {
+              ...extractionResult.data.specifications.dimensions,
+              ...Object.entries(extractionResult.data.specifications.performance)
+                .filter(([_, value]) => value)
+                .reduce((acc, [key, value]) => ({ ...acc, [key]: value as string }), {})
+            },
+            rawContent: extractionResult.rawContent?.markdown,
+            descriptionData: extractionResult.data
+          };
+          
+          return enhancedData;
+        }
+        
+        logger.warn('Enhanced extraction failed, falling back to basic scraping');
+      } catch (enhancedError) {
+        logger.warn('Enhanced extraction error, falling back to basic scraping', { error: enhancedError });
+      }
+      
+      // Fallback to basic scraping
+      logger.info('Calling Firecrawl scrapeUrl with basic parameters');
+      
+      let scrapeResult: any; // Use any to handle Firecrawl's variable response structure
       try {
         scrapeResult = await this.firecrawl.scrapeUrl(url, {
           formats: ['markdown', 'html'],
@@ -96,7 +180,7 @@ export class ProductScraperService {
           waitFor: 2000, // Wait 2 seconds for dynamic content
         });
         
-        logger.info('Firecrawl scrapeUrl completed, response received:', {
+        logger.info('Firecrawl scrapeUrl completed, response received', {
           hasResponse: !!scrapeResult,
           responseType: typeof scrapeResult,
           hasSuccess: scrapeResult ? 'success' in scrapeResult : false
@@ -182,8 +266,8 @@ export class ProductScraperService {
   /**
    * Extract product data from Firecrawl scraped content
    */
-  private extractProductData(scrapeResult: ScrapeResponse): ScrapedProductData {
-    logger.info('Extracting product data from scrape result:', {
+  private extractProductData(scrapeResult: any): ScrapedProductData {
+    logger.info('Extracting product data from scrape result', {
       hasData: !!scrapeResult.data,
       dataKeys: scrapeResult.data ? Object.keys(scrapeResult.data) : [],
       hasMarkdown: !!scrapeResult.data?.markdown,
@@ -200,7 +284,7 @@ export class ProductScraperService {
     const html = scrapeResult.html || scrapeResult.data?.html || '';
     const metadata = scrapeResult.metadata || scrapeResult.data?.metadata || {};
     
-    logger.info('Content lengths:', {
+    logger.info('Content lengths', {
       markdownLength: markdown.length,
       htmlLength: html.length,
       metadataKeys: Object.keys(metadata)
@@ -235,7 +319,7 @@ export class ProductScraperService {
     data.specifications = this.extractSpecifications(markdown);
     data.price = this.extractPrice(markdown);
 
-    logger.info('Extracted data summary:', {
+    logger.info('Extracted data summary', {
       hasTitle: !!data.title,
       titleLength: data.title?.length || 0,
       hasDescription: !!data.description,
