@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Card,
   BlockStack,
@@ -16,37 +16,103 @@ import {
   Icon,
   DropZone,
   Thumbnail,
+  InlineError,
 } from '@shopify/polaris';
 import { AlertCircleIcon, EditIcon, LinkIcon, ImageIcon } from '@shopify/polaris-icons';
 import { useQuery } from '@tanstack/react-query';
+import { Editor } from '@tinymce/tinymce-react';
 
-// Placeholder WYSIWYG Editor Component
+// URL validation helper
+const isValidUrl = (url: string): boolean => {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+// Strip HTML tags for character counting
+const stripHtml = (html: string): string => {
+  const tmp = document.createElement('DIV');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+};
+
+// TinyMCE Editor Component
 const WYSIWYGEditor = ({ 
   value, 
   onChange, 
   height = 400,
-  placeholder = "Enter content here..." 
+  placeholder = "Enter content here...",
+  id,
+  variant = 'full',
+  apiKey
 }: { 
   value: string; 
   onChange: (content: string) => void; 
   height?: number;
   placeholder?: string;
+  id: string;
+  variant?: 'full' | 'simple';
+  apiKey?: string;
 }) => {
+  const editorRef = useRef<any>(null);
+
+  // Simple toolbar for SEO fields
+  const simpleToolbar = 'bold italic | link | removeformat';
+  
+  // Full toolbar for product description
+  const fullToolbar = 'undo redo | formatselect | bold italic underline strikethrough | ' +
+    'alignleft aligncenter alignright alignjustify | ' +
+    'bullist numlist outdent indent | link image | removeformat | help';
+
+  const toolbar = variant === 'simple' ? simpleToolbar : fullToolbar;
+  
+  // Configure plugins based on variant
+  const plugins = variant === 'simple' 
+    ? ['link', 'paste', 'wordcount']
+    : ['link', 'image', 'lists', 'paste', 'help', 'wordcount', 'table'];
+
   return (
-    <Box borderColor="border" borderWidth="025" borderRadius="200" padding="400" background="bg-surface">
-      <BlockStack gap="200">
-        <Text variant="bodyMd" tone="subdued">
-          WYSIWYG Editor Placeholder (TinyMCE will be integrated here)
-        </Text>
-        <TextField
-          label=""
-          value={value}
-          onChange={onChange}
-          multiline={10}
-          placeholder={placeholder}
-          autoComplete="off"
-        />
-      </BlockStack>
+    <Box borderColor="border" borderWidth="025" borderRadius="200">
+      <Editor
+        id={id}
+        apiKey={apiKey}
+        onInit={(_evt, editor) => editorRef.current = editor}
+        value={value}
+        init={{
+          height: height,
+          menubar: variant === 'full',
+          plugins: plugins,
+          toolbar: toolbar,
+          placeholder: placeholder,
+          content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; }',
+          paste_as_text: variant === 'simple',
+          branding: false,
+          resize: false,
+          statusbar: true,
+          elementpath: false,
+          wordcount: {
+            countHTML: false,
+            countCharacters: true,
+            showWordCount: false,
+            showCharCount: true,
+          },
+          // Restrict formatting for SEO fields
+          ...(variant === 'simple' && {
+            formats: {
+              bold: { inline: 'strong' },
+              italic: { inline: 'em' },
+            },
+            valid_elements: 'strong,em,a[href|target|title]',
+            extended_valid_elements: '',
+          }),
+        }}
+        onEditorChange={(content) => {
+          onChange(content);
+        }}
+      />
     </Box>
   );
 };
@@ -65,9 +131,10 @@ interface StepAIDescriptionProps {
   onChange: (updates: any) => void;
   onNext: () => void;
   onBack: () => void;
+  tinymceApiKey?: string;
 }
 
-export default function StepAIDescription({ formData, onChange, onNext, onBack }: StepAIDescriptionProps) {
+export default function StepAIDescription({ formData, onChange, onNext, onBack, tinymceApiKey }: StepAIDescriptionProps) {
   const [inputMethod, setInputMethod] = useState<'manual' | 'url' | 'context'>('context');
   const [productUrl, setProductUrl] = useState('');
   const [additionalContext, setAdditionalContext] = useState('');
@@ -75,8 +142,9 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack }
   const [keywords, setKeywords] = useState({ primary: '', secondary: '' });
   const [isGenerating, setIsGenerating] = useState(false);
   const [regenerationCount, setRegenerationCount] = useState(0);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<{ message: string; details?: string; code?: string } | null>(null);
   const [hasGeneratedContent, setHasGeneratedContent] = useState(false);
+  const [scrapingProgress, setScrapingProgress] = useState<string>('');
   
   // Check if any content exists
   const hasExistingContent = formData.description || formData.seoTitle || formData.seoDescription;
@@ -93,7 +161,8 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack }
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    setError('');
+    setError(null);
+    setScrapingProgress('');
 
     try {
       const payload = {
@@ -109,15 +178,29 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack }
         shopSettings,
       };
 
+      // Show progress for URL scraping
+      if (inputMethod === 'url') {
+        setScrapingProgress('Analyzing URL...');
+      }
+
       const response = await fetch('/api/shopify/generate-description', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) throw new Error('Generation failed');
-
       const result = await response.json();
+
+      if (!response.ok) {
+        // Handle specific error types
+        const errorData = result as { error: string; details?: string; code?: string };
+        setError({
+          message: errorData.error || 'Failed to generate description',
+          details: errorData.details,
+          code: errorData.code
+        });
+        return;
+      }
       
       onChange({
         description: result.description,
@@ -127,10 +210,15 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack }
 
       setRegenerationCount(prev => prev + 1);
       setHasGeneratedContent(true);
+      setScrapingProgress('');
     } catch (err) {
-      setError('Failed to generate description. Please try again.');
+      setError({
+        message: 'Network error. Please check your connection and try again.',
+        details: err instanceof Error ? err.message : 'Unknown error occurred'
+      });
     } finally {
       setIsGenerating(false);
+      setScrapingProgress('');
     }
   };
 
@@ -252,6 +340,12 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack }
                 helpText="Enter the URL of the product from manufacturer or supplier"
                 autoComplete="off"
               />
+              {productUrl && !isValidUrl(productUrl) && (
+                <InlineError 
+                  message="Please enter a valid URL starting with http:// or https://" 
+                  fieldID="productUrl" 
+                />
+              )}
             </BlockStack>
           )}
 
@@ -295,7 +389,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack }
                 loading={isGenerating}
                 disabled={
                   isGenerating ||
-                  (inputMethod === 'url' && !productUrl) ||
+                  (inputMethod === 'url' && (!productUrl || !isValidUrl(productUrl))) ||
                   !keywords.primary
                 }
               >
@@ -312,7 +406,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack }
                       Regenerate ({3 - regenerationCount} left)
                     </Button>
                     <Badge tone="info">
-                      Generation {regenerationCount.toString()} of 3
+                      {`Generation ${regenerationCount} of 3`}
                     </Badge>
                   </InlineStack>
                 </Box>
@@ -321,12 +415,38 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack }
             </BlockStack>
           )}
 
+          {/* Progress indicator */}
+          {scrapingProgress && (
+            <Banner tone="info">
+              <InlineStack gap="200" align="center">
+                <Spinner accessibilityLabel="Loading" size="small" />
+                <Text as="p">{scrapingProgress}</Text>
+              </InlineStack>
+            </Banner>
+          )}
+
+          {/* Error display */}
           {error && (
             <Banner tone="critical">
-              <InlineStack gap="200" align="center">
-                <Icon source={AlertCircleIcon} />
-                <Text as="p">{error}</Text>
-              </InlineStack>
+              <BlockStack gap="200">
+                <InlineStack gap="200" align="center">
+                  <Icon source={AlertCircleIcon} />
+                  <Text as="p" fontWeight="semibold">{error.message}</Text>
+                </InlineStack>
+                {error.details && (
+                  <Text as="p" variant="bodySm">{error.details}</Text>
+                )}
+                {error.code === 'INVALID_URL' && (
+                  <Text as="p" variant="bodySm">
+                    Tip: Make sure the URL starts with http:// or https:// and points to a product page.
+                  </Text>
+                )}
+                {error.code === 'TIMEOUT' && (
+                  <Text as="p" variant="bodySm">
+                    Tip: Some websites are slow to load. Try waiting a moment and generating again.
+                  </Text>
+                )}
+              </BlockStack>
             </Banner>
           )}
 
@@ -348,10 +468,13 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack }
               <BlockStack gap="400">
                 <Text variant="headingSm" as="h3">Product Description</Text>
                 <WYSIWYGEditor
+                  id="product-description"
                   value={formData.description}
                   onChange={(content) => onChange({ description: content })}
                   height={400}
                   placeholder="Enter your compelling product description here..."
+                  variant="full"
+                  apiKey={tinymceApiKey}
                 />
               </BlockStack>
 
@@ -362,13 +485,16 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack }
                   Maximum 60 characters for optimal search engine display
                 </Text>
                 <WYSIWYGEditor
+                  id="seo-title"
                   value={formData.seoTitle}
                   onChange={(content) => onChange({ seoTitle: content })}
                   height={100}
                   placeholder="Enter SEO optimized title..."
+                  variant="simple"
+                  apiKey={tinymceApiKey}
                 />
-                <Text variant="bodySm" as="p" tone={formData.seoTitle.length > 60 ? 'critical' : 'subdued'}>
-                  {formData.seoTitle.length.toString()}/60 characters
+                <Text variant="bodySm" as="p" tone={stripHtml(formData.seoTitle).length > 60 ? 'critical' : 'subdued'}>
+                  {stripHtml(formData.seoTitle).length}/60 characters
                 </Text>
               </BlockStack>
 
@@ -379,13 +505,16 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack }
                   Maximum 155 characters for optimal search engine display
                 </Text>
                 <WYSIWYGEditor
+                  id="seo-description"
                   value={formData.seoDescription}
                   onChange={(content) => onChange({ seoDescription: content })}
                   height={120}
                   placeholder="Enter SEO meta description..."
+                  variant="simple"
+                  apiKey={tinymceApiKey}
                 />
-                <Text variant="bodySm" as="p" tone={formData.seoDescription.length > 155 ? 'critical' : 'subdued'}>
-                  {formData.seoDescription.length.toString()}/155 characters
+                <Text variant="bodySm" as="p" tone={stripHtml(formData.seoDescription).length > 155 ? 'critical' : 'subdued'}>
+                  {stripHtml(formData.seoDescription).length}/155 characters
                 </Text>
               </BlockStack>
             </>

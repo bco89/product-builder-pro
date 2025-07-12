@@ -49,12 +49,13 @@ export const loader = async ({ request }: { request: Request }) => {
   
   return json({
     shop: shopData.data.shop.myshopifyDomain,
-    apiKey: process.env.SHOPIFY_API_KEY
+    apiKey: process.env.SHOPIFY_API_KEY,
+    tinymceApiKey: process.env.TINYMCE_API_KEY
   });
 };
 
 export default function ProductBuilder() {
-  const { shop, apiKey } = useLoaderData<{ shop: string; apiKey: string }>();
+  const { shop, apiKey, tinymceApiKey } = useLoaderData<{ shop: string; apiKey: string; tinymceApiKey?: string }>();
   const app = useAppBridge();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
@@ -535,6 +536,11 @@ export default function ProductBuilder() {
     // Add shouldShowOptionsForm only for StepVariants
     if (StepComponent === StepVariants) {
       props.shouldShowOptionsForm = shouldShowOptionsForm;
+    }
+
+    // Add TinyMCE API key for StepAIDescription
+    if (StepComponent === StepAIDescription) {
+      props.tinymceApiKey = tinymceApiKey;
     }
 
     return <StepComponent {...props} />;
