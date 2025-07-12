@@ -46,9 +46,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             
             case 'NO_API_KEY':
               return json({ 
-                error: 'URL scraping is not configured. Please contact support.',
+                error: 'URL analysis is currently unavailable. Please try the manual method or generate from context.',
                 code: error.code,
-                details: 'The scraping service is not properly configured. Using fallback method.'
+                details: 'The URL analysis service is temporarily unavailable. You can still generate descriptions using the manual input or context-based methods.'
               }, { status: 503 });
             
             case 'TIMEOUT':

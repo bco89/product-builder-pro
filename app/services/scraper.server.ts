@@ -47,7 +47,16 @@ export class ProductScraperService {
       // Check if we have Firecrawl configured
       if (!this.firecrawl) {
         logger.warn('Using mock data - Firecrawl not configured');
-        return this.getMockScrapedData(validUrl);
+        // In development, return mock data
+        if (process.env.NODE_ENV === 'development') {
+          return this.getMockScrapedData(validUrl);
+        }
+        // In production, throw error for proper handling
+        throw new ProductScraperError(
+          'URL analysis service is temporarily unavailable',
+          'NO_API_KEY',
+          { message: 'The service is not properly configured' }
+        );
       }
 
       // Scrape with Firecrawl
