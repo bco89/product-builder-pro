@@ -39,7 +39,6 @@ interface Category {
 
 interface FormDataType {
   title: string;
-  description: string;
   handle: string;
   images: File[];
 }
@@ -225,10 +224,9 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
 
   const isFormValid = () => {
     const hasTitle = !!formData.title;
-    const hasDescription = !!formData.description;
     const hasValidHandle = handleValidationState === 'available';
     
-    return hasTitle && hasDescription && hasValidHandle;
+    return hasTitle && hasValidHandle;
   };
 
   const handleSubmit = () => {
@@ -270,16 +268,6 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
           maxLength={255}
         />
 
-        <TextField
-          label="Description"
-          value={formData.description}
-          onChange={(value) => onChange({ description: value })}
-          multiline={4}
-          autoComplete="off"
-          helpText="Provide a detailed description to help customers understand your product"
-          showCharacterCount
-          maxLength={5000}
-        />
 
 
 
@@ -449,7 +437,6 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
               <Text as="p">
                 Please fill in all required fields: 
                 {!formData.title && " Title"}
-                {!formData.description && " Description"}
                 {handleValidationState !== 'available' && " Valid Handle"}
               </Text>
             </Banner>
