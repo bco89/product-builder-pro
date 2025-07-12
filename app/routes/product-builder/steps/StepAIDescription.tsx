@@ -8,7 +8,7 @@ import {
   InlineStack,
   Banner,
   Spinner,
-  RadioButton,
+  ButtonGroup,
   FormLayout,
   Box,
   Badge,
@@ -17,7 +17,7 @@ import {
   DropZone,
   Thumbnail,
 } from '@shopify/polaris';
-import { AlertCircleIcon } from '@shopify/polaris-icons';
+import { AlertCircleIcon, EditIcon, LinkIcon, ImageIcon } from '@shopify/polaris-icons';
 import { useQuery } from '@tanstack/react-query';
 
 // Placeholder WYSIWYG Editor Component
@@ -68,7 +68,7 @@ interface StepAIDescriptionProps {
 }
 
 export default function StepAIDescription({ formData, onChange, onNext, onBack }: StepAIDescriptionProps) {
-  const [inputMethod, setInputMethod] = useState<'manual' | 'url' | 'context'>('manual');
+  const [inputMethod, setInputMethod] = useState<'manual' | 'url' | 'context'>('context');
   const [productUrl, setProductUrl] = useState('');
   const [additionalContext, setAdditionalContext] = useState('');
   const [contextImages, setContextImages] = useState<File[]>([]);
@@ -76,6 +76,10 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack }
   const [isGenerating, setIsGenerating] = useState(false);
   const [regenerationCount, setRegenerationCount] = useState(0);
   const [error, setError] = useState('');
+  const [hasGeneratedContent, setHasGeneratedContent] = useState(false);
+  
+  // Check if any content exists
+  const hasExistingContent = formData.description || formData.seoTitle || formData.seoDescription;
 
   // Fetch shop settings
   const { data: shopSettings } = useQuery({
@@ -122,6 +126,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack }
       });
 
       setRegenerationCount(prev => prev + 1);
+      setHasGeneratedContent(true);
     } catch (err) {
       setError('Failed to generate description. Please try again.');
     } finally {
@@ -184,30 +189,36 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack }
           {/* Input Method Selection */}
           <BlockStack gap="400">
             <Text variant="headingSm" as="h3">Choose Input Method</Text>
-            <BlockStack gap="200">
-              <RadioButton
-                label="Write description manually"
-                checked={inputMethod === 'manual'}
-                onChange={() => setInputMethod('manual')}
-              />
-              <RadioButton
-                label="Generate from product URL"
-                checked={inputMethod === 'url'}
-                onChange={() => setInputMethod('url')}
-              />
-              <RadioButton
-                label="Generate from text/images"
-                checked={inputMethod === 'context'}
-                onChange={() => setInputMethod('context')}
-              />
-            </BlockStack>
+            <ButtonGroup variant="segmented">
+              <Button
+                pressed={inputMethod === 'context'}
+                onClick={() => setInputMethod('context')}
+                icon={ImageIcon}
+              >
+                Generate from text/images
+              </Button>
+              <Button
+                pressed={inputMethod === 'url'}
+                onClick={() => setInputMethod('url')}
+                icon={LinkIcon}
+              >
+                Generate from URL
+              </Button>
+              <Button
+                pressed={inputMethod === 'manual'}
+                onClick={() => setInputMethod('manual')}
+                icon={EditIcon}
+              >
+                Write manually
+              </Button>
+            </ButtonGroup>
           </BlockStack>
 
-          <Divider />
-
           {/* SEO Keywords */}
-          <BlockStack gap="400">
-            <Text variant="headingSm" as="h3">SEO Keywords</Text>
+          {inputMethod !== 'manual' && (
+            <BlockStack gap="400">
+              <Divider />
+              <Text variant="headingSm" as="h3">SEO Keywords</Text>
             <FormLayout>
               <FormLayout.Group>
                 <TextField
@@ -226,22 +237,27 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack }
                 />
               </FormLayout.Group>
             </FormLayout>
-          </BlockStack>
+            </BlockStack>
+          )}
 
           {/* Conditional Input Fields */}
           {inputMethod === 'url' && (
-            <TextField
-              label="Product URL"
-              value={productUrl}
-              onChange={setProductUrl}
-              placeholder="https://example.com/product-page"
-              helpText="Enter the URL of the product from manufacturer or supplier"
-              autoComplete="off"
-            />
+            <BlockStack gap="400">
+              <Divider />
+              <TextField
+                label="Product URL"
+                value={productUrl}
+                onChange={setProductUrl}
+                placeholder="https://example.com/product-page"
+                helpText="Enter the URL of the product from manufacturer or supplier"
+                autoComplete="off"
+              />
+            </BlockStack>
           )}
 
           {inputMethod === 'context' && (
             <BlockStack gap="400">
+              <Divider />
               <TextField
                 label="Additional Context"
                 value={additionalContext}
@@ -270,8 +286,10 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack }
 
           {/* Generate Button */}
           {inputMethod !== 'manual' && (
-            <Box>
-              <Button
+            <BlockStack gap="400">
+              <Divider />
+              <Box>
+                <Button
                 variant="primary"
                 onClick={handleGenerate}
                 loading={isGenerating}
@@ -294,12 +312,13 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack }
                       Regenerate ({3 - regenerationCount} left)
                     </Button>
                     <Badge tone="info">
-                      Generation {regenerationCount} of 3
+                      Generation {regenerationCount.toString()} of 3
                     </Badge>
                   </InlineStack>
                 </Box>
               )}
-            </Box>
+              </Box>
+            </BlockStack>
           )}
 
           {error && (
@@ -311,52 +330,66 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack }
             </Banner>
           )}
 
-          <Divider />
+          {/* Show editors only after method selection or generation */}
+          {inputMethod === 'manual' && (
+            <>
+              <Divider />
+              <Banner tone="info">
+                <Text as="p">You've chosen to write the description manually. Use the editors below to craft your product description and SEO content.</Text>
+              </Banner>
+            </>
+          )}
+          
+          {(inputMethod === 'manual' || hasGeneratedContent || hasExistingContent) && (
+            <>
+              <Divider />
+              
+              {/* Description Editor */}
+              <BlockStack gap="400">
+                <Text variant="headingSm" as="h3">Product Description</Text>
+                <WYSIWYGEditor
+                  value={formData.description}
+                  onChange={(content) => onChange({ description: content })}
+                  height={400}
+                  placeholder="Enter your compelling product description here..."
+                />
+              </BlockStack>
 
-          {/* Description Editor */}
-          <BlockStack gap="400">
-            <Text variant="headingSm" as="h3">Product Description</Text>
-            <WYSIWYGEditor
-              value={formData.description}
-              onChange={(content) => onChange({ description: content })}
-              height={400}
-              placeholder="Enter your compelling product description here..."
-            />
-          </BlockStack>
+              {/* SEO Title Editor */}
+              <BlockStack gap="400">
+                <Text variant="headingSm" as="h3">SEO Title</Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  Maximum 60 characters for optimal search engine display
+                </Text>
+                <WYSIWYGEditor
+                  value={formData.seoTitle}
+                  onChange={(content) => onChange({ seoTitle: content })}
+                  height={100}
+                  placeholder="Enter SEO optimized title..."
+                />
+                <Text variant="bodySm" as="p" tone={formData.seoTitle.length > 60 ? 'critical' : 'subdued'}>
+                  {formData.seoTitle.length.toString()}/60 characters
+                </Text>
+              </BlockStack>
 
-          {/* SEO Title Editor */}
-          <BlockStack gap="400">
-            <Text variant="headingSm" as="h3">SEO Title</Text>
-            <Text variant="bodySm" as="p" tone="subdued">
-              Maximum 60 characters for optimal search engine display
-            </Text>
-            <WYSIWYGEditor
-              value={formData.seoTitle}
-              onChange={(content) => onChange({ seoTitle: content })}
-              height={100}
-              placeholder="Enter SEO optimized title..."
-            />
-            <Text variant="bodySm" as="p" tone={formData.seoTitle.length > 60 ? 'critical' : 'subdued'}>
-              {formData.seoTitle.length}/60 characters
-            </Text>
-          </BlockStack>
-
-          {/* SEO Description Editor */}
-          <BlockStack gap="400">
-            <Text variant="headingSm" as="h3">SEO Meta Description</Text>
-            <Text variant="bodySm" as="p" tone="subdued">
-              Maximum 155 characters for optimal search engine display
-            </Text>
-            <WYSIWYGEditor
-              value={formData.seoDescription}
-              onChange={(content) => onChange({ seoDescription: content })}
-              height={120}
-              placeholder="Enter SEO meta description..."
-            />
-            <Text variant="bodySm" as="p" tone={formData.seoDescription.length > 155 ? 'critical' : 'subdued'}>
-              {formData.seoDescription.length}/155 characters
-            </Text>
-          </BlockStack>
+              {/* SEO Description Editor */}
+              <BlockStack gap="400">
+                <Text variant="headingSm" as="h3">SEO Meta Description</Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  Maximum 155 characters for optimal search engine display
+                </Text>
+                <WYSIWYGEditor
+                  value={formData.seoDescription}
+                  onChange={(content) => onChange({ seoDescription: content })}
+                  height={120}
+                  placeholder="Enter SEO meta description..."
+                />
+                <Text variant="bodySm" as="p" tone={formData.seoDescription.length > 155 ? 'critical' : 'subdued'}>
+                  {formData.seoDescription.length.toString()}/155 characters
+                </Text>
+              </BlockStack>
+            </>
+          )}
 
           <InlineStack gap="300" align="end">
             <Button onClick={onBack}>Back</Button>
