@@ -2,9 +2,9 @@
  * Utility for logging prompts and extracted data to files
  */
 
-import { writeFile } from 'fs/promises';
-import { existsSync } from 'fs';
-import path from 'path';
+import { promises as fs } from 'node:fs';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import { logger } from './logger.server';
 
 /**
@@ -43,7 +43,14 @@ export async function saveExtractedData(
 ): Promise<void> {
   try {
     const baseDir = path.join(process.cwd(), 'Prompts Used', 'extracted-data-from-firecrawl');
+    logger.info('Attempting to save extracted data', { 
+      productTitle, 
+      baseDir,
+      cwd: process.cwd() 
+    });
+    
     const sanitizedName = sanitizeFilename(productTitle);
+    logger.info('Sanitized filename', { original: productTitle, sanitized: sanitizedName });
     
     // Save JSON file
     const jsonFilename = await getUniqueFilename(baseDir, sanitizedName, 'json');
@@ -56,7 +63,7 @@ export async function saveExtractedData(
       metadata,
     };
     
-    await writeFile(jsonPath, JSON.stringify(jsonContent, null, 2));
+    await fs.writeFile(jsonPath, JSON.stringify(jsonContent, null, 2));
     logger.info(`Saved extracted data JSON to: ${jsonFilename}`);
     
     // Save Markdown file
@@ -110,11 +117,16 @@ ${JSON.stringify(metadata, null, 2)}
 \`\`\`
 `;
     
-    await writeFile(mdPath, mdContent);
+    await fs.writeFile(mdPath, mdContent);
     logger.info(`Saved extracted data Markdown to: ${mdFilename}`);
     
   } catch (error) {
-    logger.error('Failed to save extracted data', { error });
+    logger.error('Failed to save extracted data', { 
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      productTitle,
+      cwd: process.cwd()
+    });
   }
 }
 
@@ -129,6 +141,14 @@ export async function saveLLMPrompt(
 ): Promise<void> {
   try {
     const baseDir = path.join(process.cwd(), 'Prompts Used', 'prompts-for-product-description');
+    logger.info('Attempting to save LLM prompt', { 
+      productTitle, 
+      baseDir,
+      systemPromptLength: systemPrompt.length,
+      userPromptLength: userPrompt.length,
+      cwd: process.cwd() 
+    });
+    
     const sanitizedName = sanitizeFilename(productTitle);
     
     // Save JSON file
@@ -148,7 +168,7 @@ export async function saveLLMPrompt(
       }
     };
     
-    await writeFile(jsonPath, JSON.stringify(jsonContent, null, 2));
+    await fs.writeFile(jsonPath, JSON.stringify(jsonContent, null, 2));
     logger.info(`Saved LLM prompt JSON to: ${jsonFilename}`);
     
     // Save Markdown file
@@ -182,10 +202,15 @@ ${scrapedDataSection}
 - Total Length: ${systemPrompt.length + userPrompt.length} characters
 `;
     
-    await writeFile(mdPath, mdContent);
+    await fs.writeFile(mdPath, mdContent);
     logger.info(`Saved LLM prompt Markdown to: ${mdFilename}`);
     
   } catch (error) {
-    logger.error('Failed to save LLM prompt', { error });
+    logger.error('Failed to save LLM prompt', { 
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      productTitle,
+      cwd: process.cwd()
+    });
   }
 }

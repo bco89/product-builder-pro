@@ -6,6 +6,7 @@ import { getProductTypePrompt, getProductTypeConfig } from './prompts/product-ty
 import { formatProductDescription } from './prompts/formatting';
 import { getProductTypeCustomer } from './prompts/product-type-customers';
 import { saveLLMPrompt } from './prompt-logger.server';
+import { saveLLMPromptToDB } from './prompt-logger-db.server';
 import type { ProductTypeConfig } from './prompts/product-type-prompts';
 import type { ProductTypeCustomer } from './prompts/product-type-customers';
 
@@ -262,14 +263,27 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
     const systemPrompt = getProductTypePrompt(productType);
     const userPrompt = this.buildUserPrompt({ ...params, productType });
     
-    // Save the prompts to files
+    // Save the prompts
     const scrapedDataSection = params.scrapedData ? this.formatScrapedDataForPrompt(params.scrapedData) : undefined;
-    await saveLLMPrompt(
-      params.productTitle,
-      systemPrompt,
-      userPrompt,
-      scrapedDataSection
-    );
+    
+    // In production, save to database; in dev, save to files
+    if (process.env.NODE_ENV === 'production') {
+      await saveLLMPromptToDB(
+        params.shop,
+        params.productTitle,
+        systemPrompt,
+        userPrompt,
+        scrapedDataSection
+      );
+    } else {
+      // Development - save to files
+      await saveLLMPrompt(
+        params.productTitle,
+        systemPrompt,
+        userPrompt,
+        scrapedDataSection
+      );
+    }
 
     try {
       let response: string;

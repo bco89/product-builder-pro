@@ -7,6 +7,7 @@
 import type FirecrawlApp from '@mendable/firecrawl-js';
 import { logger } from './logger.server';
 import { saveExtractedData } from './prompt-logger.server';
+import { saveExtractedDataToDB } from './prompt-logger-db.server';
 
 /**
  * Firecrawl configuration optimized for description-relevant content
@@ -759,7 +760,8 @@ export function cleanExtractedData(rawData: any): ExtractedDescriptionData {
 export async function extractForDescriptionGeneration(
   url: string, 
   firecrawlClient: FirecrawlApp,
-  productTitle?: string
+  productTitle?: string,
+  shop?: string
 ): Promise<ExtractionResult> {
   try {
     logger.info('\n=== PRODUCT DESCRIPTION EXTRACTION ===');
@@ -798,14 +800,26 @@ export async function extractForDescriptionGeneration(
     
     logger.info('\n=== EXTRACTION COMPLETE ===\n');
     
-    // Save the extracted data to files
+    // Save the extracted data
     if (extractionResult.data) {
       const titleForFile = productTitle || extractionResult.data.productTitle || 'unknown-product';
-      await saveExtractedData(
-        titleForFile,
-        extractionResult.data,
-        extractionResult.metadata
-      );
+      
+      // In production, save to database; in dev, save to files
+      if (process.env.NODE_ENV === 'production' && shop) {
+        await saveExtractedDataToDB(
+          shop,
+          titleForFile,
+          extractionResult.data,
+          extractionResult.metadata
+        );
+      } else {
+        // Development or no shop provided - save to files
+        await saveExtractedData(
+          titleForFile,
+          extractionResult.data,
+          extractionResult.metadata
+        );
+      }
     }
 
     return {

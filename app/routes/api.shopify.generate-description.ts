@@ -21,7 +21,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       
       try {
         const scraper = new ProductScraperService();
-        scrapedData = await scraper.scrapeProductInfo(data.productUrl);
+        scrapedData = await scraper.scrapeProductInfo(data.productUrl, session.shop);
         logger.info('URL scraping successful', { 
           shop: session.shop, 
           url: data.productUrl,

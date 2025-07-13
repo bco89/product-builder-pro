@@ -98,7 +98,7 @@ export class ProductScraperService {
     }
   }
 
-  async scrapeProductInfo(url: string): Promise<ScrapedProductData> {
+  async scrapeProductInfo(url: string, shop?: string): Promise<ScrapedProductData> {
     logger.info(`Scraping product info from: ${url}`);
     
     try {
@@ -138,7 +138,7 @@ export class ProductScraperService {
       try {
         // Try to get product title from scraped data for file naming
         const productTitle = validUrl.pathname.split('/').pop()?.replace(/-/g, ' ') || 'product';
-        const extractionResult = await extractForDescriptionGeneration(url, this.firecrawl, productTitle);
+        const extractionResult = await extractForDescriptionGeneration(url, this.firecrawl, productTitle, shop);
         
         if (extractionResult.success && extractionResult.data) {
           logger.info('Enhanced extraction successful', {

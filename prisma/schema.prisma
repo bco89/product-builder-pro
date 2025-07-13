@@ -115,3 +115,27 @@ model AIGenerationLog {
   @@index([shop])
   @@index([productId])
 }
+
+model ExtractedDataLog {
+  id            String   @id @default(uuid())
+  shop          String
+  productTitle  String
+  extractedData Json
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  @@index([shop, createdAt])
+}
+
+model LLMPromptLog {
+  id                 String   @id @default(uuid())
+  shop               String
+  productTitle       String
+  systemPrompt       String   @db.Text
+  userPrompt         String   @db.Text
+  scrapedDataSection String?  @db.Text
+  promptLength       Json
+  createdAt          DateTime @default(now())
+
+  @@index([shop, createdAt])
+}
