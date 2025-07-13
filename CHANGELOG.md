@@ -1,6 +1,35 @@
 # @shopify/shopify-app-template-remix
 
 
+## 2025.01.13
+
+### Enhanced AI Product Description Generation
+
+- **Improved Base System Prompt**: Transformed from rigid 8-section structure to flexible, principle-based guidance that emphasizes creative freedom while ensuring key elements are covered
+  - Focus on storytelling and emotional connection
+  - Natural SEO integration instead of prescriptive rules
+  - Guidelines rather than mandatory structure
+
+- **Smarter Product Term Extraction**: Enhanced `extractProductTerm` method in `ai.server.ts`
+  - Intelligently identifies compound terms (e.g., "electric scooter" vs just "scooter")
+  - Uses primary keyword when more specific than extracted term
+  - Context-appropriate fallbacks (e.g., "gear" for sports products)
+  - Better handles product titles like "Vuori Ponto Performance Crew Sweatshirt"
+
+- **Inspiring Content Principles**: Redesigned `getContentPrinciples` method
+  - Replaced prescriptive SEO requirements with conversational guidance
+  - Added creative examples and emoji-based visual hierarchy
+  - Emphasized natural keyword flow: "weave keywords like a conversation, not a checklist"
+  - Tailored story arcs for lifestyle, technical, and hybrid product types
+
+- **Better Scraped Data Organization**: Improved `formatScrapedDataForPrompt` method
+  - Structured data into prioritized sections with clear visual hierarchy
+  - Highlighted critical information (features, benefits, materials, size charts)
+  - Added contextual guidance for using each data type
+  - Smart extraction for unstructured content
+
+These changes allow the AI to generate more engaging, conversion-focused product descriptions while naturally incorporating SEO requirements. The system now guides rather than constrains, resulting in descriptions that feel authentic and compelling.
+
 ## 2025.01.8
 
 - [#923](https://github.com/Shopify/shopify-app-template-remix/pull/923) Enable GraphQL autocomplete for Javascript

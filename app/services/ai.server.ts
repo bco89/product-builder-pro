@@ -466,7 +466,6 @@ PRODUCT INFORMATION:
 - Type: ${params.productType}
 - Category: ${params.category}
 - Vendor: ${params.vendor}
-- Price: ${price > 0 ? `$${price}` : 'Not specified'}
 - Primary Keyword: ${params.keywords[0]}
 - Secondary Keywords: ${params.keywords.slice(1).join(', ')}
 ${params.additionalContext ? `- Additional Details: ${params.additionalContext}` : ''}
@@ -508,7 +507,6 @@ Format as JSON with these exact keys:
 
   private formatStoreContext(settings: any): string {
     return `- Store Name: ${settings.storeName || 'Not specified'}
-- Location: ${settings.storeLocation || 'Not specified'}
 - Unique Selling Points: ${settings.uniqueSellingPoints || 'Not specified'}
 - Core Values: ${settings.coreValues || 'Not specified'}
 - Brand Personality: ${settings.brandPersonality || 'Not specified'}`;
@@ -554,80 +552,163 @@ Format as JSON with these exact keys:
     const productTerm = this.extractProductTerm(params);
     
     return `
-## CONTENT CREATION PRINCIPLES
+## Your Creative Canvas
 
-### SEO REQUIREMENTS (MANDATORY)
-1. **First Line Rule**: Start with an H2 headline that naturally includes "${primaryKeyword}"
-   - For lifestyle products: Create emotional connection in the headline
-   - For technical products: Lead with the most impressive specification or capability
-   - Make it compelling and specific to THIS ${productTerm}
+You're crafting a description for a ${productTerm} that will make shoppers stop scrolling and start imagining life with this product. Here's your creative framework:
 
-2. **Keyword Optimization**:
-   - Primary keyword "${primaryKeyword}": Use 3-5 times total (aim for 1-2% density)
-     * MUST appear in the H2 headline
-     * Include within the first 100 words
-     * Use naturally throughout the content
-     * Include in at least one H3 subheading
-   - Secondary keywords: ${secondaryKeywords.length > 0 ? secondaryKeywords.map(k => `"${k}"`).join(', ') + ' - Use each 2-3 times naturally' : 'None provided'}
+### The Opening That Hooks 🎯
+Your first line is an H2 headline featuring "${primaryKeyword}" - but make it irresistible:
+${config.templateType === 'lifestyle' ? 
+  `• Tap into emotion: "Transform Your ${primaryKeyword} Experience"
+   • Promise a feeling: "The ${primaryKeyword} That Makes Every Day Better"
+   • Spark curiosity: "Why This ${primaryKeyword} Changes Everything"` : 
+  `• Lead with power: "The ${primaryKeyword} Built for [Impressive Spec]"
+   • Solve problems: "Finally, a ${primaryKeyword} That Actually [Solution]"
+   • Show expertise: "Professional-Grade ${primaryKeyword} for [Use Case]"`}
 
-3. **Content Structure Guidelines**:
-   ${config.templateType === 'lifestyle' ? `
-   - Open with an emotional hook that connects with ${config.focusAreas.join(', ')}
-   - Include a benefits-focused section that shows how this improves their life
-   - Paint a picture of the customer using/experiencing the product
-   - Keep technical details conversational and accessible
-   ` : `
-   - Lead with the problem this ${productTerm} solves
-   - Include a "Best For" section with 2-3 specific use cases or user types
-   - Balance technical specifications with real-world benefits
-   - Provide clear, organized technical details
-   `}
+### Natural Keyword Flow 🌊
+Weave keywords like a conversation, not a checklist:
+• "${primaryKeyword}" should appear 3-5 times total - once in your H2, once early on, then naturally throughout
+${secondaryKeywords.length > 0 ? `• Sprinkle in ${secondaryKeywords.map(k => `"${k}"`).join(', ')} where they enhance the story (2-3 times each)` : ''}
+• Use related terms and natural variations - think how real people search and speak
 
-4. **Required Elements**:
-   - An engaging H2 opening with the primary keyword
-   - A compelling introduction (1-2 paragraphs) that addresses ${config.customerJourneySteps[0]}
-   - Key benefits section (3-4 benefits minimum)
-   - ${config.includeBestFor ? 'A "Best For" or "Perfect For" section with specific user scenarios' : 'A section explaining why customers will love this'}
-   - Product details/specifications appropriate to the ${config.templateType} nature
-   - ${this.checkForSizeChart(params) ? 'A size chart or sizing information section (REQUIRED - sizing data was found)' : ''}
-   - Natural integration of keywords without stuffing
+### The Story Arc for ${config.templateType === 'lifestyle' ? 'Lifestyle Connection' : config.templateType === 'technical' ? 'Technical Excellence' : 'Balanced Appeal'} 📖
+${config.templateType === 'lifestyle' ? `
+Paint the picture of transformation:
+• Start with their current struggle or desire around ${config.focusAreas.join(', ')}
+• Show how this ${productTerm} bridges that gap
+• Let them feel the joy/confidence/ease of owning it
+• Make features come alive through benefits
+• Close with an inspiring vision of their improved life` : 
+config.templateType === 'technical' ? `
+Build trust through expertise:
+• Identify the specific problem this ${productTerm} solves
+• Showcase standout specs that matter for real use
+• Include "Best For" scenarios - who needs this and why
+• Balance impressive numbers with practical benefits
+• Demonstrate value through performance and reliability` :
+`Bridge emotion and logic:
+• Open with the transformation this enables
+• Support desire with solid specifications
+• Show both who will love it AND why it performs
+• Mix lifestyle benefits with technical confidence
+• Appeal to both heart and mind`}
 
-5. **Writing Style**:
-   - Write naturally and conversationally
-   - Focus on benefits over features
-   - Use "you" language to connect with the reader
-   - Keep paragraphs short (2-3 sentences)
-   - Use bullet points for easy scanning
-   - Include sensory details where appropriate
+### Essential Elements to Weave In ✨
+While you have creative freedom, ensure your narrative includes:
+• **The Hook**: An emotional or technical opening that addresses "${config.customerJourneySteps[0]}"
+• **Key Benefits**: 3-4 ways this ${productTerm} improves life (not just features!)
+• **Trust Builders**: Specific details on materials, quality, specifications
+${config.includeBestFor ? `• **Perfect For**: 2-3 specific scenarios or people who need this` : `• **Why They'll Love It**: Connect to their values and lifestyle`}
+${this.checkForSizeChart(params) ? `• **Size Information**: Include the sizing details provided - shoppers need this!` : ''}
+• **The Close**: Leave them feeling this was made for them
 
-6. **Avoid**:
-   - Generic descriptions that could apply to any ${productTerm}
-   - Keyword stuffing or unnatural repetition
-   - Empty marketing speak without substance
-   - Technical jargon without explanation (for lifestyle products)
-   - Overly casual language (for technical products)
+### Writing That Connects 💬
+• Talk TO them, not AT them - use "you" naturally
+• Short paragraphs that flow like thoughts
+• Bullet points for easy scanning of features
+• Bold for emphasis on key benefits
+• Specific details over vague claims
+• Sensory words that make it tangible
 
-Remember: Create a description that would make someone excited to buy THIS specific ${productTerm}, not just any ${productTerm}.
+### What Makes This ${productTerm} Special? 🌟
+Focus on what sets THIS particular ${productTerm} apart:
+${config.focusAreas.map(area => `• ${area.charAt(0).toUpperCase() + area.slice(1)}: How does it excel here?`).join('\n')}
+
+Remember: You're not just describing features - you're showing someone their life with this ${productTerm}. Make them feel it, want it, and trust it.
+
+Every word should either create desire or justify the purchase. Ideally both.
 `;
   }
 
   private extractProductTerm(params: AIGenerationParams): string {
-    // Extract a specific product term from the title or use product type
     const title = params.productTitle.toLowerCase();
+    const primaryKeyword = params.keywords[0]?.toLowerCase() || '';
     
-    // Common product terms to look for
-    const terms = ['shirt', 'pants', 'dress', 'jacket', 'shoes', 'watch', 'bag', 'phone', 'laptop', 
-                   'tablet', 'camera', 'headphones', 'speaker', 'toy', 'game', 'supplement', 'cream',
-                   'serum', 'tool', 'device', 'equipment', 'accessory', 'jewelry', 'furniture'];
+    // First, check if the primary keyword is a specific product term
+    // This often gives us compound terms like "electric scooter" or "performance sweatshirt"
+    if (primaryKeyword && !['best', 'top', 'buy', 'sale', 'new'].includes(primaryKeyword)) {
+      // Check if primary keyword appears in the title (validating it's relevant)
+      if (title.includes(primaryKeyword) || primaryKeyword.split(' ').some(word => title.includes(word))) {
+        return primaryKeyword;
+      }
+    }
     
-    for (const term of terms) {
-      if (title.includes(term)) {
+    // Common product terms with their variations
+    const productPatterns = [
+      // Apparel
+      { pattern: /\b(sweatshirt|hoodie|pullover)\b/, term: 'sweatshirt' },
+      { pattern: /\b(t-shirt|tee|t shirt)\b/, term: 't-shirt' },
+      { pattern: /\b(pants|trousers|jeans|chinos)\b/, term: 'pants' },
+      { pattern: /\b(dress|gown|frock)\b/, term: 'dress' },
+      { pattern: /\b(jacket|coat|blazer)\b/, term: 'jacket' },
+      { pattern: /\b(shoes|sneakers|boots|sandals)\b/, term: 'shoes' },
+      { pattern: /\b(shirt|blouse|top)\b/, term: 'shirt' },
+      // Electronics
+      { pattern: /\b(phone|smartphone|mobile)\b/, term: 'phone' },
+      { pattern: /\b(laptop|notebook|computer)\b/, term: 'laptop' },
+      { pattern: /\b(tablet|ipad)\b/, term: 'tablet' },
+      { pattern: /\b(headphones|earbuds|earphones)\b/, term: 'headphones' },
+      { pattern: /\b(speaker|speakers)\b/, term: 'speaker' },
+      { pattern: /\b(watch|smartwatch)\b/, term: 'watch' },
+      { pattern: /\b(camera|cam|webcam)\b/, term: 'camera' },
+      // Sports & Outdoors
+      { pattern: /\b(scooter|kickscooter|e-scooter)\b/, term: 'scooter' },
+      { pattern: /\b(bike|bicycle|ebike)\b/, term: 'bike' },
+      { pattern: /\b(skateboard|longboard)\b/, term: 'skateboard' },
+      // Beauty & Personal Care
+      { pattern: /\b(cream|moisturizer|lotion)\b/, term: 'cream' },
+      { pattern: /\b(serum|treatment|essence)\b/, term: 'serum' },
+      { pattern: /\b(shampoo|conditioner)\b/, term: 'hair product' },
+      // Home & Garden
+      { pattern: /\b(chair|sofa|couch|table|desk)\b/, term: 'furniture' },
+      { pattern: /\b(lamp|light|lighting)\b/, term: 'lamp' },
+      { pattern: /\b(rug|carpet|mat)\b/, term: 'rug' },
+      // Other common terms
+      { pattern: /\b(bag|backpack|purse|tote)\b/, term: 'bag' },
+      { pattern: /\b(toy|game|puzzle)\b/, term: 'toy' },
+      { pattern: /\b(tool|tools)\b/, term: 'tool' },
+      { pattern: /\b(supplement|vitamin|protein)\b/, term: 'supplement' },
+      { pattern: /\b(jewelry|necklace|ring|bracelet)\b/, term: 'jewelry' },
+      { pattern: /\b(accessory|accessories)\b/, term: 'accessory' }
+    ];
+    
+    // Check for compound terms in the title
+    for (const { pattern, term } of productPatterns) {
+      const match = title.match(pattern);
+      if (match) {
+        // Try to capture compound terms like "electric scooter" or "performance crew"
+        const words = title.split(' ');
+        const matchIndex = words.findIndex(word => pattern.test(word));
+        if (matchIndex > 0) {
+          const modifier = words[matchIndex - 1];
+          // Check if the modifier is descriptive (not a brand or size)
+          if (!/^(xs|s|m|l|xl|xxl|[0-9]+)$/.test(modifier) && modifier.length > 2) {
+            return `${modifier} ${term}`;
+          }
+        }
         return term;
       }
     }
     
-    // Fallback to product type
-    return params.productType.toLowerCase();
+    // If no specific term found, return a more natural fallback
+    const categoryMap: Record<string, string> = {
+      'apparel': 'garment',
+      'electronics': 'device',
+      'beauty': 'product',
+      'home & garden': 'item',
+      'food & beverage': 'product',
+      'sports & outdoors': 'gear',
+      'toys & games': 'item',
+      'jewelry & accessories': 'piece',
+      'health & wellness': 'product',
+      'pet supplies': 'product',
+      'office & school supplies': 'item',
+      'automotive': 'part'
+    };
+    
+    const productTypeLower = params.productType.toLowerCase();
+    return categoryMap[productTypeLower] || 'product';
   }
 
   private parseAIResponse(response: string): AIGenerationResult {
@@ -684,78 +765,133 @@ Remember: Create a description that would make someone excited to buy THIS speci
     // Check if we have enhanced description data
     if (scrapedData.descriptionData) {
       const data = scrapedData.descriptionData;
-      let formatted = 'SCRAPED PRODUCT INFORMATION:';
+      let formatted = '## 📊 PRODUCT RESEARCH DATA\n';
+      formatted += '*Use this information to create an authentic, detailed description:*\n';
+      
+      // Priority 1: Core Product Information
+      formatted += '\n### 🎯 Core Product Details';
       
       if (data.productTitle) {
-        formatted += `\n- Product Name: ${this.filterScrapedContent(data.productTitle)}`;
+        formatted += `\n**Official Product Name**: ${this.filterScrapedContent(data.productTitle)}`;
       }
       
       if (data.brandVendor) {
-        formatted += `\n- Brand/Manufacturer: ${this.filterScrapedContent(data.brandVendor)}`;
+        formatted += `\n**Brand**: ${this.filterScrapedContent(data.brandVendor)}`;
       }
       
+      // Priority 2: Key Features & Benefits (most important for descriptions)
       if (data.keyFeatures && data.keyFeatures.length > 0) {
-        formatted += `\n- Key Features:\n  ${data.keyFeatures.map((f: string) => `• ${f}`).join('\n  ')}`;
+        formatted += `\n\n### 💡 Key Features to Highlight\n${data.keyFeatures.map((f: string) => `• ${f}`).join('\n')}`;
       }
       
       if (data.benefits && data.benefits.length > 0) {
-        formatted += `\n- Benefits:\n  ${data.benefits.map((b: string) => `• ${b}`).join('\n  ')}`;
+        formatted += `\n\n### ✨ Customer Benefits (Transform these into compelling copy)\n${data.benefits.map((b: string) => `• ${b}`).join('\n')}`;
       }
       
+      // Priority 3: Technical Details
       if (data.materials && data.materials.length > 0) {
-        formatted += `\n- Materials: ${data.materials.join(', ')}`;
-      }
-      
-      if (data.targetAudience) {
-        formatted += `\n- Target Audience: ${data.targetAudience}`;
-      }
-      
-      if (data.useCases && data.useCases.length > 0) {
-        formatted += `\n- Use Cases: ${data.useCases.join(', ')}`;
-      }
-      
-      if (data.variants && data.variants.length > 0) {
-        formatted += `\n- Product Options:`;
-        data.variants.forEach((v: any) => {
-          formatted += `\n  • ${v.optionName}: ${v.availableValues.join(', ')}`;
-        });
-      }
-      
-      if (data.sizeChart && data.sizeChart.available) {
-        formatted += `\n- Size Chart Available: Yes`;
-        if (data.sizeChart.fitNotes) {
-          formatted += `\n  Fit Notes: ${data.sizeChart.fitNotes}`;
-        }
+        formatted += `\n\n### 🔧 Materials & Construction\n• ${data.materials.join('\n• ')}`;
       }
       
       if (data.technologies && data.technologies.length > 0) {
-        formatted += `\n- Technologies:`;
+        formatted += `\n\n### 💻 Technologies & Innovations`;
         data.technologies.forEach((t: any) => {
-          formatted += `\n  • ${t.name}${t.description ? `: ${t.description}` : ''}`;
+          formatted += `\n• **${t.name}**${t.description ? `: ${t.description}` : ''}`;
+        });
+      }
+      
+      // Priority 4: Size Information (CRITICAL if available)
+      if (data.sizeChart && data.sizeChart.available) {
+        formatted += `\n\n### 📏 SIZE INFORMATION (MUST INCLUDE IN DESCRIPTION)`;
+        formatted += `\n**Size Chart Available**: Yes`;
+        if (data.sizeChart.fitNotes) {
+          formatted += `\n**Fit Notes**: ${data.sizeChart.fitNotes}`;
+        }
+        if (data.sizeChart.measurements) {
+          formatted += `\n**Measurements**: Include the size chart provided`;
+        }
+      }
+      
+      // Priority 5: Usage & Audience
+      if (data.targetAudience) {
+        formatted += `\n\n### 👥 Target Audience\n${data.targetAudience}`;
+      }
+      
+      if (data.useCases && data.useCases.length > 0) {
+        formatted += `\n\n### 🎯 Perfect For (Use Cases)\n• ${data.useCases.join('\n• ')}`;
+      }
+      
+      // Priority 6: Additional Details
+      if (data.variants && data.variants.length > 0) {
+        formatted += `\n\n### 🎨 Available Options`;
+        data.variants.forEach((v: any) => {
+          formatted += `\n• **${v.optionName}**: ${v.availableValues.join(', ')}`;
         });
       }
       
       if (data.careInstructions && data.careInstructions.length > 0) {
-        formatted += `\n- Care Instructions:\n  ${data.careInstructions.map((c: string) => `• ${c}`).join('\n  ')}`;
+        formatted += `\n\n### 🧼 Care Instructions\n${data.careInstructions.map((c: string) => `• ${c}`).join('\n')}`;
       }
       
       if (data.awards && data.awards.length > 0) {
-        formatted += `\n- Awards/Certifications: ${data.awards.join(', ')}`;
+        formatted += `\n\n### 🏆 Awards & Certifications\n• ${data.awards.join('\n• ')}`;
       }
+      
+      formatted += '\n\n---\n*Remember: Use this data to inform your description, but write in your own engaging style. Don\'t just copy - transform this into compelling sales copy!*';
       
       return formatted;
     }
     
-    // Fallback to simple scraped data format
-    if (typeof scrapedData === 'string') {
-      return `SCRAPED PRODUCT INFORMATION:\n${this.filterScrapedContent(scrapedData)}`;
+    // Fallback for unstructured scraped data
+    const filteredContent = typeof scrapedData === 'string' 
+      ? this.filterScrapedContent(scrapedData)
+      : this.filterScrapedContent(scrapedData.rawContent || JSON.stringify(scrapedData));
+    
+    // Try to extract key information from unstructured content
+    let formatted = '## 📊 PRODUCT RESEARCH DATA\n';
+    formatted += '*Extracted from product page - use relevant details to create your description:*\n\n';
+    
+    // Look for common patterns in the content
+    const content = filteredContent.toLowerCase();
+    
+    // Extract potential features (look for bullet points or feature indicators)
+    const featurePatterns = [
+      /features?:([^.]+)\./gi,
+      /•\s*([^•\n]+)/g,
+      /[-*]\s*([^-*\n]+)/g
+    ];
+    
+    let features: string[] = [];
+    featurePatterns.forEach(pattern => {
+      const matches = filteredContent.match(pattern);
+      if (matches) {
+        features = features.concat(matches.map(m => m.replace(/^[•\-*]\s*/, '').trim()));
+      }
+    });
+    
+    if (features.length > 0) {
+      formatted += '### Key Information Found:\n';
+      features.slice(0, 10).forEach(f => {
+        if (f.length > 10 && f.length < 200) {
+          formatted += `• ${f}\n`;
+        }
+      });
     }
     
-    if (scrapedData.rawContent) {
-      return `SCRAPED PRODUCT INFORMATION:\n${this.filterScrapedContent(scrapedData.rawContent)}`;
+    // Look for size/dimension information
+    if (content.includes('size') || content.includes('dimension') || content.includes('measurement')) {
+      formatted += '\n### ⚠️ SIZE INFORMATION DETECTED\nMake sure to include any sizing details found in the source data.\n';
     }
     
-    return `SCRAPED PRODUCT INFORMATION:\n${this.filterScrapedContent(JSON.stringify(scrapedData))}`;
+    // Add the raw content for reference
+    formatted += '\n### Raw Content for Reference:\n```\n';
+    formatted += filteredContent.substring(0, 2000); // Limit to prevent overwhelming the prompt
+    if (filteredContent.length > 2000) {
+      formatted += '\n...[content truncated]';
+    }
+    formatted += '\n```';
+    
+    return formatted;
   }
   
   /**
