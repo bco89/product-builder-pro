@@ -13,6 +13,8 @@ import {
   Box,
   Divider,
   Icon,
+  RadioButton,
+  InlineStack,
 } from '@shopify/polaris';
 import { QuestionCircleIcon } from '@shopify/polaris-icons';
 import { authenticate } from '../shopify.server';
@@ -39,6 +41,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const settings = {
     storeName: formData.get('storeName')?.toString() || '',
     storeLocation: formData.get('storeLocation')?.toString() || '',
+    businessType: formData.get('businessType')?.toString() || '',
     uniqueSellingPoints: formData.get('uniqueSellingPoints')?.toString() || '',
     coreValues: formData.get('coreValues')?.toString() || '',
     brandPersonality: formData.get('brandPersonality')?.toString() || '',
@@ -70,6 +73,7 @@ export default function Settings() {
   const [formData, setFormData] = useState({
     storeName: settings?.storeName || '',
     storeLocation: settings?.storeLocation || '',
+    businessType: settings?.businessType || 'retailer',
     uniqueSellingPoints: settings?.uniqueSellingPoints || '',
     coreValues: settings?.coreValues || '',
     brandPersonality: settings?.brandPersonality || '',
@@ -134,6 +138,31 @@ export default function Settings() {
                       helpText="e.g., 'Austin, Texas' or 'Made in USA'"
                       autoComplete="off"
                     />
+                    
+                    <BlockStack gap="200">
+                      <Text variant="bodyMd" as="p" fontWeight="semibold">Business Type</Text>
+                      <Text variant="bodySm" as="p" tone="subdued">
+                        Choose whether you create your own products or sell products from other brands
+                      </Text>
+                      <BlockStack gap="300">
+                        <RadioButton
+                          label="Product Creator / Manufacturer"
+                          helpText="I make, design, or manufacture my own products"
+                          checked={formData.businessType === 'manufacturer'}
+                          id="manufacturer"
+                          name="businessType"
+                          onChange={() => handleChange('businessType')('manufacturer')}
+                        />
+                        <RadioButton
+                          label="Retailer / Reseller"
+                          helpText="I sell products from other brands or suppliers"
+                          checked={formData.businessType === 'retailer'}
+                          id="retailer"
+                          name="businessType"
+                          onChange={() => handleChange('businessType')('retailer')}
+                        />
+                      </BlockStack>
+                    </BlockStack>
                   </FormLayout>
                 </BlockStack>
               </Card>

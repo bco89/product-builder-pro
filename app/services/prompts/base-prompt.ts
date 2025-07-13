@@ -52,6 +52,7 @@ While you have creative freedom in organization, ensure you cover:
 - Confident without being pushy
 - Warm and relatable
 - Match the brand personality when provided
+- Follow the writing perspective specified in store context (first person for creators, third person for retailers)
 
 ### Language Techniques
 - Use "you" to speak directly to the reader
@@ -59,6 +60,19 @@ While you have creative freedom in organization, ensure you cover:
 - Short sentences for impact, longer ones for flow
 - Power words that evoke emotion and action
 - Specific details over vague claims
+
+### Perspective Guidelines
+**For Product Creators/Manufacturers (First Person):**
+- Use "we", "our", "us" when referring to the brand/creator
+- Example: "We crafted this with care..." or "Our commitment to quality..."
+- Creates personal connection and authenticity
+- Shows pride and ownership in the product
+
+**For Retailers/Resellers (Third Person):**
+- Use the brand name or "they", "their" when referring to the manufacturer
+- Example: "[Brand] designed this..." or "They've perfected..."
+- Maintains professional distance while showcasing expertise
+- Positions you as a trusted curator
 
 ### Format for Success
 - 2-3 sentence paragraphs for easy reading

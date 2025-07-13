@@ -17,6 +17,7 @@ import {
   DropZone,
   Thumbnail,
   InlineError,
+  RadioButton,
 } from '@shopify/polaris';
 import { AlertCircleIcon, EditIcon, LinkIcon, ImageIcon } from '@shopify/polaris-icons';
 import { useQuery } from '@tanstack/react-query';
@@ -145,6 +146,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
   const [error, setError] = useState<{ message: string; details?: string; code?: string } | null>(null);
   const [hasGeneratedContent, setHasGeneratedContent] = useState(false);
   const [scrapingProgress, setScrapingProgress] = useState<string>('');
+  const [businessType, setBusinessType] = useState<'manufacturer' | 'retailer' | ''>('');
   
   // Check if any content exists
   const hasExistingContent = formData.description || formData.seoTitle || formData.seoDescription;
@@ -158,6 +160,13 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
       return response.json();
     }
   });
+  
+  // Set default business type from shop settings
+  useEffect(() => {
+    if (shopSettings?.businessType && !businessType) {
+      setBusinessType(shopSettings.businessType);
+    }
+  }, [shopSettings, businessType]);
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -175,7 +184,10 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
         productUrl: inputMethod === 'url' ? productUrl : undefined,
         additionalContext: inputMethod === 'context' ? additionalContext : undefined,
         hasImages: formData.images.length > 0 || contextImages.length > 0,
-        shopSettings,
+        shopSettings: {
+          ...shopSettings,
+          businessType: businessType || shopSettings?.businessType || 'retailer'
+        },
       };
 
       // Show progress for URL scraping
@@ -325,6 +337,46 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
                 />
               </FormLayout.Group>
             </FormLayout>
+            </BlockStack>
+          )}
+
+          {/* Business Type Selection */}
+          {inputMethod !== 'manual' && (
+            <BlockStack gap="400">
+              <Divider />
+              <BlockStack gap="200">
+                <Text variant="headingSm" as="h3">Description Perspective</Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  Choose how the AI should write about your products
+                </Text>
+                <BlockStack gap="300">
+                  <RadioButton
+                    label="As the Product Creator"
+                    helpText="Write in first person (we/our) - for products you make or design"
+                    checked={businessType === 'manufacturer'}
+                    id="ai-manufacturer"
+                    name="aiBusinessType"
+                    onChange={() => setBusinessType('manufacturer')}
+                  />
+                  <RadioButton
+                    label="As a Retailer"
+                    helpText="Write in third person (they/their) - for products from other brands"
+                    checked={businessType === 'retailer'}
+                    id="ai-retailer"
+                    name="aiBusinessType"
+                    onChange={() => setBusinessType('retailer')}
+                  />
+                </BlockStack>
+                {shopSettings?.businessType && businessType !== shopSettings.businessType && (
+                  <Box paddingBlockStart="200">
+                    <Banner tone="info">
+                      <Text as="p" variant="bodySm">
+                        This overrides your default setting of "{shopSettings.businessType === 'manufacturer' ? 'Product Creator' : 'Retailer'}" for this product only.
+                      </Text>
+                    </Banner>
+                  </Box>
+                )}
+              </BlockStack>
             </BlockStack>
           )}
 

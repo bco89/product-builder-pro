@@ -95,6 +95,9 @@ model ShopSettings {
   additionalCustomerInsights String?   @db.Text
   excludedCustomerSegments   String?   @db.Text
   
+  // Product Creation Perspective
+  businessType         String?   @db.VarChar(50) // 'manufacturer' or 'retailer'
+  
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   

@@ -287,7 +287,7 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
           model: 'claude-3-5-sonnet-20241022',
           messages: [{ role: 'user', content: userPrompt }],
           system: systemPrompt,
-          max_tokens: 1500,
+          max_tokens: 4000,  // Increased for more comprehensive descriptions
           temperature: 0.7,
         });
         response = completion.content[0].type === 'text' ? completion.content[0].text : '';
@@ -299,7 +299,7 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
             { role: 'user', content: userPrompt }
           ],
           temperature: 0.7,
-          max_tokens: 1500,
+          max_tokens: 4000,  // Increased for more comprehensive descriptions
         });
         response = completion.choices[0].message?.content || '';
       } else {
@@ -370,7 +370,7 @@ Return as JSON with these exact keys:
               model: 'claude-3-5-sonnet-20241022',
               messages: [{ role: 'user', content: improvementPrompt }],
               system: systemPrompt,
-              max_tokens: 1500,
+              max_tokens: 4000,  // Increased for comprehensive improvements
               temperature: 0.6,
             });
             improvedResponse = completion.content[0].type === 'text' ? completion.content[0].text : '';
@@ -382,7 +382,7 @@ Return as JSON with these exact keys:
                 { role: 'user', content: improvementPrompt }
               ],
               temperature: 0.6,
-              max_tokens: 1500,
+              max_tokens: 4000,  // Increased for comprehensive improvements
             });
             improvedResponse = completion.choices[0].message?.content || '';
           } else {
@@ -506,7 +506,14 @@ Format as JSON with these exact keys:
   }
 
   private formatStoreContext(settings: any): string {
+    const businessType = settings.businessType || 'retailer';
+    const perspectiveGuide = businessType === 'manufacturer' 
+      ? 'Write in first person (we/our) as the product creator'
+      : 'Write in third person (they/their) as a retailer showcasing this brand';
+    
     return `- Store Name: ${settings.storeName || 'Not specified'}
+- Business Type: ${businessType === 'manufacturer' ? 'Product Creator/Manufacturer' : 'Retailer/Reseller'}
+- Writing Perspective: ${perspectiveGuide}
 - Unique Selling Points: ${settings.uniqueSellingPoints || 'Not specified'}
 - Core Values: ${settings.coreValues || 'Not specified'}
 - Brand Personality: ${settings.brandPersonality || 'Not specified'}`;
@@ -521,8 +528,8 @@ Format as JSON with these exact keys:
     
     // Build the avatar with product-type defaults and any additional insights
     let avatar = `- Who: ${demographics}
-- Pain Points: ${productTypeCustomer.painPoints.slice(0, 3).join(', ')}
-- Desires: ${productTypeCustomer.desires.slice(0, 3).join(', ')}
+- Pain Points: ${productTypeCustomer.painPoints.join(', ')}
+- Desires: ${productTypeCustomer.desires.join(', ')}
 - Shopping Behavior: ${productTypeCustomer.shoppingBehavior}
 - Decision Factors: ${config.customerJourneySteps.join(', ')}
 - Motivations: ${productTypeCustomer.motivations}
@@ -641,35 +648,158 @@ Every word should either create desire or justify the purchase. Ideally both.
       { pattern: /\b(t-shirt|tee|t shirt)\b/, term: 't-shirt' },
       { pattern: /\b(pants|trousers|jeans|chinos)\b/, term: 'pants' },
       { pattern: /\b(dress|gown|frock)\b/, term: 'dress' },
-      { pattern: /\b(jacket|coat|blazer)\b/, term: 'jacket' },
-      { pattern: /\b(shoes|sneakers|boots|sandals)\b/, term: 'shoes' },
-      { pattern: /\b(shirt|blouse|top)\b/, term: 'shirt' },
+      { pattern: /\b(jacket|coat|blazer|parka|windbreaker)\b/, term: 'jacket' },
+      { pattern: /\b(shoes|sneakers|boots|sandals|loafers|heels)\b/, term: 'shoes' },
+      { pattern: /\b(shirt|blouse|top|polo|tunic)\b/, term: 'shirt' },
+      { pattern: /\b(shorts|bermudas)\b/, term: 'shorts' },
+      { pattern: /\b(sweater|cardigan|jumper)\b/, term: 'sweater' },
+      { pattern: /\b(suit|tuxedo)\b/, term: 'suit' },
+      { pattern: /\b(skirt|midi|mini|maxi)\b/, term: 'skirt' },
+      { pattern: /\b(leggings|tights|stockings)\b/, term: 'leggings' },
+      { pattern: /\b(underwear|briefs|boxers|lingerie|bra)\b/, term: 'underwear' },
+      { pattern: /\b(socks|hosiery)\b/, term: 'socks' },
+      { pattern: /\b(hat|cap|beanie|fedora)\b/, term: 'hat' },
+      { pattern: /\b(scarf|scarves|shawl)\b/, term: 'scarf' },
+      { pattern: /\b(gloves|mittens)\b/, term: 'gloves' },
+      
       // Electronics
-      { pattern: /\b(phone|smartphone|mobile)\b/, term: 'phone' },
-      { pattern: /\b(laptop|notebook|computer)\b/, term: 'laptop' },
-      { pattern: /\b(tablet|ipad)\b/, term: 'tablet' },
-      { pattern: /\b(headphones|earbuds|earphones)\b/, term: 'headphones' },
-      { pattern: /\b(speaker|speakers)\b/, term: 'speaker' },
-      { pattern: /\b(watch|smartwatch)\b/, term: 'watch' },
-      { pattern: /\b(camera|cam|webcam)\b/, term: 'camera' },
+      { pattern: /\b(phone|smartphone|mobile|iphone|android)\b/, term: 'phone' },
+      { pattern: /\b(laptop|notebook|computer|macbook|chromebook)\b/, term: 'laptop' },
+      { pattern: /\b(tablet|ipad|surface)\b/, term: 'tablet' },
+      { pattern: /\b(headphones|earbuds|earphones|airpods)\b/, term: 'headphones' },
+      { pattern: /\b(speaker|speakers|soundbar)\b/, term: 'speaker' },
+      { pattern: /\b(watch|smartwatch|fitness tracker)\b/, term: 'watch' },
+      { pattern: /\b(camera|cam|webcam|gopro|dslr)\b/, term: 'camera' },
+      { pattern: /\b(television|tv|monitor|display)\b/, term: 'TV' },
+      { pattern: /\b(router|modem|network)\b/, term: 'router' },
+      { pattern: /\b(keyboard|mouse|trackpad)\b/, term: 'accessory' },
+      { pattern: /\b(charger|cable|adapter|power bank)\b/, term: 'charger' },
+      { pattern: /\b(console|playstation|xbox|nintendo)\b/, term: 'gaming console' },
+      { pattern: /\b(drone|quadcopter)\b/, term: 'drone' },
+      { pattern: /\b(projector|beamer)\b/, term: 'projector' },
+      
+      // Beauty
+      { pattern: /\b(cream|moisturizer|lotion|balm)\b/, term: 'cream' },
+      { pattern: /\b(serum|treatment|essence|ampoule)\b/, term: 'serum' },
+      { pattern: /\b(shampoo|conditioner|hair mask)\b/, term: 'hair product' },
+      { pattern: /\b(makeup|foundation|concealer|primer)\b/, term: 'makeup' },
+      { pattern: /\b(lipstick|lip gloss|lip balm)\b/, term: 'lip product' },
+      { pattern: /\b(mascara|eyeliner|eyeshadow)\b/, term: 'eye makeup' },
+      { pattern: /\b(cleanser|face wash|scrub|exfoliant)\b/, term: 'cleanser' },
+      { pattern: /\b(toner|mist|spray)\b/, term: 'toner' },
+      { pattern: /\b(mask|face mask|sheet mask)\b/, term: 'mask' },
+      { pattern: /\b(sunscreen|spf|sun block)\b/, term: 'sunscreen' },
+      { pattern: /\b(perfume|cologne|fragrance|eau de)\b/, term: 'fragrance' },
+      { pattern: /\b(nail polish|nail care|manicure)\b/, term: 'nail product' },
+      { pattern: /\b(brush|brushes|sponge|applicator)\b/, term: 'beauty tool' },
+      
+      // Home & Garden
+      { pattern: /\b(chair|sofa|couch|recliner|ottoman)\b/, term: 'furniture' },
+      { pattern: /\b(table|desk|console|stand)\b/, term: 'table' },
+      { pattern: /\b(bed|mattress|frame|headboard)\b/, term: 'bed' },
+      { pattern: /\b(lamp|light|lighting|chandelier|fixture)\b/, term: 'lamp' },
+      { pattern: /\b(rug|carpet|mat|runner)\b/, term: 'rug' },
+      { pattern: /\b(curtain|drapes|blinds|shade)\b/, term: 'window treatment' },
+      { pattern: /\b(pillow|cushion|throw)\b/, term: 'pillow' },
+      { pattern: /\b(blanket|duvet|comforter|quilt)\b/, term: 'blanket' },
+      { pattern: /\b(vase|planter|pot|container)\b/, term: 'vase' },
+      { pattern: /\b(mirror|frame|artwork|wall art)\b/, term: 'decor' },
+      { pattern: /\b(shelf|shelving|bookcase|storage)\b/, term: 'shelf' },
+      { pattern: /\b(cabinet|cupboard|wardrobe|dresser)\b/, term: 'cabinet' },
+      { pattern: /\b(plant|flower|garden|seed)\b/, term: 'plant' },
+      { pattern: /\b(tool|drill|hammer|screwdriver|wrench)\b/, term: 'tool' },
+      
+      // Food & Beverage
+      { pattern: /\b(coffee|espresso|brew|roast)\b/, term: 'coffee' },
+      { pattern: /\b(tea|chai|matcha|herbal)\b/, term: 'tea' },
+      { pattern: /\b(chocolate|candy|sweet|confection)\b/, term: 'chocolate' },
+      { pattern: /\b(snack|chips|crackers|popcorn)\b/, term: 'snack' },
+      { pattern: /\b(sauce|dressing|condiment|spread)\b/, term: 'sauce' },
+      { pattern: /\b(spice|seasoning|herb|blend)\b/, term: 'spice' },
+      { pattern: /\b(oil|vinegar|cooking)\b/, term: 'cooking ingredient' },
+      { pattern: /\b(honey|jam|preserve|spread)\b/, term: 'spread' },
+      { pattern: /\b(protein|powder|shake|bar)\b/, term: 'protein product' },
+      { pattern: /\b(beverage|drink|juice|soda)\b/, term: 'beverage' },
+      { pattern: /\b(wine|beer|spirit|alcohol)\b/, term: 'alcohol' },
+      { pattern: /\b(pasta|noodle|rice|grain)\b/, term: 'grain product' },
+      
       // Sports & Outdoors
       { pattern: /\b(scooter|kickscooter|e-scooter)\b/, term: 'scooter' },
-      { pattern: /\b(bike|bicycle|ebike)\b/, term: 'bike' },
-      { pattern: /\b(skateboard|longboard)\b/, term: 'skateboard' },
-      // Beauty & Personal Care
-      { pattern: /\b(cream|moisturizer|lotion)\b/, term: 'cream' },
-      { pattern: /\b(serum|treatment|essence)\b/, term: 'serum' },
-      { pattern: /\b(shampoo|conditioner)\b/, term: 'hair product' },
-      // Home & Garden
-      { pattern: /\b(chair|sofa|couch|table|desk)\b/, term: 'furniture' },
-      { pattern: /\b(lamp|light|lighting)\b/, term: 'lamp' },
-      { pattern: /\b(rug|carpet|mat)\b/, term: 'rug' },
-      // Other common terms
-      { pattern: /\b(bag|backpack|purse|tote)\b/, term: 'bag' },
-      { pattern: /\b(toy|game|puzzle)\b/, term: 'toy' },
-      { pattern: /\b(tool|tools)\b/, term: 'tool' },
-      { pattern: /\b(supplement|vitamin|protein)\b/, term: 'supplement' },
-      { pattern: /\b(jewelry|necklace|ring|bracelet)\b/, term: 'jewelry' },
+      { pattern: /\b(bike|bicycle|ebike|cycle)\b/, term: 'bike' },
+      { pattern: /\b(skateboard|longboard|cruiser)\b/, term: 'skateboard' },
+      { pattern: /\b(yoga|mat|block|strap)\b/, term: 'yoga gear' },
+      { pattern: /\b(weights|dumbbell|barbell|kettlebell)\b/, term: 'weights' },
+      { pattern: /\b(ball|basketball|football|soccer|tennis)\b/, term: 'ball' },
+      { pattern: /\b(racket|racquet|paddle|bat)\b/, term: 'racket' },
+      { pattern: /\b(tent|camping|sleeping bag|backpack)\b/, term: 'camping gear' },
+      { pattern: /\b(fishing|rod|reel|tackle)\b/, term: 'fishing gear' },
+      { pattern: /\b(golf|club|driver|putter)\b/, term: 'golf equipment' },
+      { pattern: /\b(ski|snowboard|snow)\b/, term: 'winter sports gear' },
+      { pattern: /\b(helmet|protective|pad|guard)\b/, term: 'protective gear' },
+      
+      // Toys & Games
+      { pattern: /\b(toy|playset|figurine|action figure)\b/, term: 'toy' },
+      { pattern: /\b(game|board game|card game)\b/, term: 'game' },
+      { pattern: /\b(puzzle|jigsaw|brain teaser)\b/, term: 'puzzle' },
+      { pattern: /\b(doll|barbie|plush|stuffed)\b/, term: 'doll' },
+      { pattern: /\b(lego|blocks|building|construction)\b/, term: 'building toy' },
+      { pattern: /\b(craft|art|coloring|drawing)\b/, term: 'craft kit' },
+      { pattern: /\b(model|kit|train|car)\b/, term: 'model' },
+      { pattern: /\b(educational|learning|stem)\b/, term: 'educational toy' },
+      
+      // Jewelry & Accessories
+      { pattern: /\b(necklace|chain|pendant|choker)\b/, term: 'necklace' },
+      { pattern: /\b(ring|band|engagement|wedding)\b/, term: 'ring' },
+      { pattern: /\b(bracelet|bangle|cuff|anklet)\b/, term: 'bracelet' },
+      { pattern: /\b(earring|stud|hoop|dangle)\b/, term: 'earrings' },
+      { pattern: /\b(watch|timepiece)\b/, term: 'watch' },
+      { pattern: /\b(bag|purse|handbag|clutch|tote)\b/, term: 'bag' },
+      { pattern: /\b(wallet|cardholder|money clip)\b/, term: 'wallet' },
+      { pattern: /\b(belt|buckle|strap)\b/, term: 'belt' },
+      { pattern: /\b(sunglasses|eyewear|shades)\b/, term: 'sunglasses' },
+      { pattern: /\b(tie|bowtie|necktie|cravat)\b/, term: 'tie' },
+      
+      // Health & Wellness
+      { pattern: /\b(supplement|vitamin|mineral|multivitamin)\b/, term: 'supplement' },
+      { pattern: /\b(protein|collagen|amino)\b/, term: 'protein supplement' },
+      { pattern: /\b(medicine|medication|remedy|treatment)\b/, term: 'medicine' },
+      { pattern: /\b(thermometer|blood pressure|glucose)\b/, term: 'health monitor' },
+      { pattern: /\b(bandage|first aid|medical)\b/, term: 'first aid' },
+      { pattern: /\b(essential oil|aromatherapy|diffuser)\b/, term: 'essential oil' },
+      { pattern: /\b(massage|therapy|relief)\b/, term: 'therapy product' },
+      { pattern: /\b(fitness|exercise|workout)\b/, term: 'fitness equipment' },
+      
+      // Pet Supplies
+      { pattern: /\b(dog food|cat food|pet food|kibble)\b/, term: 'pet food' },
+      { pattern: /\b(treat|treats|chew|bone)\b/, term: 'pet treat' },
+      { pattern: /\b(toy|ball|rope|squeaky)\b/, term: 'pet toy' },
+      { pattern: /\b(collar|leash|harness|lead)\b/, term: 'collar' },
+      { pattern: /\b(bed|crate|kennel|carrier)\b/, term: 'pet bed' },
+      { pattern: /\b(bowl|feeder|fountain|dish)\b/, term: 'pet bowl' },
+      { pattern: /\b(grooming|brush|shampoo|nail)\b/, term: 'grooming tool' },
+      { pattern: /\b(litter|litter box|scoop)\b/, term: 'litter' },
+      
+      // Office & School Supplies
+      { pattern: /\b(pen|pencil|marker|highlighter)\b/, term: 'writing tool' },
+      { pattern: /\b(notebook|notepad|journal|planner)\b/, term: 'notebook' },
+      { pattern: /\b(binder|folder|organizer|file)\b/, term: 'organizer' },
+      { pattern: /\b(desk|chair|lamp|accessory)\b/, term: 'office furniture' },
+      { pattern: /\b(stapler|tape|scissors|glue)\b/, term: 'office tool' },
+      { pattern: /\b(backpack|bag|case|pouch)\b/, term: 'bag' },
+      { pattern: /\b(calculator|ruler|protractor)\b/, term: 'math tool' },
+      { pattern: /\b(paper|printer|ink|toner)\b/, term: 'paper product' },
+      
+      // Automotive
+      { pattern: /\b(tire|tires|wheel|rim)\b/, term: 'tire' },
+      { pattern: /\b(oil|filter|fluid|coolant)\b/, term: 'fluid' },
+      { pattern: /\b(battery|alternator|starter)\b/, term: 'battery' },
+      { pattern: /\b(brake|pad|rotor|caliper)\b/, term: 'brake part' },
+      { pattern: /\b(light|headlight|taillight|bulb)\b/, term: 'light' },
+      { pattern: /\b(wiper|blade|windshield)\b/, term: 'wiper' },
+      { pattern: /\b(seat|cover|mat|floor)\b/, term: 'interior accessory' },
+      { pattern: /\b(tool|jack|wrench|gauge)\b/, term: 'auto tool' },
+      
+      // General fallback patterns
       { pattern: /\b(accessory|accessories)\b/, term: 'accessory' }
     ];
     
@@ -717,8 +847,8 @@ Every word should either create desire or justify the purchase. Ideally both.
       const parsed = JSON.parse(response);
       return {
         description: formatProductDescription(parsed.description),
-        seoTitle: stripHTML(parsed.seoTitle).substring(0, 60),
-        seoDescription: stripHTML(parsed.seoDescription).substring(0, 155),
+        seoTitle: stripHTML(parsed.seoTitle),  // No character limit enforcement
+        seoDescription: stripHTML(parsed.seoDescription),  // No character limit enforcement
       };
     } catch (error) {
       // Fallback parsing if not valid JSON
@@ -731,8 +861,8 @@ Every word should either create desire or justify the purchase. Ideally both.
       
       return {
         description: descriptionMatch ? formatProductDescription(descriptionMatch[1]) : response,
-        seoTitle: seoTitleMatch ? stripHTML(seoTitleMatch[1]).substring(0, 60) : '',
-        seoDescription: seoDescriptionMatch ? stripHTML(seoDescriptionMatch[1]).substring(0, 155) : '',
+        seoTitle: seoTitleMatch ? stripHTML(seoTitleMatch[1]) : '',
+        seoDescription: seoDescriptionMatch ? stripHTML(seoDescriptionMatch[1]) : '',
       };
     }
   }
@@ -871,8 +1001,8 @@ Every word should either create desire or justify the purchase. Ideally both.
     
     if (features.length > 0) {
       formatted += '### Key Information Found:\n';
-      features.slice(0, 10).forEach(f => {
-        if (f.length > 10 && f.length < 200) {
+      features.forEach(f => {
+        if (f.length > 10) {  // Only filter out very short fragments
           formatted += `• ${f}\n`;
         }
       });
@@ -885,10 +1015,7 @@ Every word should either create desire or justify the purchase. Ideally both.
     
     // Add the raw content for reference
     formatted += '\n### Raw Content for Reference:\n```\n';
-    formatted += filteredContent.substring(0, 2000); // Limit to prevent overwhelming the prompt
-    if (filteredContent.length > 2000) {
-      formatted += '\n...[content truncated]';
-    }
+    formatted += filteredContent;  // Include all content - no truncation
     formatted += '\n```';
     
     return formatted;
@@ -976,7 +1103,7 @@ Return JSON with scores and specific improvement suggestions:
         const completion = await this.anthropic.messages.create({
           model: 'claude-3-5-sonnet-20241022',
           messages: [{ role: 'user', content: evaluationPrompt }],
-          max_tokens: 500,
+          max_tokens: 2000,  // Increased for detailed evaluation feedback
           temperature: 0.3,
         });
         response = completion.content[0].type === 'text' ? completion.content[0].text : '';
@@ -985,7 +1112,7 @@ Return JSON with scores and specific improvement suggestions:
           model: 'gpt-4',
           messages: [{ role: 'user', content: evaluationPrompt }],
           temperature: 0.3,
-          max_tokens: 500,
+          max_tokens: 2000,  // Increased for detailed evaluation feedback
         });
         response = completion.choices[0].message?.content || '';
       } else {
@@ -1052,7 +1179,7 @@ Return only the adjusted description.`;
         const completion = await this.anthropic.messages.create({
           model: 'claude-3-5-sonnet-20241022',
           messages: [{ role: 'user', content: alignmentPrompt }],
-          max_tokens: 1500,
+          max_tokens: 4000,  // Increased for comprehensive voice alignment
           temperature: 0.5,
         });
         response = completion.content[0].type === 'text' ? completion.content[0].text : '';
@@ -1061,7 +1188,7 @@ Return only the adjusted description.`;
           model: 'gpt-4',
           messages: [{ role: 'user', content: alignmentPrompt }],
           temperature: 0.5,
-          max_tokens: 1500,
+          max_tokens: 4000,  // Increased for comprehensive voice alignment
         });
         response = completion.choices[0].message?.content || '';
       } else {
