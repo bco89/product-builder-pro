@@ -3,7 +3,7 @@ import OpenAI from 'openai';
 import { prisma } from '../db.server';
 import { logger } from './logger.server';
 import { getProductTypePrompt, getProductTypeConfig } from './prompts/product-type-prompts';
-import { formatProductDescription } from './prompts/formatting';
+import { formatProductDescription, stripHTML } from './prompts/formatting';
 import { getProductTypeCustomer } from './prompts/product-type-customers';
 import { saveLLMPrompt } from './prompt-logger.server';
 import { saveLLMPromptToDB } from './prompt-logger-db.server';
@@ -31,6 +31,16 @@ export interface AIGenerationResult {
   description: string;
   seoTitle: string;
   seoDescription: string;
+  qualityMetrics?: QualityMetrics;
+}
+
+export interface QualityMetrics {
+  seoScore: number;
+  engagementScore: number;
+  readabilityScore: number;
+  completenessScore: number;
+  overallScore: number;
+  suggestions: string[];
 }
 
 export interface ProductCategorizationParams {
@@ -46,6 +56,54 @@ export interface ProductCategorizationResult {
   confidence: number;
   reasoning: string;
 }
+
+// Content filtering patterns to remove irrelevant data
+const IRRELEVANT_PATTERNS = {
+  pricing: [
+    /\$[\d,]+\.?\d*/g,
+    /price:?\s*[\d,]+/gi,
+    /cost:?\s*[\d,]+/gi,
+    /MSRP:?\s*[\d,]+/gi,
+    /save\s+\$[\d,]+/gi,
+    /\d+%\s+off/gi
+  ],
+  navigation: [
+    /menu|nav|breadcrumb/i,
+    /home\s*>\s*products/i,
+    /categories|collections/i,
+    /back to top/i,
+    /search results/i
+  ],
+  promotional: [
+    /sale|discount|offer|promo|deal/i,
+    /limited time|act now|buy today/i,
+    /free shipping|coupon|code/i,
+    /ends\s+(soon|today|tonight)/i,
+    /while supplies last/i
+  ],
+  recommendations: [
+    /you may also like/i,
+    /customers also bought/i,
+    /related products/i,
+    /recently viewed/i,
+    /recommended for you/i,
+    /similar items/i
+  ],
+  ui_elements: [
+    /add to cart|buy now/i,
+    /quantity|qty/i,
+    /share|tweet|pin|facebook|instagram/i,
+    /reviews? \(\d+\)/i,
+    /write a review/i,
+    /ask a question/i
+  ],
+  trust_badges: [
+    /money back guarantee/i,
+    /secure checkout/i,
+    /trusted by \d+/i,
+    /verified purchase/i
+  ]
+};
 
 export class AIService {
   private openai?: OpenAI;
@@ -258,7 +316,96 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
         }
       });
 
-      const result = this.parseAIResponse(response);
+      let result = this.parseAIResponse(response);
+      
+      // Phase 2: Quality evaluation
+      const primaryKeyword = params.keywords[0];
+      const secondaryKeywords = params.keywords.slice(1);
+      const metrics = await this.evaluateDescription(
+        result.description,
+        primaryKeyword,
+        secondaryKeywords,
+        productType
+      );
+      
+      logger.info('Quality evaluation scores:', {
+        seoScore: metrics.seoScore,
+        engagementScore: metrics.engagementScore,
+        readabilityScore: metrics.readabilityScore,
+        completenessScore: metrics.completenessScore,
+        overallScore: metrics.overallScore
+      });
+      
+      // Phase 3: Auto-improvement if needed
+      if (metrics.overallScore < 8 && metrics.suggestions.length > 0) {
+        logger.info('Auto-improving description based on quality evaluation...');
+        
+        const improvementPrompt = `
+Improve this product description based on these specific issues:
+${metrics.suggestions.join('\n')}
+
+Current description:
+${result.description}
+
+Requirements to maintain:
+- H2 with primary keyword "${primaryKeyword}" as first line
+- Primary keyword used 3-5 times
+- Secondary keywords used 2-3 times each
+- All existing content and structure
+- All technical specifications
+
+Improve the identified areas while keeping the same information.
+Return as JSON with these exact keys:
+{
+  "description": "Improved HTML formatted description",
+  "seoTitle": "${result.seoTitle}",
+  "seoDescription": "${result.seoDescription}"
+}`;
+
+        try {
+          let improvedResponse: string;
+          
+          if (this.provider === 'anthropic' && this.anthropic) {
+            const completion = await this.anthropic.messages.create({
+              model: 'claude-3-5-sonnet-20241022',
+              messages: [{ role: 'user', content: improvementPrompt }],
+              system: systemPrompt,
+              max_tokens: 1500,
+              temperature: 0.6,
+            });
+            improvedResponse = completion.content[0].type === 'text' ? completion.content[0].text : '';
+          } else if (this.provider === 'openai' && this.openai) {
+            const completion = await this.openai.chat.completions.create({
+              model: 'gpt-4',
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: improvementPrompt }
+              ],
+              temperature: 0.6,
+              max_tokens: 1500,
+            });
+            improvedResponse = completion.choices[0].message?.content || '';
+          } else {
+            throw new Error('AI provider not properly initialized');
+          }
+          
+          const improvedResult = this.parseAIResponse(improvedResponse);
+          result = improvedResult;
+          logger.info('Description improved successfully');
+        } catch (error) {
+          logger.warn('Failed to auto-improve description:', { error: error instanceof Error ? error.message : String(error) });
+        }
+      }
+      
+      // Phase 4: Brand voice alignment
+      if (params.shopSettings) {
+        logger.info('Applying brand voice alignment...');
+        const alignedDescription = await this.alignBrandVoice(result.description, params.shopSettings);
+        result.description = formatProductDescription(alignedDescription);
+      }
+      
+      // Add quality metrics to result
+      result.qualityMetrics = metrics;
       
       logger.info('\n--- AI GENERATION RESULT ---');
       logger.info('Generated content summary', {
@@ -267,7 +414,8 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
         seoDescriptionLength: result.seoDescription.length,
         hasDescription: !!result.description,
         hasSeoTitle: !!result.seoTitle,
-        hasSeoDescription: !!result.seoDescription
+        hasSeoDescription: !!result.seoDescription,
+        qualityScore: metrics.overallScore
       });
       
       logger.info('=== AI DESCRIPTION GENERATION COMPLETE ===\n');
@@ -325,16 +473,12 @@ ${params.additionalContext ? `- Additional Details: ${params.additionalContext}`
 ${formattedScrapedData ? `\n${formattedScrapedData}` : ''}
 ${params.imageAnalysis ? `- Visual Analysis: ${params.imageAnalysis}` : ''}
 
-IMPORTANT INSTRUCTIONS:
-1. Use ${useDetailedTemplate ? 'TECHNICAL' : 'LIFESTYLE'} template structure
-2. ${config.includeBestFor ? 'Include "Best For" section with 2-3 specific user types' : 'Use "You\'ll love this because..." framing'}
-3. Customer journey focus areas: ${config.customerJourneySteps.join(' → ')}
-4. Primary keyword "${params.keywords[0]}" MUST appear in the H2 headline and 2-3 times naturally
-5. ${this.checkForSizeChart(params) ? 'INCLUDE the size chart as a formatted table at the end' : 'No size chart needed'}
-6. Write for someone at step 1 of the journey: "${config.customerJourneySteps[0]}"
+IMPORTANT CONTEXT:
+- Write for someone at step 1 of their journey: "${config.customerJourneySteps[0]}"
+- Customer journey progression: ${config.customerJourneySteps.join(' → ')}
+- Focus areas for this product type: ${config.focusAreas.join(', ')}
 
-TEMPLATE STRUCTURE TO FOLLOW:
-${this.getTemplateStructure(config, useDetailedTemplate)}
+${this.getContentPrinciples(config, params)}
 
 Format as JSON with these exact keys:
 {
@@ -404,53 +548,86 @@ Format as JSON with these exact keys:
     return getProductTypeCustomer(productType);
   }
 
-  private getTemplateStructure(config: ProductTypeConfig, detailed: boolean): string {
-    if (config.templateType === 'lifestyle' || !detailed) {
-      return `
-<h2><strong>[Compelling headline with primary keyword and emotional benefit]</strong></h2>
-<p>[Opening paragraph addressing the primary desire/pain point - make them FEEL something]</p>
+  private getContentPrinciples(config: ProductTypeConfig, params: AIGenerationParams): string {
+    const primaryKeyword = params.keywords[0];
+    const secondaryKeywords = params.keywords.slice(1);
+    const productTerm = this.extractProductTerm(params);
+    
+    return `
+## CONTENT CREATION PRINCIPLES
 
-<h3><strong>You'll Love This Because:</strong></h3>
-<ul>
-  <li><strong>[Benefit 1]:</strong> [How it improves their life]</li>
-  <li><strong>[Benefit 2]:</strong> [Emotional/practical outcome]</li>
-  <li><strong>[Benefit 3]:</strong> [Social/aspirational benefit]</li>
-  <li><strong>[Benefit 4]:</strong> [Practical feature as benefit]</li>
-</ul>
+### SEO REQUIREMENTS (MANDATORY)
+1. **First Line Rule**: Start with an H2 headline that naturally includes "${primaryKeyword}"
+   - For lifestyle products: Create emotional connection in the headline
+   - For technical products: Lead with the most impressive specification or capability
+   - Make it compelling and specific to THIS ${productTerm}
 
-<p>[Lifestyle integration paragraph - paint a picture of them using/wearing it]</p>
+2. **Keyword Optimization**:
+   - Primary keyword "${primaryKeyword}": Use 3-5 times total (aim for 1-2% density)
+     * MUST appear in the H2 headline
+     * Include within the first 100 words
+     * Use naturally throughout the content
+     * Include in at least one H3 subheading
+   - Secondary keywords: ${secondaryKeywords.length > 0 ? secondaryKeywords.map(k => `"${k}"`).join(', ') + ' - Use each 2-3 times naturally' : 'None provided'}
 
-<h3><strong>The Details:</strong></h3>
-<p>[Key features and specifications written conversationally]</p>
+3. **Content Structure Guidelines**:
+   ${config.templateType === 'lifestyle' ? `
+   - Open with an emotional hook that connects with ${config.focusAreas.join(', ')}
+   - Include a benefits-focused section that shows how this improves their life
+   - Paint a picture of the customer using/experiencing the product
+   - Keep technical details conversational and accessible
+   ` : `
+   - Lead with the problem this ${productTerm} solves
+   - Include a "Best For" section with 2-3 specific use cases or user types
+   - Balance technical specifications with real-world benefits
+   - Provide clear, organized technical details
+   `}
 
-[IF SIZE CHART PROVIDED: Include formatted table here]
+4. **Required Elements**:
+   - An engaging H2 opening with the primary keyword
+   - A compelling introduction (1-2 paragraphs) that addresses ${config.customerJourneySteps[0]}
+   - Key benefits section (3-4 benefits minimum)
+   - ${config.includeBestFor ? 'A "Best For" or "Perfect For" section with specific user scenarios' : 'A section explaining why customers will love this'}
+   - Product details/specifications appropriate to the ${config.templateType} nature
+   - ${this.checkForSizeChart(params) ? 'A size chart or sizing information section (REQUIRED - sizing data was found)' : ''}
+   - Natural integration of keywords without stuffing
+
+5. **Writing Style**:
+   - Write naturally and conversationally
+   - Focus on benefits over features
+   - Use "you" language to connect with the reader
+   - Keep paragraphs short (2-3 sentences)
+   - Use bullet points for easy scanning
+   - Include sensory details where appropriate
+
+6. **Avoid**:
+   - Generic descriptions that could apply to any ${productTerm}
+   - Keyword stuffing or unnatural repetition
+   - Empty marketing speak without substance
+   - Technical jargon without explanation (for lifestyle products)
+   - Overly casual language (for technical products)
+
+Remember: Create a description that would make someone excited to buy THIS specific ${productTerm}, not just any ${productTerm}.
 `;
-    } else {
-      return `
-<h2><strong>[Headline with primary keyword and key benefit/solution]</strong></h2>
-<p>[Opening addressing the problem this solves]</p>
+  }
 
-<h3><strong>This ${config.templateType === 'technical' ? 'Product' : 'Gear'} Is Best For:</strong></h3>
-<ul>
-  <li><strong>[User Type 1]:</strong> [Specific use case and why it's perfect]</li>
-  <li><strong>[User Type 2]:</strong> [Different use case and benefits]</li>
-  <li><strong>[User Type 3]:</strong> [Another scenario and advantages]</li>
-</ul>
-
-<h3><strong>Key Features & Benefits:</strong></h3>
-<ul>
-  <li><strong>[Feature 1]:</strong> [Technical detail + user benefit]</li>
-  <li><strong>[Feature 2]:</strong> [Specification + real-world application]</li>
-  <li><strong>[Feature 3]:</strong> [Compatibility/requirement + convenience]</li>
-  <li><strong>[Feature 4]:</strong> [Quality aspect + long-term value]</li>
-</ul>
-
-<h3><strong>Specifications:</strong></h3>
-<p>[Detailed technical information organized clearly]</p>
-
-[IF SIZE/SPEC TABLE PROVIDED: Include formatted table here]
-`;
+  private extractProductTerm(params: AIGenerationParams): string {
+    // Extract a specific product term from the title or use product type
+    const title = params.productTitle.toLowerCase();
+    
+    // Common product terms to look for
+    const terms = ['shirt', 'pants', 'dress', 'jacket', 'shoes', 'watch', 'bag', 'phone', 'laptop', 
+                   'tablet', 'camera', 'headphones', 'speaker', 'toy', 'game', 'supplement', 'cream',
+                   'serum', 'tool', 'device', 'equipment', 'accessory', 'jewelry', 'furniture'];
+    
+    for (const term of terms) {
+      if (title.includes(term)) {
+        return term;
+      }
     }
+    
+    // Fallback to product type
+    return params.productType.toLowerCase();
   }
 
   private parseAIResponse(response: string): AIGenerationResult {
@@ -459,8 +636,8 @@ Format as JSON with these exact keys:
       const parsed = JSON.parse(response);
       return {
         description: formatProductDescription(parsed.description),
-        seoTitle: parsed.seoTitle.substring(0, 60),
-        seoDescription: parsed.seoDescription.substring(0, 155),
+        seoTitle: stripHTML(parsed.seoTitle).substring(0, 60),
+        seoDescription: stripHTML(parsed.seoDescription).substring(0, 155),
       };
     } catch (error) {
       // Fallback parsing if not valid JSON
@@ -472,11 +649,30 @@ Format as JSON with these exact keys:
       const seoDescriptionMatch = response.match(/"seoDescription":\s*"([^"]+)"/);
       
       return {
-        description: descriptionMatch ? descriptionMatch[1] : response,
-        seoTitle: seoTitleMatch ? seoTitleMatch[1].substring(0, 60) : '',
-        seoDescription: seoDescriptionMatch ? seoDescriptionMatch[1].substring(0, 155) : '',
+        description: descriptionMatch ? formatProductDescription(descriptionMatch[1]) : response,
+        seoTitle: seoTitleMatch ? stripHTML(seoTitleMatch[1]).substring(0, 60) : '',
+        seoDescription: seoDescriptionMatch ? stripHTML(seoDescriptionMatch[1]).substring(0, 155) : '',
       };
     }
+  }
+
+  /**
+   * Filter out irrelevant content from scraped data
+   */
+  private filterScrapedContent(content: string): string {
+    if (!content) return content;
+    
+    let filtered = content;
+    
+    // Remove all irrelevant patterns
+    Object.values(IRRELEVANT_PATTERNS).flat().forEach((pattern: RegExp) => {
+      filtered = filtered.replace(pattern, '');
+    });
+    
+    // Remove excessive whitespace
+    filtered = filtered.replace(/\s+/g, ' ').trim();
+    
+    return filtered;
   }
 
   /**
@@ -491,11 +687,11 @@ Format as JSON with these exact keys:
       let formatted = 'SCRAPED PRODUCT INFORMATION:';
       
       if (data.productTitle) {
-        formatted += `\n- Product Name: ${data.productTitle}`;
+        formatted += `\n- Product Name: ${this.filterScrapedContent(data.productTitle)}`;
       }
       
       if (data.brandVendor) {
-        formatted += `\n- Brand/Manufacturer: ${data.brandVendor}`;
+        formatted += `\n- Brand/Manufacturer: ${this.filterScrapedContent(data.brandVendor)}`;
       }
       
       if (data.keyFeatures && data.keyFeatures.length > 0) {
@@ -551,7 +747,15 @@ Format as JSON with these exact keys:
     }
     
     // Fallback to simple scraped data format
-    return `- Scraped Information: ${JSON.stringify(scrapedData)}`;
+    if (typeof scrapedData === 'string') {
+      return `SCRAPED PRODUCT INFORMATION:\n${this.filterScrapedContent(scrapedData)}`;
+    }
+    
+    if (scrapedData.rawContent) {
+      return `SCRAPED PRODUCT INFORMATION:\n${this.filterScrapedContent(scrapedData.rawContent)}`;
+    }
+    
+    return `SCRAPED PRODUCT INFORMATION:\n${this.filterScrapedContent(JSON.stringify(scrapedData))}`;
   }
   
   /**
@@ -569,5 +773,169 @@ Format as JSON with these exact keys:
     if (params.scrapedData?.descriptionData?.sizeChart?.available === true) return true;
     
     return false;
+  }
+
+  /**
+   * Evaluate the quality of a generated description
+   */
+  private async evaluateDescription(
+    description: string,
+    primaryKeyword: string,
+    secondaryKeywords: string[],
+    productType: string
+  ): Promise<QualityMetrics> {
+    const evaluationPrompt = `
+Evaluate this product description across key quality metrics:
+
+DESCRIPTION:
+${description}
+
+PRIMARY KEYWORD: ${primaryKeyword}
+SECONDARY KEYWORDS: ${secondaryKeywords.join(', ')}
+PRODUCT TYPE: ${productType}
+
+Score each metric 1-10 and provide specific feedback:
+
+1. SEO SCORE
+- Does it start with H2 containing primary keyword?
+- Primary keyword density (should be 1-2%, appearing 3-5 times)
+- Secondary keyword usage (each should appear 2-3 times)
+- Proper header hierarchy (H2, H3s)
+- Natural keyword usage (not stuffed)
+
+2. ENGAGEMENT SCORE
+- Appropriate hook for product type (emotional for lifestyle, technical for specs-focused)
+- Benefit-focused content
+- Power words and sensory language where appropriate
+- Clear value proposition
+
+3. READABILITY SCORE
+- Short paragraphs (2-3 sentences)
+- Bullet points for features
+- Active voice usage
+- Conversational tone where appropriate
+- Technical clarity for spec-heavy products
+
+4. COMPLETENESS SCORE
+- All HTML tags properly closed
+- No truncated sections
+- Includes all key product info
+- Contains required sections (Benefits, Features)
+- Size chart included if sizing info was available
+
+Return JSON with scores and specific improvement suggestions:
+{
+  "seoScore": 0-10,
+  "engagementScore": 0-10,
+  "readabilityScore": 0-10,
+  "completenessScore": 0-10,
+  "overallScore": 0-10,
+  "suggestions": ["specific improvements needed"]
+}`;
+
+    try {
+      let response: string;
+      
+      if (this.provider === 'anthropic' && this.anthropic) {
+        const completion = await this.anthropic.messages.create({
+          model: 'claude-3-5-sonnet-20241022',
+          messages: [{ role: 'user', content: evaluationPrompt }],
+          max_tokens: 500,
+          temperature: 0.3,
+        });
+        response = completion.content[0].type === 'text' ? completion.content[0].text : '';
+      } else if (this.provider === 'openai' && this.openai) {
+        const completion = await this.openai.chat.completions.create({
+          model: 'gpt-4',
+          messages: [{ role: 'user', content: evaluationPrompt }],
+          temperature: 0.3,
+          max_tokens: 500,
+        });
+        response = completion.choices[0].message?.content || '';
+      } else {
+        throw new Error('AI provider not properly initialized');
+      }
+
+      const parsed = JSON.parse(response);
+      return {
+        seoScore: parsed.seoScore || 7,
+        engagementScore: parsed.engagementScore || 7,
+        readabilityScore: parsed.readabilityScore || 7,
+        completenessScore: parsed.completenessScore || 7,
+        overallScore: parsed.overallScore || 7,
+        suggestions: parsed.suggestions || []
+      };
+    } catch (error) {
+      logger.warn('Failed to evaluate description quality:', { error: error instanceof Error ? error.message : String(error) });
+      // Return default scores if evaluation fails
+      return {
+        seoScore: 7,
+        engagementScore: 7,
+        readabilityScore: 7,
+        completenessScore: 7,
+        overallScore: 7,
+        suggestions: []
+      };
+    }
+  }
+
+  /**
+   * Apply brand voice alignment to the description
+   */
+  private async alignBrandVoice(
+    description: string,
+    shopSettings: any
+  ): Promise<string> {
+    if (!shopSettings.brandPersonality && !shopSettings.coreValues) {
+      return description; // No brand settings to align with
+    }
+
+    const alignmentPrompt = `
+Adjust this product description to match the brand voice:
+
+BRAND CONTEXT:
+- Store Name: ${shopSettings.storeName || 'Not specified'}
+- Brand Personality: ${shopSettings.brandPersonality || 'Not specified'}
+- Core Values: ${shopSettings.coreValues || 'Not specified'}
+
+CURRENT DESCRIPTION:
+${description}
+
+Adjust the tone and language to match the brand personality while keeping:
+- All content and structure
+- All SEO elements and keyword usage
+- All technical specifications
+- All HTML formatting
+
+Return only the adjusted description.`;
+
+    try {
+      let response: string;
+      
+      if (this.provider === 'anthropic' && this.anthropic) {
+        const completion = await this.anthropic.messages.create({
+          model: 'claude-3-5-sonnet-20241022',
+          messages: [{ role: 'user', content: alignmentPrompt }],
+          max_tokens: 1500,
+          temperature: 0.5,
+        });
+        response = completion.content[0].type === 'text' ? completion.content[0].text : '';
+      } else if (this.provider === 'openai' && this.openai) {
+        const completion = await this.openai.chat.completions.create({
+          model: 'gpt-4',
+          messages: [{ role: 'user', content: alignmentPrompt }],
+          temperature: 0.5,
+          max_tokens: 1500,
+        });
+        response = completion.choices[0].message?.content || '';
+      } else {
+        throw new Error('AI provider not properly initialized');
+      }
+
+      return response;
+    } catch (error) {
+      logger.warn('Failed to align brand voice:', { error: error instanceof Error ? error.message : String(error) });
+      return description; // Return original if alignment fails
+    }
   }
 }
