@@ -61,9 +61,7 @@ export class AIService {
       this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       this.provider = 'openai';
     } else {
-      // If no API key is configured, we'll use a mock implementation
-      this.provider = 'anthropic';
-      logger.warn('No AI API key configured - using mock implementation');
+      throw new Error('No AI API key configured. Please set either ANTHROPIC_API_KEY or OPENAI_API_KEY environment variable.');
     }
   }
 
@@ -120,15 +118,13 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
         });
         response = completion.choices[0].message?.content || '';
       } else {
-        // Mock implementation
-        response = this.getMockCategorization(params);
+        throw new Error('AI provider not properly initialized');
       }
 
       return this.parseCategorization(response);
     } catch (error) {
       logger.error('Product categorization failed:', error);
-      // Fallback to mock response
-      return this.parseCategorization(this.getMockCategorization(params));
+      throw error;
     }
   }
 
@@ -148,87 +144,6 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
         confidence: 0.5,
         reasoning: 'Unable to determine category with high confidence'
       };
-    }
-  }
-
-  private getMockCategorization(params: ProductCategorizationParams): string {
-    // Simple keyword-based categorization for mock
-    const title = params.productTitle.toLowerCase();
-    const description = (params.productDescription || '').toLowerCase();
-    const combined = `${title} ${description}`;
-
-    if (combined.match(/shirt|dress|pants|shoe|jacket|clothing|wear/)) {
-      return JSON.stringify({
-        productType: 'Apparel',
-        confidence: 0.9,
-        reasoning: 'Product title/description contains apparel-related keywords'
-      });
-    } else if (combined.match(/phone|computer|laptop|tablet|electronic|tech|gadget/)) {
-      return JSON.stringify({
-        productType: 'Electronics',
-        confidence: 0.9,
-        reasoning: 'Product contains electronics-related keywords'
-      });
-    } else if (combined.match(/beauty|cosmetic|makeup|skincare|lotion|cream/)) {
-      return JSON.stringify({
-        productType: 'Beauty',
-        confidence: 0.9,
-        reasoning: 'Product contains beauty-related keywords'
-      });
-    } else if (combined.match(/food|drink|beverage|snack|meal|edible/)) {
-      return JSON.stringify({
-        productType: 'Food & Beverage',
-        confidence: 0.9,
-        reasoning: 'Product contains food/beverage-related keywords'
-      });
-    } else if (combined.match(/sport|fitness|exercise|outdoor|camping|hiking/)) {
-      return JSON.stringify({
-        productType: 'Sports & Outdoors',
-        confidence: 0.85,
-        reasoning: 'Product contains sports/outdoor-related keywords'
-      });
-    } else if (combined.match(/toy|game|play|puzzle|child|kid/)) {
-      return JSON.stringify({
-        productType: 'Toys & Games',
-        confidence: 0.85,
-        reasoning: 'Product contains toy/game-related keywords'
-      });
-    } else if (combined.match(/jewelry|jewellery|necklace|ring|bracelet|watch/)) {
-      return JSON.stringify({
-        productType: 'Jewelry & Accessories',
-        confidence: 0.9,
-        reasoning: 'Product contains jewelry-related keywords'
-      });
-    } else if (combined.match(/health|wellness|vitamin|supplement|medical/)) {
-      return JSON.stringify({
-        productType: 'Health & Wellness',
-        confidence: 0.85,
-        reasoning: 'Product contains health-related keywords'
-      });
-    } else if (combined.match(/pet|dog|cat|animal|bird|fish/)) {
-      return JSON.stringify({
-        productType: 'Pet Supplies',
-        confidence: 0.9,
-        reasoning: 'Product contains pet-related keywords'
-      });
-    } else if (combined.match(/office|school|pen|pencil|desk|paper|stationery/)) {
-      return JSON.stringify({
-        productType: 'Office & School Supplies',
-        confidence: 0.85,
-        reasoning: 'Product contains office/school-related keywords'
-      });
-    } else if (combined.match(/car|auto|vehicle|motor|engine|tire/)) {
-      return JSON.stringify({
-        productType: 'Automotive',
-        confidence: 0.9,
-        reasoning: 'Product contains automotive-related keywords'
-      });
-    } else {
-      return JSON.stringify({
-        productType: 'Home & Garden',
-        confidence: 0.6,
-        reasoning: 'Default category when specific type cannot be determined'
-      });
     }
   }
 
@@ -310,8 +225,7 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
         });
         response = completion.choices[0].message?.content || '';
       } else {
-        // Mock implementation for development
-        response = this.getMockResponse(params);
+        throw new Error('AI provider not properly initialized');
       }
 
       // Log the generation
@@ -342,8 +256,7 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
     } catch (error) {
       logger.error('AI generation failed:', error);
       logger.error('=== AI DESCRIPTION GENERATION FAILED ===\n');
-      // Return mock response on error for development
-      return this.parseAIResponse(this.getMockResponse(params));
+      throw error;
     }
   }
 
@@ -354,7 +267,7 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
     
     // Determine template complexity based on product type and price
     const useDetailedTemplate = config.templateType === 'technical' || 
-      (config.priceThreshold && price > config.priceThreshold);
+      (config.priceThreshold && price > config.priceThreshold) || false;
     
     // Build customer avatar combining store settings and product type
     const customerAvatar = this.buildCustomerAvatar(settings, config, params.productType);
@@ -544,61 +457,6 @@ Format as JSON with these exact keys:
         seoDescription: seoDescriptionMatch ? seoDescriptionMatch[1].substring(0, 155) : '',
       };
     }
-  }
-
-  private getMockResponse(params: AIGenerationParams): string {
-    const keyword = params.keywords[0] || params.productTitle;
-    const config = getProductTypeConfig(params.productType);
-    const price = params.pricing?.price ? parseFloat(params.pricing.price) : 0;
-    const useDetailedTemplate = config.templateType === 'technical' || 
-      (config.priceThreshold && price > config.priceThreshold);
-
-    let description: string;
-    
-    if (config.templateType === 'lifestyle' || !useDetailedTemplate) {
-      description = `<h2><strong>Premium ${keyword} - Transform Your Daily Experience</strong></h2>
-<p>Discover the ${params.productTitle} that elevates your everyday moments into something extraordinary. This exceptional ${keyword} combines thoughtful design with uncompromising quality to exceed your expectations.</p>
-
-<h3><strong>You'll Love This Because:</strong></h3>
-<ul>
-  <li><strong>Instant Confidence:</strong> Feel amazing every time you use it</li>
-  <li><strong>Effortless Style:</strong> Complements your unique personality perfectly</li>
-  <li><strong>Lasting Quality:</strong> Built to be a favorite for years to come</li>
-  <li><strong>Sustainable Choice:</strong> Eco-conscious materials you can feel good about</li>
-</ul>
-
-<p>Imagine starting each day with the confidence that comes from owning something truly special. This ${keyword} seamlessly integrates into your lifestyle, making every moment a little more extraordinary.</p>
-
-<h3><strong>The Details:</strong></h3>
-<p>Meticulously crafted with premium materials and attention to every detail. Features thoughtful design elements that enhance both form and function, ensuring you get the perfect blend of style and practicality.</p>`;
-    } else {
-      description = `<h2><strong>${keyword} - Professional-Grade Performance You Can Trust</strong></h2>
-<p>Engineered to solve real problems with reliable, professional-grade performance. This ${params.productTitle} delivers the features and quality that serious users demand.</p>
-
-<h3><strong>This Product Is Best For:</strong></h3>
-<ul>
-  <li><strong>Professionals:</strong> Who need reliable performance for daily use</li>
-  <li><strong>Enthusiasts:</strong> Looking for advanced features and capabilities</li>
-  <li><strong>Value Seekers:</strong> Who want long-term quality and performance</li>
-</ul>
-
-<h3><strong>Key Features & Benefits:</strong></h3>
-<ul>
-  <li><strong>Premium Build Quality:</strong> Durable construction ensures years of reliable use</li>
-  <li><strong>Advanced Technology:</strong> Latest features for maximum efficiency and results</li>
-  <li><strong>Universal Compatibility:</strong> Works seamlessly with your existing setup</li>
-  <li><strong>Professional Support:</strong> Backed by comprehensive warranty and expert help</li>
-</ul>
-
-<h3><strong>Specifications:</strong></h3>
-<p>Professional-grade components and materials throughout. Meets or exceeds industry standards for performance and reliability. Full technical specifications available upon request.</p>`;
-    }
-
-    return JSON.stringify({
-      description,
-      seoTitle: `${keyword} - Premium ${params.productType} | ${params.vendor}`,
-      seoDescription: `Shop our ${keyword} - exceptional quality ${params.productType} with premium features. Free shipping available. Shop now and experience the difference!`
-    });
   }
 
   /**
