@@ -32,6 +32,7 @@ export default function App() {
           <a href="/app" rel="home">Product Builder</a>
           <a href="/app/product-builder">Create Product</a>
           <a href="/app/improve-descriptions">Improve Descriptions</a>
+          <a href="/app/prompt-logs">Prompt Logs</a>
           <a href="/app/settings">Settings</a>
         </ui-nav-menu>
         <Frame>
