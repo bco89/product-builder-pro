@@ -473,9 +473,11 @@ ${formattedScrapedData ? `\n${formattedScrapedData}` : ''}
 ${params.imageAnalysis ? `- Visual Analysis: ${params.imageAnalysis}` : ''}
 
 IMPORTANT CONTEXT:
-- Write for someone at step 1 of their journey: "${config.customerJourneySteps[0]}"
-- Customer journey progression: ${config.customerJourneySteps.join(' → ')}
-- Focus areas for this product type: ${config.focusAreas.join(', ')}
+- Address customers at ANY stage of their ${params.productType} buying journey
+- Journey stages for ${params.productType}: ${config.customerJourneySteps.join(' → ')}
+- Create content that serves multiple journey stages simultaneously
+- Content pillars for this ${params.productType}: ${config.focusAreas.join(', ')}
+- Weave ALL focus areas throughout the description to address different customer priorities
 
 ${this.getContentPrinciples(config, params)}
 
@@ -569,15 +571,17 @@ CRITICAL HTML RULES:
 
 You're crafting a description for a ${productTerm} that will make shoppers stop scrolling and start imagining life with this product. Here's your creative framework:
 
-### The Opening That Hooks 🎯
-Your first line is an H2 headline featuring "${primaryKeyword}" - but make it irresistible:
+### The Multi-Stage Opening Hook 🎯
+Your H2 headline with "${primaryKeyword}" must appeal to customers at ANY journey stage:
 ${config.templateType === 'lifestyle' ? 
-  `• Tap into emotion: "Transform Your ${primaryKeyword} Experience"
-   • Promise a feeling: "The ${primaryKeyword} That Makes Every Day Better"
-   • Spark curiosity: "Why This ${primaryKeyword} Changes Everything"` : 
-  `• Lead with power: "The ${primaryKeyword} Built for [Impressive Spec]"
-   • Solve problems: "Finally, a ${primaryKeyword} That Actually [Solution]"
-   • Show expertise: "Professional-Grade ${primaryKeyword} for [Use Case]"`}
+  `• Awareness stage: "Discover the ${primaryKeyword} Experience"
+   • Consideration stage: "Why [Specific Benefit] Makes This ${primaryKeyword} Different"
+   • Decision stage: "The ${primaryKeyword} That [Solves Specific Problem]"` : 
+  `• Awareness stage: "Professional ${primaryKeyword} for [General Use Case]"
+   • Consideration stage: "The ${primaryKeyword} with [Key Differentiator]"
+   • Decision stage: "[Specific Spec] ${primaryKeyword} Built for [Specific Need]"`}
+
+Choose an angle that naturally leads into content serving ALL stages.
 
 ### Natural Keyword Flow 🌊
 Weave keywords like a conversation, not a checklist:
@@ -585,36 +589,45 @@ Weave keywords like a conversation, not a checklist:
 ${secondaryKeywords.length > 0 ? `• Sprinkle in ${secondaryKeywords.map(k => `"${k}"`).join(', ')} where they enhance the story (2-3 times each)` : ''}
 • Use related terms and natural variations - think how real people search and speak
 
-### The Story Arc for ${config.templateType === 'lifestyle' ? 'Lifestyle Connection' : config.templateType === 'technical' ? 'Technical Excellence' : 'Balanced Appeal'} 📖
-${config.templateType === 'lifestyle' ? `
-Paint the picture of transformation:
-• Start with their current struggle or desire around ${config.focusAreas.join(', ')}
-• Show how this ${productTerm} bridges that gap
-• Let them feel the joy/confidence/ease of owning it
-• Make features come alive through benefits
-• Close with an inspiring vision of their improved life` : 
-config.templateType === 'technical' ? `
-Build trust through expertise:
-• Identify the specific problem this ${productTerm} solves
-• Showcase standout specs that matter for real use
-• Include "Best For" scenarios - who needs this and why
-• Balance impressive numbers with practical benefits
-• Demonstrate value through performance and reliability` :
-`Bridge emotion and logic:
-• Open with the transformation this enables
-• Support desire with solid specifications
-• Show both who will love it AND why it performs
-• Mix lifestyle benefits with technical confidence
-• Appeal to both heart and mind`}
+### The Layered Content Strategy 📖
+Structure your description to serve customers at EVERY journey stage simultaneously:
+
+**Opening Section** (Appeals to all stages):
+• Awareness: What category benefit/problem does this solve?
+• Consideration: What makes THIS one special?
+• Decision: Why buy it right now?
+
+**Progressive Information Layers**:
+1. **Broad Benefits** (Top layer - everyone needs this)
+   • Address universal desires related to ${config.focusAreas.join(', ')}
+   • Paint the outcome/transformation
+   
+2. **Differentiating Features** (Middle layer - comparison shoppers)
+   • Unique aspects that set it apart
+   • Specific advantages over alternatives
+   • Address common concerns/objections
+   
+3. **Decision Details** (Deep layer - ready-to-buy validation)
+   • Technical specifications
+   • Compatibility/sizing information
+   • Care/maintenance/warranty
+   • Social proof elements
+
+${config.templateType === 'lifestyle' ? 
+`Focus on emotional progression with practical support` : 
+config.templateType === 'technical' ? 
+`Lead with capabilities, support with real-world application` :
+`Balance emotional appeal with logical validation throughout`}
 
 ### Essential Elements to Weave In ✨
 While you have creative freedom, ensure your narrative includes:
-• **The Hook**: An emotional or technical opening that addresses "${config.customerJourneySteps[0]}"
-• **Key Benefits**: 3-4 ways this ${productTerm} improves life (not just features!)
-• **Trust Builders**: Specific details on materials, quality, specifications
-${config.includeBestFor ? `• **Perfect For**: 2-3 specific scenarios or people who need this` : `• **Why They'll Love It**: Connect to their values and lifestyle`}
-${this.checkForSizeChart(params) ? `• **Size Information**: Include the sizing details provided - shoppers need this!` : ''}
-• **The Close**: Leave them feeling this was made for them
+• **The Multi-Stage Hook**: An opening that speaks to browsers, comparers, AND decision-makers
+• **Journey-Aware Benefits**: Address ALL journey stages - ${config.customerJourneySteps.join(', ')}
+• **Progressive Details**: Start broad (what), move to specific (how), end with technical (specs)
+• **Focus Area Coverage**: Touch on ALL focus areas - ${config.focusAreas.join(', ')}
+${config.includeBestFor ? `• **Perfect For**: 2-3 specific scenarios covering different use cases` : `• **Universal Appeal**: Show how different people benefit differently`}
+${this.checkForSizeChart(params) ? `• **Size Information**: Include sizing details early for consideration-stage shoppers` : ''}
+• **The Inclusive Close**: Motivate action while providing final validation
 
 ### Writing That Connects 💬
 • Talk TO them, not AT them - use "you" naturally
@@ -633,13 +646,26 @@ IMPORTANT: Format lists correctly in HTML:
   CORRECT: <ul><li>First feature</li><li>Second feature</li></ul>
   WRONG: <ul><li>• First feature • Second feature</li></ul>
 
-### What Makes This ${productTerm} Special? 🌟
-Focus on what sets THIS particular ${productTerm} apart:
-${config.focusAreas.map(area => `• ${area.charAt(0).toUpperCase() + area.slice(1)}: How does it excel here?`).join('\n')}
+### Multi-Journey Content Examples 🌟
+Here's how to address different journey stages within the SAME description:
 
-Remember: You're not just describing features - you're showing someone their life with this ${productTerm}. Make them feel it, want it, and trust it.
+**Example Opening (Pet Supplies)**:
+"Give your furry friend the comfort they deserve with this premium pet bed that combines veterinarian-approved orthopedic support with machine-washable convenience."
+- Awareness: "comfort they deserve" (emotional benefit)
+- Consideration: "veterinarian-approved orthopedic" (differentiation)
+- Decision: "machine-washable convenience" (practical validation)
 
-Every word should either create desire or justify the purchase. Ideally both.
+**Example Feature Section**:
+Instead of: "Made with memory foam"
+Multi-stage: "The pressure-relieving memory foam (awareness: benefit) outperforms standard beds (consideration: comparison) and maintains its shape for 5+ years (decision: durability)"
+
+### Remember: One Description, All Customers 🎯
+- Don't segment your description by journey stage
+- Instead, layer information so each customer finds what they need
+- Early content hooks everyone, deeper content validates purchases
+- Address ALL ${config.focusAreas.length} focus areas: ${config.focusAreas.join(', ')}
+
+Every sentence should serve multiple purposes - inform newcomers, differentiate for comparers, and validate for decision-makers.
 `;
   }
 

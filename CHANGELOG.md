@@ -3,6 +3,28 @@
 
 ## 2025.01.14
 
+### Multi-Journey Customer Support in AI Descriptions
+
+- **Removed Step 1 Journey Assumption**: Updated AI prompt generation to support customers at any stage of their buying journey
+  - Changed from rigid "Write for someone at step 1" to inclusive "Address customers at ANY stage"
+  - AI now creates content that serves browsers, comparers, and decision-makers simultaneously
+  - Maintains all existing journey steps and focus areas without requiring new configuration
+
+- **Implemented Layered Content Strategy**: Restructured content principles in `ai.server.ts`
+  - **Multi-stage opening hooks**: Single sentences that appeal to awareness, consideration, and decision stages
+  - **Progressive information disclosure**: Broad benefits → Differentiating features → Decision details
+  - **Journey-aware benefits**: Addresses all journey stages within the same description
+  - Added concrete examples showing how to serve multiple customer needs in one description
+
+- **Enhanced Focus Area Integration**: 
+  - Changed from single-stage focus to "Weave ALL focus areas throughout"
+  - Content pillars now address different customer priorities simultaneously
+  - Better alignment with diverse customer needs regardless of entry point
+
+These changes create more inclusive product descriptions that maximize conversion potential by serving all customers effectively, whether they're just discovering the product category or ready to make a purchase.
+
+## 2025.01.14
+
 ### Business Type Perspective & Enhanced Product Patterns
 
 - **Added Business Type Setting**: New setting to control AI description perspective
