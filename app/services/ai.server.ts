@@ -287,7 +287,7 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
           model: 'claude-3-5-sonnet-20241022',
           messages: [{ role: 'user', content: userPrompt }],
           system: systemPrompt,
-          max_tokens: 4000,  // Increased for more comprehensive descriptions
+          max_tokens: 2500,  // Increased for more comprehensive descriptions
           temperature: 0.7,
         });
         response = completion.content[0].type === 'text' ? completion.content[0].text : '';
@@ -299,7 +299,7 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
             { role: 'user', content: userPrompt }
           ],
           temperature: 0.7,
-          max_tokens: 4000,  // Increased for more comprehensive descriptions
+          max_tokens: 2500,  // Increased for more comprehensive descriptions
         });
         response = completion.choices[0].message?.content || '';
       } else {
@@ -370,7 +370,7 @@ Return as JSON with these exact keys:
               model: 'claude-3-5-sonnet-20241022',
               messages: [{ role: 'user', content: improvementPrompt }],
               system: systemPrompt,
-              max_tokens: 4000,  // Increased for comprehensive improvements
+              max_tokens: 1500,  // Increased for comprehensive improvements
               temperature: 0.6,
             });
             improvedResponse = completion.content[0].type === 'text' ? completion.content[0].text : '';
@@ -382,7 +382,7 @@ Return as JSON with these exact keys:
                 { role: 'user', content: improvementPrompt }
               ],
               temperature: 0.6,
-              max_tokens: 4000,  // Increased for comprehensive improvements
+              max_tokens: 1500,  // Increased for comprehensive improvements
             });
             improvedResponse = completion.choices[0].message?.content || '';
           } else {
@@ -485,6 +485,12 @@ Format as JSON with these exact keys:
   "seoTitle": "SEO title (max 60 chars) with primary keyword",
   "seoDescription": "Meta description (max 155 chars) with compelling action"
 }
+
+CRITICAL HTML RULES:
+- Each bullet point must be its own <li> element
+- Never put multiple bullet points in one <li>
+- Never include bullet characters (•, -, *) inside <li> elements
+- Format lists as: <ul><li>Feature one</li><li>Feature two</li><li>Feature three</li></ul>
 `;
 
     // Log the complete prompt being sent to AI
@@ -617,6 +623,15 @@ ${this.checkForSizeChart(params) ? `• **Size Information**: Include the sizing
 • Bold for emphasis on key benefits
 • Specific details over vague claims
 • Sensory words that make it tangible
+
+### HTML Formatting Rules 📝
+IMPORTANT: Format lists correctly in HTML:
+• Use <ul> and <li> tags for bullet lists
+• Each bullet point must be its own <li> element
+• Do NOT include bullet characters (•, -, *) in the content
+• Example:
+  CORRECT: <ul><li>First feature</li><li>Second feature</li></ul>
+  WRONG: <ul><li>• First feature • Second feature</li></ul>
 
 ### What Makes This ${productTerm} Special? 🌟
 Focus on what sets THIS particular ${productTerm} apart:

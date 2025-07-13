@@ -19,8 +19,6 @@ export function formatProductDescription(description: string): string {
     .replace(/\s+/g, ' ')
     // Fix multiple line breaks
     .replace(/(<br\s*\/?>){3,}/gi, '<br /><br />')
-    // Ensure lists are properly formatted
-    .replace(/<li>\s*-\s*/gi, '<li>')
     // Fix empty paragraphs
     .replace(/<p>\s*<\/p>/gi, '')
     // Fix unclosed tags
@@ -28,6 +26,25 @@ export function formatProductDescription(description: string): string {
     // Ensure headers have proper spacing
     .replace(/(<\/h[2-6]>)(<p>)/gi, '$1\n$2')
     .replace(/(<\/p>)(<h[2-6]>)/gi, '$1\n$2');
+  
+  // Fix bullet points within list items
+  // This handles cases where multiple bullet points are in a single <li>
+  formatted = formatted.replace(/<li>(.*?)<\/li>/gi, (_match, content: string) => {
+    // Check if the content has multiple bullet points
+    const bullets = content.split(/\s*[•·]\s*/);
+    
+    // If there are multiple bullet points, split them into separate <li> elements
+    if (bullets.length > 1) {
+      // Filter out empty strings and clean up each bullet point
+      const cleanBullets = bullets
+        .filter((bullet: string) => bullet.trim())
+        .map((bullet: string) => `<li>${bullet.trim()}</li>`);
+      return cleanBullets.join('\n');
+    }
+    
+    // Otherwise, just clean up single bullet points
+    return `<li>${content.replace(/^\s*[-•·]\s*/, '').trim()}</li>`;
+  });
   
   // Add proper line breaks for readability in the editor
   formatted = formatted

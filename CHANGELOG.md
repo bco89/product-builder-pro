@@ -1,6 +1,31 @@
 # @shopify/shopify-app-template-remix
 
 
+## 2025.01.14
+
+### Business Type Perspective & Enhanced Product Patterns
+
+- **Added Business Type Setting**: New setting to control AI description perspective
+  - Database schema updated with `businessType` field in ShopSettings
+  - App settings page now includes "Product Creator/Manufacturer" vs "Retailer/Reseller" selection
+  - AI descriptions automatically written in first person (we/our) for creators or third person (they/their) for retailers
+  - Per-product override available in AI description step
+
+- **Expanded Product Pattern Recognition**: Enhanced `productPatterns` in `ai.server.ts`
+  - Added comprehensive patterns for all 12 product categories
+  - Now includes patterns for: Food & Beverage, Pet Supplies, Office & School Supplies, Automotive
+  - Expanded existing categories with more specific product types
+  - Better product term extraction for more natural descriptions
+
+- **Removed Character Limits for Better Descriptions**:
+  - Scraped data no longer truncated at 2000 characters
+  - All extracted features now included (removed 10-item limit)
+  - Increased AI generation tokens from 1500 to 4000 for main descriptions
+  - Increased improvement phase tokens from 1500 to 4000
+  - Increased evaluation feedback tokens from 500 to 2000
+  - Removed SEO title/description character limits from AI generation (can be enforced in UI later)
+  - Customer avatar now includes all pain points and desires (removed 3-item limit)
+
 ## 2025.01.13
 
 ### Enhanced AI Product Description Generation
