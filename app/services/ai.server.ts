@@ -138,9 +138,9 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
       };
     } catch (error) {
       logger.error('Failed to parse categorization response:', error);
-      // Default fallback
+      // Default fallback - use generic type
       return {
-        productType: 'Home & Garden',
+        productType: 'General',
         confidence: 0.5,
         reasoning: 'Unable to determine category with high confidence'
       };
@@ -157,9 +157,26 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
       hasEnhancedDescriptionData: !!params.scrapedData?.descriptionData
     });
     
-    // If productType is not provided or is generic, categorize first
+    // Get the list of supported product types (must match product-type-customers.ts)
+    const supportedProductTypes = [
+      'Apparel', 'Electronics', 'Beauty', 'Home & Garden', 
+      'Food & Beverage', 'Sports & Outdoors', 'Toys & Games', 
+      'Jewelry & Accessories', 'Health & Wellness', 'Pet Supplies', 
+      'Office & School Supplies', 'Automotive'
+    ];
+    
+    // If productType is not provided, is generic, or not in our supported list, categorize first
     let productType = params.productType;
-    if (!productType || productType === 'Other' || productType === 'General') {
+    const needsCategorization = !productType || 
+                               productType === 'Other' || 
+                               productType === 'General' ||
+                               !supportedProductTypes.includes(productType);
+    
+    if (needsCategorization) {
+      if (productType && !supportedProductTypes.includes(productType)) {
+        logger.info(`Product type "${productType}" not in supported list, auto-categorizing...`);
+      }
+      
       const categorization = await this.categorizeProduct({
         productTitle: params.productTitle,
         productDescription: params.additionalContext,
@@ -172,6 +189,9 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
       if (categorization.confidence >= 0.7) {
         productType = categorization.productType;
         logger.info(`Auto-categorized product as: ${productType} (confidence: ${categorization.confidence})`);
+      } else {
+        // Low confidence - keep original productType which will use the default customer profile
+        logger.info(`Low confidence categorization (${categorization.confidence}), keeping original type: ${productType}`);
       }
     }
 
