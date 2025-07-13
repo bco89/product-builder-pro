@@ -1,6 +1,17 @@
 # @shopify/shopify-app-template-remix
 
 
+## 2025.01.13
+
+### Fixed HTML Tags in SEO Fields
+
+- **Fixed SEO Field HTML Tag Issue**: Resolved issue where HTML tags were appearing in product SEO titles and descriptions
+  - Replaced WYSIWYG rich text editors with plain TextField components for SEO Title and SEO Description in `StepAIDescription.tsx`
+  - SEO Title now uses a single-line TextField with 60-character limit
+  - SEO Description now uses a multi-line TextField with 155-character limit
+  - Backend HTML stripping in API routes remains as a safety measure
+  - Prevents HTML formatting at input while ensuring clean data sent to Shopify
+
 ## 2025.01.14
 
 ### Multi-Journey Customer Support in AI Descriptions

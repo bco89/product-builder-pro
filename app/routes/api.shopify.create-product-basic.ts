@@ -1,6 +1,7 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { logger } from "../services/logger.server.ts";
+import { stripHTML } from "../services/prompts/formatting";
 import type { CreateProductRequest } from "../types/shopify";
 
 interface CreateMediaInput {
@@ -70,8 +71,8 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
             ...(formData.category && { category: formData.category.id }),
             ...(formData.seoTitle || formData.seoDescription ? {
               seo: {
-                ...(formData.seoTitle && { title: formData.seoTitle }),
-                ...(formData.seoDescription && { description: formData.seoDescription })
+                ...(formData.seoTitle && { title: stripHTML(formData.seoTitle) }),
+                ...(formData.seoDescription && { description: stripHTML(formData.seoDescription) })
               }
             } : {}),
           },

@@ -1,6 +1,7 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { logger } from "../services/logger.server";
+import { stripHTML } from "../services/prompts/formatting";
 import type { ActionFunctionArgs } from "@remix-run/node";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -40,8 +41,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             descriptionHtml: formData.description,
             ...(formData.seoTitle || formData.seoDescription ? {
               seo: {
-                ...(formData.seoTitle && { title: formData.seoTitle }),
-                ...(formData.seoDescription && { description: formData.seoDescription })
+                ...(formData.seoTitle && { title: stripHTML(formData.seoTitle) }),
+                ...(formData.seoDescription && { description: stripHTML(formData.seoDescription) })
               }
             } : {}),
           }

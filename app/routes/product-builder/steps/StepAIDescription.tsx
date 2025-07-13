@@ -532,41 +532,34 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
 
               {/* SEO Title Editor */}
               <BlockStack gap="400">
-                <Text variant="headingSm" as="h3">SEO Title</Text>
-                <Text variant="bodySm" as="p" tone="subdued">
-                  Maximum 60 characters for optimal search engine display
-                </Text>
-                <WYSIWYGEditor
-                  id="seo-title"
+                <TextField
+                  label="SEO Title"
                   value={formData.seoTitle}
-                  onChange={(content) => onChange({ seoTitle: content })}
-                  height={100}
+                  onChange={(value) => onChange({ seoTitle: value })}
                   placeholder="Enter SEO optimized title..."
-                  variant="simple"
-                  apiKey={tinymceApiKey}
+                  helpText="Maximum 60 characters for optimal search engine display"
+                  autoComplete="off"
+                  maxLength={60}
                 />
-                <Text variant="bodySm" as="p" tone={stripHtml(formData.seoTitle).length > 60 ? 'critical' : 'subdued'}>
-                  {stripHtml(formData.seoTitle).length}/60 characters
+                <Text variant="bodySm" as="p" tone={formData.seoTitle.length > 60 ? 'critical' : 'subdued'}>
+                  {formData.seoTitle.length}/60 characters
                 </Text>
               </BlockStack>
 
               {/* SEO Description Editor */}
               <BlockStack gap="400">
-                <Text variant="headingSm" as="h3">SEO Meta Description</Text>
-                <Text variant="bodySm" as="p" tone="subdued">
-                  Maximum 155 characters for optimal search engine display
-                </Text>
-                <WYSIWYGEditor
-                  id="seo-description"
+                <TextField
+                  label="SEO Meta Description"
                   value={formData.seoDescription}
-                  onChange={(content) => onChange({ seoDescription: content })}
-                  height={120}
+                  onChange={(value) => onChange({ seoDescription: value })}
                   placeholder="Enter SEO meta description..."
-                  variant="simple"
-                  apiKey={tinymceApiKey}
+                  helpText="Maximum 155 characters for optimal search engine display"
+                  autoComplete="off"
+                  maxLength={155}
+                  multiline={2}
                 />
-                <Text variant="bodySm" as="p" tone={stripHtml(formData.seoDescription).length > 155 ? 'critical' : 'subdued'}>
-                  {stripHtml(formData.seoDescription).length}/155 characters
+                <Text variant="bodySm" as="p" tone={formData.seoDescription.length > 155 ? 'critical' : 'subdued'}>
+                  {formData.seoDescription.length}/155 characters
                 </Text>
               </BlockStack>
             </>
