@@ -11,7 +11,6 @@ import {
   Badge,
 } from '@shopify/polaris';
 import { useCallback, useState } from 'react';
-import { StepNavigation } from '../../../components/StepNavigation';
 
 interface ReviewFormData {
   vendor: string;
@@ -263,12 +262,16 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
 
         <Divider />
 
-        <StepNavigation
-          onBack={onBack}
-          onNext={handleSubmit}
-          nextLabel="Create Product"
-          nextLoading={isSubmitting}
-        />
+        <InlineStack gap="300" align="end">
+          <Button onClick={onBack}>Back</Button>
+          <Button
+            variant="primary"
+            loading={isSubmitting}
+            onClick={handleSubmit}
+          >
+            Create Product
+          </Button>
+        </InlineStack>
       </BlockStack>
     </Card>
   );

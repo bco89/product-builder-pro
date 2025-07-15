@@ -5,6 +5,7 @@ import {
   BlockStack,
   InlineStack,
   Text,
+  Button,
   Spinner,
   Icon,
   Banner,
@@ -15,8 +16,6 @@ import { useQuery } from '@tanstack/react-query';
 import { SKUBarcodeConflictModal } from '../../../components/SKUBarcodeConflictModal';
 import { useBeforeUnloadWarning } from '../../../hooks/useBeforeUnloadWarning';
 import { ShopifyApiServiceImpl } from '../../../services/shopifyApi';
-import { ProductInfoCard } from '../../../components/ProductInfoCard';
-import { StepNavigation } from '../../../components/StepNavigation';
 
 interface StepSKUBarcodeProps {
   formData: {
@@ -74,7 +73,7 @@ interface LastValidatedValues {
 
 export default function StepSKUBarcode({ formData, onChange, onNext, onBack, productId }: StepSKUBarcodeProps) {
   const hasVariants = formData.options.length > 0;
-  const shopifyApi = useMemo(() => new ShopifyApiServiceImpl(), []);
+  const shopifyApi = useMemo(() => new ShopifyApiServiceImpl(null), []);
   
   // Get store metrics to determine validation strategy
   const { data: storeMetrics } = useQuery({
@@ -562,15 +561,41 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack, pro
   return (
     <>
       {/* Enhanced Product Information Display Card */}
-      <ProductInfoCard
-        title={formData.title}
-        vendor={formData.vendor}
-        productType={formData.productType}
-        category={formData.category?.name}
-        price={basePricing?.price}
-        compareAtPrice={basePricing?.compareAtPrice}
-        cost={basePricing?.cost}
-      />
+      <Card>
+        <BlockStack gap="200">
+          <Text as="span">
+            <Text as="span" fontWeight="bold">Product Title:</Text> {formData.title || 'Not specified'}
+          </Text>
+          <InlineStack gap="400" wrap>
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Vendor:</Text> {formData.vendor || 'Not specified'}
+            </Text>
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Product Type:</Text> {formData.productType || 'Not specified'}
+            </Text>
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Category:</Text> {formData.category?.name || 'Not specified'}
+            </Text>
+          </InlineStack>
+          {basePricing && (
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Price:</Text> ${basePricing.price || '0.00'}
+              {basePricing.compareAtPrice && (
+                <>
+                  {' • '}
+                  <Text as="span" fontWeight="bold">Compare at:</Text> ${basePricing.compareAtPrice}
+                </>
+              )}
+              {basePricing.cost && (
+                <>
+                  {' • '}
+                  <Text as="span" fontWeight="bold">Cost:</Text> ${basePricing.cost}
+                </>
+              )}
+            </Text>
+          )}
+        </BlockStack>
+      </Card>
 
       <Card>
         <BlockStack gap="500">
@@ -686,13 +711,17 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack, pro
             </BlockStack>
           )}
 
-          <StepNavigation
-            onBack={onBack}
-            onNext={handleSubmit}
-            nextDisabled={!isFormValid() && !allowDuplicates}
-            nextLoading={batchValidating}
-            nextLabel={batchValidating ? 'Validating...' : 'Next'}
-          />
+          <InlineStack gap="300" align="end">
+            <Button onClick={onBack}>Back</Button>
+            <Button 
+              variant="primary"
+              onClick={handleSubmit}
+              disabled={!isFormValid() && !allowDuplicates}
+              loading={batchValidating}
+            >
+              {batchValidating ? 'Validating...' : 'Next'}
+            </Button>
+          </InlineStack>
         </BlockStack>
       </Card>
 

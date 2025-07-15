@@ -1,5 +1,6 @@
+import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-import { errorResponse, successResponse, logApiRequest } from "../utils/api-response";
+import { logger } from "../services/logger.server.ts";
 
 interface ProductOption {
   name: string;
@@ -59,18 +60,14 @@ function generateVariantCombinations(options: ProductOption[]): string[][] {
 
 export const action = async ({ request }: { request: Request }) => {
   if (request.method !== "POST") {
-    return errorResponse(
-      new Error("Method not allowed"),
-      "Method not allowed",
-      { endpoint: "api.shopify.create-product" }
-    );
+    return json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  const { admin, session } = await authenticate.admin(request);
+  const { admin } = await authenticate.admin(request);
   const formData = await request.json() as FormData;
 
   try {
-    logApiRequest("api.shopify.create-product", "POST", { shop: session.shop });
+    logger.info("Creating product with data:", { formData });
 
     const response = await admin.graphql(
       `#graphql
@@ -115,23 +112,21 @@ export const action = async ({ request }: { request: Request }) => {
     );
 
     const responseJson = await response.json();
+    logger.info("Product creation response:", { responseJson });
     
     if (responseJson.data?.productCreate?.userErrors?.length > 0) {
-      const errorMessage = responseJson.data.productCreate.userErrors
-        .map((e: UserError) => `${e.field} - ${e.message}`)
-        .join(", ");
-      return errorResponse(
-        new Error(`Product creation failed: ${errorMessage}`),
-        "Failed to create product",
-        { shop: session.shop, endpoint: "api.shopify.create-product" }
+      logger.error("Product creation user errors:", undefined, { userErrors: responseJson.data.productCreate.userErrors });
+      return json(
+        { error: `Failed to create product: ${responseJson.data.productCreate.userErrors.map((e: UserError) => `${e.field} - ${e.message}`).join(", ")}` },
+        { status: 400 }
       );
     }
 
     if (!responseJson.data?.productCreate?.product) {
-      return errorResponse(
-        new Error("No product data returned from Shopify"),
-        "Failed to create product: No product data returned",
-        { shop: session.shop, endpoint: "api.shopify.create-product" }
+      logger.error("No product data in response:", undefined, { responseJson });
+      return json(
+        { error: "Failed to create product: No product data returned" },
+        { status: 500 }
       );
     }
 
@@ -191,12 +186,13 @@ export const action = async ({ request }: { request: Request }) => {
         );
 
         const variantResponseJson = await variantResponse.json();
+        logger.info("Single variant update response:", { variantResponseJson });
         
         if (variantResponseJson.data?.productVariantsBulkUpdate?.userErrors?.length > 0) {
-          return errorResponse(
-            new Error(`Variant update failed: ${variantResponseJson.data.productVariantsBulkUpdate.userErrors[0].message}`),
-            "Failed to update product variant",
-            { shop: session.shop, endpoint: "api.shopify.create-product" }
+          logger.error("Variant update errors:", undefined, { userErrors: variantResponseJson.data.productVariantsBulkUpdate.userErrors });
+          return json(
+            { error: `Failed to update product variant: ${variantResponseJson.data.productVariantsBulkUpdate.userErrors[0].message}` },
+            { status: 400 }
           );
         }
       }
@@ -254,25 +250,33 @@ export const action = async ({ request }: { request: Request }) => {
       );
 
       const variantResponseJson = await variantResponse.json();
+      logger.info("Variant creation response:", { variantResponseJson });
       
       if (variantResponseJson.data?.productVariantsBulkCreate?.userErrors?.length > 0) {
-        return errorResponse(
-          new Error(`Variants creation failed: ${variantResponseJson.data.productVariantsBulkCreate.userErrors[0].message}`),
-          "Failed to create product variants",
-          { shop: session.shop, endpoint: "api.shopify.create-product" }
+        logger.error("Variant creation errors:", undefined, { userErrors: variantResponseJson.data.productVariantsBulkCreate.userErrors });
+        return json(
+          { error: `Failed to create product variants: ${variantResponseJson.data.productVariantsBulkCreate.userErrors[0].message}` },
+          { status: 400 }
         );
       }
     }
 
-    return successResponse({
+    return json({
       ...responseJson.data.productCreate.product,
       shopDomain: process.env.SHOPIFY_SHOP_DOMAIN || ''
     });
   } catch (error) {
-    return errorResponse(
-      error,
-      "Failed to create product",
-      { shop: session.shop, endpoint: "api.shopify.create-product" }
+    logger.error("Failed to create product:", error);
+    if (error instanceof Error) {
+      logger.error("Error details:", error);
+      return json(
+        { error: `Failed to create product: ${error.message}` },
+        { status: 500 }
+      );
+    }
+    return json(
+      { error: "Failed to create product: Unknown error" },
+      { status: 500 }
     );
   }
 }; 

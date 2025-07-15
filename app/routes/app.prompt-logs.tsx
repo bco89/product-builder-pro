@@ -16,7 +16,7 @@ import {
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticateAdmin } from "../services/auth.server";
-import { getRecentExtractedData, getRecentLLMPrompts } from "../services/ai";
+import { getRecentExtractedData, getRecentLLMPrompts } from "../services/prompt-logger-db.server";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { useState, useCallback } from "react";
 

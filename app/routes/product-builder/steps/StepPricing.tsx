@@ -5,10 +5,10 @@ import {
   BlockStack,
   Text,
   Banner,
+  Button,
+  InlineStack,
 } from '@shopify/polaris';
 import type { FormData, PricingData } from '../FormContext';
-import { ProductInfoCard } from '../../../components/ProductInfoCard';
-import { StepNavigation } from '../../../components/StepNavigation';
 
 interface StepPricingProps {
   formData: FormData;
@@ -88,12 +88,24 @@ export default function StepPricing({ formData, onChange, onNext, onBack, produc
   return (
     <>
       {/* Enhanced Product Information Display Card */}
-      <ProductInfoCard
-        title={formData.title}
-        vendor={formData.vendor}
-        productType={formData.productType}
-        category={formData.category?.name}
-      />
+      <Card>
+        <BlockStack gap="200">
+          <Text as="span">
+            <Text as="span" fontWeight="bold">Product Title:</Text> {formData.title || 'Not specified'}
+          </Text>
+          <InlineStack gap="400" wrap>
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Vendor:</Text> {formData.vendor || 'Not specified'}
+            </Text>
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Product Type:</Text> {formData.productType || 'Not specified'}
+            </Text>
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Category:</Text> {formData.category?.name || 'Not specified'}
+            </Text>
+          </InlineStack>
+        </BlockStack>
+      </Card>
 
       <Card>
         <BlockStack gap="500">
@@ -144,11 +156,16 @@ export default function StepPricing({ formData, onChange, onNext, onBack, produc
             />
           </BlockStack>
 
-          <StepNavigation
-            onBack={onBack}
-            onNext={onNext}
-            nextDisabled={!formData.pricing[0]?.price}
-          />
+          <InlineStack gap="300" align="end">
+            <Button onClick={onBack}>Back</Button>
+            <Button 
+              variant="primary"
+              onClick={onNext}
+              disabled={!formData.pricing[0]?.price}
+            >
+              Next
+            </Button>
+          </InlineStack>
         </BlockStack>
       </Card>
     </>

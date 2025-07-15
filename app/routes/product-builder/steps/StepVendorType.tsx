@@ -1,8 +1,10 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import {
   Card,
   FormLayout,
+  Button,
   Text,
+  ButtonGroup,
   Spinner,
   Combobox,
   Listbox,
@@ -15,9 +17,8 @@ import {
   Modal,
   Checkbox
 } from '@shopify/polaris';
-import { SearchIcon, PlusIcon } from '@shopify/polaris-icons';
+import { SearchIcon, AlertCircleIcon, PlusIcon } from '@shopify/polaris-icons';
 import { useQuery } from '@tanstack/react-query';
-import { StepNavigation } from '../../../components/StepNavigation';
 
 interface ProductType {
   productType: string;
@@ -542,11 +543,16 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
           )}
         </BlockStack>
 
-        <StepNavigation
-          onBack={onBack}
-          onNext={handleSubmit}
-          nextDisabled={!formData.vendor || !formData.productType || vendorsLoading || productTypesLoading}
-        />
+        <ButtonGroup>
+          <Button onClick={onBack}>Back</Button>
+          <Button 
+            variant="primary"
+            onClick={handleSubmit} 
+            disabled={!formData.vendor || !formData.productType || vendorsLoading || productTypesLoading}
+          >
+            Next
+          </Button>
+        </ButtonGroup>
       </FormLayout>
 
       {/* New Entry Confirmation Modal */}

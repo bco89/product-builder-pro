@@ -22,8 +22,6 @@ import {
 import { AlertCircleIcon, EditIcon, LinkIcon, ImageIcon } from '@shopify/polaris-icons';
 import { useQuery } from '@tanstack/react-query';
 import { Editor } from '@tinymce/tinymce-react';
-import { ProductInfoCard } from '../../../components/ProductInfoCard';
-import { StepNavigation } from '../../../components/StepNavigation';
 
 // URL validation helper
 const isValidUrl = (url: string): boolean => {
@@ -35,6 +33,12 @@ const isValidUrl = (url: string): boolean => {
   }
 };
 
+// Strip HTML tags for character counting
+const stripHtml = (html: string): string => {
+  const tmp = document.createElement('DIV');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+};
 
 // TinyMCE Editor Component
 const WYSIWYGEditor = ({ 
@@ -262,11 +266,21 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
 
   return (
     <>
-      <ProductInfoCard
-        title={formData.title}
-        productType={formData.productType}
-        category={formData.category?.name}
-      />
+      <Card>
+        <BlockStack gap="200">
+          <Text as="span">
+            <Text as="span" fontWeight="bold">Product:</Text> {formData.title}
+          </Text>
+          <InlineStack gap="400" wrap>
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Type:</Text> {formData.productType}
+            </Text>
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Category:</Text> {formData.category?.name || 'Not specified'}
+            </Text>
+          </InlineStack>
+        </BlockStack>
+      </Card>
 
       <Card>
         <BlockStack gap="500">
@@ -441,7 +455,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
                       onClick={handleRegenerate}
                       disabled={isGenerating}
                     >
-                      Regenerate ({`${3 - regenerationCount}`} left)
+                      Regenerate ({3 - regenerationCount} left)
                     </Button>
                     <Badge tone="info">
                       {`Generation ${regenerationCount} of 3`}
@@ -551,10 +565,15 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
             </>
           )}
 
-          <StepNavigation
-            onBack={onBack}
-            onNext={onNext}
-          />
+          <InlineStack gap="300" align="end">
+            <Button onClick={onBack}>Back</Button>
+            <Button
+              variant="primary"
+              onClick={onNext}
+            >
+              Next
+            </Button>
+          </InlineStack>
         </BlockStack>
       </Card>
     </>

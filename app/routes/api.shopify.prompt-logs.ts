@@ -1,6 +1,6 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
-import { getRecentExtractedData, getRecentLLMPrompts } from "../services/ai";
+import { getRecentExtractedData, getRecentLLMPrompts } from "../services/prompt-logger-db.server";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
