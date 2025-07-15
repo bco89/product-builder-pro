@@ -7,9 +7,9 @@ import {
   checkHandleExists,
   batchValidateSkus,
   batchValidateBarcodes,
-  validateSkuFormat,
-  validateBarcodeFormat,
-  validateHandleFormat,
+  isValidSkuFormat,
+  isValidBarcodeFormat,
+  isValidHandleFormat,
   generateHandleSuggestions
 } from "~/utils/validation";
 import type { ValidationResponse, BatchValidationResponse } from "~/types";
@@ -44,9 +44,11 @@ export const action: ActionFunction = async ({ request }) => {
         }
 
         // Check format first
-        const formatValidation = validateSkuFormat(value);
-        if (!formatValidation.isValid) {
-          return successResponse<ValidationResponse>(formatValidation);
+        if (!isValidSkuFormat(value)) {
+          return successResponse<ValidationResponse>({
+            isValid: false,
+            error: 'SKU must contain only letters, numbers, hyphens, and underscores'
+          });
         }
 
         // Check existence
@@ -56,16 +58,19 @@ export const action: ActionFunction = async ({ request }) => {
 
       case 'barcode': {
         if (!value) {
-          return json<ValidationResponse>({ 
-            isValid: false, 
-            error: "Barcode value is required" 
-          }, { status: 400 });
+          return errorResponse(
+            new Error("Barcode value is required"),
+            "Barcode value is required",
+            { shop, endpoint: "api.shopify.validate" }
+          );
         }
 
         // Check format first
-        const formatValidation = validateBarcodeFormat(value);
-        if (!formatValidation.isValid) {
-          return successResponse<ValidationResponse>(formatValidation);
+        if (!isValidBarcodeFormat(value)) {
+          return successResponse<ValidationResponse>({
+            isValid: false,
+            error: 'Barcode must contain only numbers'
+          });
         }
 
         // Check existence
@@ -75,27 +80,28 @@ export const action: ActionFunction = async ({ request }) => {
 
       case 'handle': {
         if (!value) {
-          return json<ValidationResponse>({ 
-            isValid: false, 
-            error: "Handle value is required" 
-          }, { status: 400 });
+          return errorResponse(
+            new Error("Handle value is required"),
+            "Handle value is required",
+            { shop, endpoint: "api.shopify.validate" }
+          );
         }
 
         // Check format
-        const formatValidation = validateHandleFormat(value);
-        if (!formatValidation.isValid) {
-          return json<ValidationResponse>({
-            ...formatValidation,
-            suggestions: generateHandleSuggestions(value)
+        if (!isValidHandleFormat(value)) {
+          return successResponse<ValidationResponse>({
+            isValid: false,
+            error: 'Handle must contain only lowercase letters, numbers, and hyphens',
+            suggestions: await generateHandleSuggestions(admin, value)
           });
         }
 
         // Check existence
         const existsResult = await checkHandleExists(admin, value, productId);
         if (!existsResult.isValid && !existsResult.error) {
-          return json<ValidationResponse>({
+          return successResponse<ValidationResponse>({
             ...existsResult,
-            suggestions: generateHandleSuggestions(value)
+            suggestions: await generateHandleSuggestions(admin, value)
           });
         }
 
@@ -104,10 +110,11 @@ export const action: ActionFunction = async ({ request }) => {
 
       case 'sku-batch': {
         if (!values || !Array.isArray(values)) {
-          return json<BatchValidationResponse>({ 
-            results: [], 
-            hasErrors: true 
-          }, { status: 400 });
+          return errorResponse(
+            new Error("SKU values array is required"),
+            "SKU values array is required",
+            { shop, endpoint: "api.shopify.validate" }
+          );
         }
 
         const results = await batchValidateSkus(admin, values, productId);
@@ -118,10 +125,11 @@ export const action: ActionFunction = async ({ request }) => {
 
       case 'barcode-batch': {
         if (!values || !Array.isArray(values)) {
-          return json<BatchValidationResponse>({ 
-            results: [], 
-            hasErrors: true 
-          }, { status: 400 });
+          return errorResponse(
+            new Error("Barcode values array is required"),
+            "Barcode values array is required",
+            { shop, endpoint: "api.shopify.validate" }
+          );
         }
 
         const results = await batchValidateBarcodes(admin, values, productId);

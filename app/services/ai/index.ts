@@ -45,8 +45,6 @@ export const extractForDescriptionGeneration = async (
 };
 
 // Create singleton instance for convenience
-import { AIService } from './AIService';
-
 let aiServiceInstance: AIService | null = null;
 
 export function getAIService(): AIService {

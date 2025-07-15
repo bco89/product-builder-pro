@@ -5,9 +5,6 @@ import { PromptLogger } from './logging/PromptLogger';
 import { PromptManager } from './prompts/PromptManager';
 import { ProductExtractor } from './extractors/ProductExtractor';
 import { ImageAnalyzer } from './extractors/ImageAnalyzer';
-import { getProductTypePrompt, getProductTypeConfig } from '../prompts/product-type-prompts.js';
-import { formatProductDescription, stripHTML } from '../prompts/formatting.js';
-import { getProductTypeCustomer } from '../prompts/product-type-customers.js';
 import { prisma } from '../../db.server';
 import type { AIServiceConfig, ExtractedProductData, ImageAnalysisResult } from './types';
 import type FirecrawlApp from '@mendable/firecrawl-js';
@@ -97,7 +94,17 @@ export class AIService {
     this.promptLogger = new PromptLogger();
     this.promptManager = new PromptManager();
     this.productExtractor = new ProductExtractor(this.promptLogger);
-    this.imageAnalyzer = new ImageAnalyzer(this.promptLogger, this.openai || new OpenAI());
+    // Only initialize ImageAnalyzer if we have OpenAI
+    if (this.openai) {
+      this.imageAnalyzer = new ImageAnalyzer(this.promptLogger, this.openai);
+    } else {
+      // Create a dummy analyzer that throws if used
+      this.imageAnalyzer = {
+        analyzeProductImages: async () => {
+          throw new Error('Image analysis requires OpenAI API key');
+        }
+      } as any;
+    }
   }
   
   /**
@@ -196,7 +203,7 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
     // Check if this is the old API call pattern
     if ('shop' in paramsOrData && 'productTitle' in paramsOrData) {
       // Import legacy generator lazily to avoid circular dependencies
-      const { LegacyDescriptionGenerator } = await import('./legacy/LegacyDescriptionGenerator');
+      const { LegacyDescriptionGenerator } = require('./legacy/LegacyDescriptionGenerator');
       const generator = new LegacyDescriptionGenerator(
         this.provider,
         this.anthropic,
@@ -235,8 +242,8 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
           model: this.config.model,
           messages: [{ role: 'user', content: userPrompt }],
           system: systemPrompt,
-          max_tokens: this.config.maxTokens,
-          temperature: this.config.temperature
+          max_tokens: this.config.maxTokens || 2500,
+          temperature: this.config.temperature || 0.7
         });
         response = completion.content[0].type === 'text' ? completion.content[0].text : '';
       } else if (this.provider === 'openai' && this.openai) {
@@ -306,6 +313,10 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
         model: this.config.model
       });
       
+      if (!this.openai) {
+        throw new Error('Product analysis requires OpenAI API key');
+      }
+      
       const completion = await this.openai.chat.completions.create({
         model: this.config.model,
         messages: [
@@ -363,6 +374,10 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
         imageUrl,
         model: 'gpt-4-vision-preview'
       });
+      
+      if (!this.openai) {
+        throw new Error('Image analysis requires OpenAI API key');
+      }
       
       const completion = await this.openai.chat.completions.create({
         model: 'gpt-4-vision-preview',
