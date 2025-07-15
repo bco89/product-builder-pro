@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import * as path from 'node:path';
+import path from 'node:path';
 
 /**
  * Sanitize a product name to be used as a filename
