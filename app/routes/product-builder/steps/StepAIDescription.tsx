@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   Card,
   BlockStack,
@@ -17,7 +17,6 @@ import {
   DropZone,
   Thumbnail,
   InlineError,
-  RadioButton,
   Toast,
 } from '@shopify/polaris';
 import { AlertCircleIcon, EditIcon, LinkIcon, ImageIcon } from '@shopify/polaris-icons';
@@ -34,12 +33,6 @@ const isValidUrl = (url: string): boolean => {
   }
 };
 
-// Strip HTML tags for character counting
-const stripHtml = (html: string): string => {
-  const tmp = document.createElement('DIV');
-  tmp.innerHTML = html;
-  return tmp.textContent || tmp.innerText || '';
-};
 
 // TinyMCE Editor Component
 const WYSIWYGEditor = ({ 
@@ -150,13 +143,15 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
   const hasExistingContent = formData.description || formData.seoTitle || formData.seoDescription;
 
   // Fetch shop settings
-  const { data: shopSettings } = useQuery({
+  const { data: shopSettings, isLoading: isLoadingSettings, error: settingsError } = useQuery({
     queryKey: ['shopSettings'],
     queryFn: async () => {
       const response = await fetch('/api/shopify/shop-settings');
       if (!response.ok) throw new Error('Failed to fetch settings');
       return response.json();
-    }
+    },
+    retry: 2,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   const handleGenerate = async () => {
@@ -168,6 +163,10 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
     setIsGenerating(true);
     setError(null);
     setScrapingProgress('');
+
+    // Create AbortController for request timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout
 
     try {
       const payload = {
@@ -181,6 +180,15 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
         additionalContext: inputMethod === 'context' ? additionalContext : undefined,
         hasImages: formData.images.length > 0 || contextImages.length > 0,
         shopSettings: {
+          businessType: 'retailer',
+          storeName: '',
+          storeLocation: '',
+          uniqueSellingPoints: '',
+          coreValues: '',
+          brandPersonality: '',
+          targetCustomerOverride: '',
+          additionalCustomerInsights: '',
+          excludedCustomerSegments: '',
           ...shopSettings,
           businessType: shopSettings?.businessType || 'retailer'
         },
@@ -195,13 +203,40 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
 
-      const result = await response.json();
+      // Clear timeout since request completed
+      clearTimeout(timeoutId);
 
+      // Validate response before parsing JSON
       if (!response.ok) {
-        // Handle specific error types
-        const errorData = result as { error: string; details?: string; code?: string };
+        let errorData;
+        try {
+          // Check if response has content and is JSON
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const text = await response.text();
+            if (text.trim()) {
+              errorData = JSON.parse(text);
+            } else {
+              throw new Error('Empty response from server');
+            }
+          } else {
+            // Non-JSON response, likely an error page
+            const text = await response.text();
+            throw new Error(`Server returned ${response.status}: ${text.substring(0, 200)}`);
+          }
+        } catch (parseError) {
+          setError({
+            message: `Server error (${response.status}). Please try again.`,
+            details: parseError instanceof Error ? parseError.message : 'Unable to parse server response',
+            code: 'PARSE_ERROR'
+          });
+          return;
+        }
+
+        // Handle specific error types from properly parsed JSON
         setError({
           message: errorData.error || 'Failed to generate description',
           details: errorData.details,
@@ -209,20 +244,70 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
         });
         return;
       }
+
+      // Parse successful response
+      let result;
+      try {
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('Server did not return JSON data');
+        }
+
+        const text = await response.text();
+        if (!text.trim()) {
+          throw new Error('Server returned empty response');
+        }
+
+        result = JSON.parse(text);
+      } catch (parseError) {
+        setError({
+          message: 'Invalid response from server. Please try again.',
+          details: parseError instanceof Error ? parseError.message : 'Unable to parse server response',
+          code: 'PARSE_ERROR'
+        });
+        return;
+      }
+
+      // Validate result structure
+      if (!result || typeof result !== 'object') {
+        setError({
+          message: 'Invalid data received from server. Please try again.',
+          details: 'Server response was not in the expected format',
+          code: 'INVALID_RESPONSE'
+        });
+        return;
+      }
       
       onChange({
-        description: result.description,
-        seoTitle: result.seoTitle,
-        seoDescription: result.seoDescription,
+        description: result.description || '',
+        seoTitle: result.seoTitle || '',
+        seoDescription: result.seoDescription || '',
       });
 
       setHasGeneratedContent(true);
       setScrapingProgress('');
     } catch (err) {
-      setError({
-        message: 'Network error. Please check your connection and try again.',
-        details: err instanceof Error ? err.message : 'Unknown error occurred'
-      });
+      clearTimeout(timeoutId);
+      
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError({
+          message: 'Request timed out. Please try again.',
+          details: 'The request took too long to complete',
+          code: 'TIMEOUT'
+        });
+      } else if (err instanceof TypeError && err.message.includes('fetch')) {
+        setError({
+          message: 'Network error. Please check your connection and try again.',
+          details: 'Unable to connect to the server',
+          code: 'NETWORK_ERROR'
+        });
+      } else {
+        setError({
+          message: 'An unexpected error occurred. Please try again.',
+          details: err instanceof Error ? err.message : 'Unknown error occurred',
+          code: 'UNKNOWN_ERROR'
+        });
+      }
     } finally {
       setIsGenerating(false);
       setScrapingProgress('');
@@ -336,9 +421,20 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
               <Divider />
               <BlockStack gap="300">
                 <Text variant="headingSm" as="h3">Description Perspective</Text>
-                {shopSettings?.businessType ? (
+                {isLoadingSettings ? (
+                  <InlineStack gap="200" align="center">
+                    <Spinner accessibilityLabel="Loading settings" size="small" />
+                    <Text as="p">Loading settings...</Text>
+                  </InlineStack>
+                ) : settingsError ? (
+                  <Banner tone="warning">
+                    <Text as="p">
+                      Unable to load settings. Using default retailer perspective. Please check your connection and refresh if needed.
+                    </Text>
+                  </Banner>
+                ) : shopSettings?.businessType ? (
                   <InlineStack gap="200" align="start">
-                    <Badge tone="info">
+                    <Badge tone="success">
                       Description Perspective: {shopSettings.businessType === 'manufacturer' ? 'Product Creator' : 'Retailer'}
                     </Badge>
                   </InlineStack>

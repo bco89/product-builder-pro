@@ -10,5 +10,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     where: { shop: session.shop }
   });
 
-  return json(settings || {});
+  // Return settings with default values if they don't exist
+  const defaultSettings = {
+    businessType: 'retailer',
+    storeName: '',
+    storeLocation: '',
+    uniqueSellingPoints: '',
+    coreValues: '',
+    brandPersonality: '',
+    targetCustomerOverride: '',
+    additionalCustomerInsights: '',
+    excludedCustomerSegments: '',
+  };
+
+  return json(settings ? { ...defaultSettings, ...settings } : defaultSettings);
 };
