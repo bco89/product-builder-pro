@@ -99,10 +99,9 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
           Review Product Information
         </Text>
 
-        <Banner tone="warning">
+        <Banner tone="info">
           <Text as="p">
             Please review all information carefully before finalizing the product.
-            Click 'Edit' on any section to make changes.
           </Text>
         </Banner>
 
@@ -110,37 +109,35 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
           {/* Enhanced Product Information Display Card */}
           <Card>
             <BlockStack gap="400">
-              <InlineStack align="space-between">
-                <BlockStack gap="200">
+              <BlockStack gap="200">
+                <Text as="span">
+                  <Text as="span" fontWeight="bold">Product Title:</Text> {formData.title || 'Not specified'}
+                </Text>
+                <InlineStack gap="400" wrap>
                   <Text as="span">
-                    <Text as="span" fontWeight="bold">Product Title:</Text> {formData.title || 'Not specified'}
+                    <Text as="span" fontWeight="bold">Vendor:</Text> {formData.vendor || 'Not specified'}
                   </Text>
-                  <InlineStack gap="400" wrap>
-                    <Text as="span">
-                      <Text as="span" fontWeight="bold">Vendor:</Text> {formData.vendor || 'Not specified'}
-                    </Text>
-                    <Text as="span">
-                      <Text as="span" fontWeight="bold">Product Type:</Text> {formData.productType || 'Not specified'}
-                    </Text>
-                    <Text as="span">
-                      <Text as="span" fontWeight="bold">Category:</Text> {formData.category?.name || 'Not specified'}
-                    </Text>
-                  </InlineStack>
-                </BlockStack>
-                <Button variant="plain" onClick={() => handleEdit(STEPS.VENDOR_TYPE)}>Edit</Button>
-              </InlineStack>
+                  <Text as="span">
+                    <Text as="span" fontWeight="bold">Product Type:</Text> {formData.productType || 'Not specified'}
+                  </Text>
+                  <Text as="span">
+                    <Text as="span" fontWeight="bold">Category:</Text> {formData.category?.name || 'Not specified'}
+                  </Text>
+                </InlineStack>
+              </BlockStack>
             </BlockStack>
           </Card>
 
           {/* Description Card */}
           <Card>
             <BlockStack gap="400">
-              <InlineStack align="space-between">
-                <Text variant="headingSm" as="h3">Description</Text>
-                <Button variant="plain" onClick={() => handleEdit(STEPS.PRODUCT_DETAILS)}>Edit</Button>
-              </InlineStack>
+              <Text variant="headingSm" as="h3">Description</Text>
               <BlockStack gap="300">
-                <Text as="p">{formData.description || 'No description provided'}</Text>
+                {formData.description ? (
+                  <div dangerouslySetInnerHTML={{ __html: formData.description }} />
+                ) : (
+                  <Text as="p">No description provided</Text>
+                )}
                 {formData.images.length > 0 && (
                   <InlineStack gap="300">
                     {formData.images.map((image, index) => (
@@ -160,10 +157,7 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
           {hasVariants && (
             <Card>
               <BlockStack gap="400">
-                <InlineStack align="space-between">
-                  <Text variant="headingSm" as="h3">Variants</Text>
-                  <Button variant="plain" onClick={() => handleEdit(STEPS.VARIANTS)}>Edit</Button>
-                </InlineStack>
+                <Text variant="headingSm" as="h3">Variants</Text>
                 {formData.options.map((option, index) => (
                   <BlockStack key={index} gap="200">
                     <Text as="p" fontWeight="bold">{option.name}</Text>
@@ -181,10 +175,7 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
           {/* SKU & Barcode */}
           <Card>
             <BlockStack gap="400">
-              <InlineStack align="space-between">
-                <Text variant="headingSm" as="h3">SKU & Barcode</Text>
-                <Button variant="plain" onClick={() => handleEdit(STEPS.SKU_BARCODE)}>Edit</Button>
-              </InlineStack>
+              <Text variant="headingSm" as="h3">SKU & Barcode</Text>
               {hasVariants ? (
                 variants.map((variant, index) => (
                   <BlockStack key={index} gap="200">
@@ -211,10 +202,7 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
           {/* Pricing */}
           <Card>
             <BlockStack gap="400">
-              <InlineStack align="space-between">
-                <Text variant="headingSm" as="h3">Pricing</Text>
-                <Button variant="plain" onClick={() => handleEdit(STEPS.PRICING)}>Edit</Button>
-              </InlineStack>
+              <Text variant="headingSm" as="h3">Pricing</Text>
               {hasVariants ? (
                 variants.map((variant, index) => (
                   <BlockStack key={index} gap="200">
@@ -247,10 +235,7 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
           {/* Tags */}
           <Card>
             <BlockStack gap="400">
-              <InlineStack align="space-between">
-                <Text variant="headingSm" as="h3">Tags</Text>
-                <Button variant="plain" onClick={() => handleEdit(STEPS.TAGS)}>Edit</Button>
-              </InlineStack>
+              <Text variant="headingSm" as="h3">Tags</Text>
               <InlineStack gap="200" wrap>
                 {formData.tags.map((tag, index) => (
                   <Badge key={index}>{tag}</Badge>

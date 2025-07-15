@@ -92,7 +92,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
       }
       return response.json();
     },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes - increased for better performance
   });
 
   // Helper function to check if entry exists
@@ -507,7 +507,9 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
             ) : productTypesLoading ? (
               <InlineStack gap="300" align="center">
                 <Spinner accessibilityLabel="Loading product types" size="small" />
-                <Text as="p" variant="bodyMd" tone="subdued">Loading product types...</Text>
+                <Text as="p" variant="bodyMd" tone="subdued">
+                  {productTypesData?.fromCache ? 'Refreshing product types...' : 'Loading product types for first time...'}
+                </Text>
               </InlineStack>
             ) : (
               <Autocomplete
@@ -523,7 +525,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
                     placeholder="Search product types or type to create new..."
                     autoComplete="off"
                     disabled={!!productTypesError}
-                    helpText={getProductTypeHelpText()}
+                    helpText={`${getProductTypeHelpText()}${productTypesData?.fromCache ? ' (Recently cached data)' : ''}`}
                   />
                 }
                 emptyState={

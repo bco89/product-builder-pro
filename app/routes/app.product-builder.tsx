@@ -569,7 +569,7 @@ export default function ProductBuilder() {
   if (showSuccess && productId) {
     const variantCount: number = hasVariants === false ? 1 : formData.options.reduce((acc, option) => acc * option.values.length, 1);
     return (
-      <Page title="Success!">
+      <Page title="Product Created Successfully!">
         <Layout>
           <Layout.Section>
             <StepSuccess 
@@ -721,6 +721,7 @@ export default function ProductBuilder() {
           duration={4000}
         />
       )}
+      <Box paddingBlockEnd="800" />
     </Page>
   );
 } 

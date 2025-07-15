@@ -28,6 +28,7 @@ interface ProductTypesData {
   productTypesByVendor: Record<string, string[]>;
   allProductTypes: string[];
   totalProducts: number;
+  lastUpdated?: number;
 }
 
 export const loader = async ({ request }: { request: Request }) => {
@@ -67,12 +68,15 @@ export const loader = async ({ request }: { request: Request }) => {
       const suggestedProductTypes = cachedData.productTypesByVendor[vendor] || [];
       const allProductTypes = cachedData.allProductTypes || [];
       
+      // Return cached data immediately for better performance
       return json({
         suggestedProductTypes,
         allProductTypes,
         vendor,
         totalSuggested: suggestedProductTypes.length,
-        totalAll: allProductTypes.length
+        totalAll: allProductTypes.length,
+        fromCache: true,
+        cacheAge: Date.now() - (cachedData.lastUpdated || 0)
       });
     }
 
@@ -138,11 +142,12 @@ export const loader = async ({ request }: { request: Request }) => {
     // Get all unique product types
     const allUniqueProductTypes = [...new Set(allProductTypes.map(pt => pt.productType))].sort();
     
-    // Cache the result with proper shop isolation
+    // Cache the result with proper shop isolation and timestamp
     const cacheData: ProductTypesData = { 
       productTypesByVendor, 
       allProductTypes: allUniqueProductTypes,
-      totalProducts: allProductTypes.length
+      totalProducts: allProductTypes.length,
+      lastUpdated: Date.now()
     };
     await CacheService.set(shop, 'productTypes', cacheData);
     
@@ -154,7 +159,9 @@ export const loader = async ({ request }: { request: Request }) => {
       allProductTypes: allUniqueProductTypes,
       vendor,
       totalSuggested: suggestedProductTypes.length,
-      totalAll: allUniqueProductTypes.length
+      totalAll: allUniqueProductTypes.length,
+      fromCache: false,
+      totalProcessed: allProductTypes.length
     });
     
   } catch (error) {

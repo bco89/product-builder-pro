@@ -68,6 +68,7 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
   const [handleValidationState, setHandleValidationState] = useState<HandleValidationState>('idle');
   const [validationTimeout, setValidationTimeout] = useState<NodeJS.Timeout | null>(null);
   const [defaultWeightUnit, setDefaultWeightUnit] = useState<'GRAMS' | 'KILOGRAMS' | 'OUNCES' | 'POUNDS'>('POUNDS');
+  const [showValidationError, setShowValidationError] = useState(false);
 
   // Category Browser state
   const [categoryBrowserOpen, setCategoryBrowserOpen] = useState(false);
@@ -231,7 +232,10 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
 
   const handleSubmit = () => {
     if (isFormValid()) {
+      setShowValidationError(false);
       onNext();
+    } else {
+      setShowValidationError(true);
     }
   };
 
@@ -432,10 +436,10 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
         </div>
 
         <BlockStack gap="300">
-          {!isFormValid() && (
-            <Banner tone="info" title="Complete all required fields">
+          {showValidationError && !isFormValid() && (
+            <Banner tone="critical" title="Please complete required fields">
               <Text as="p">
-                Please fill in all required fields: 
+                Missing required fields: 
                 {!formData.title && " Title"}
                 {handleValidationState !== 'available' && " Valid Handle"}
               </Text>

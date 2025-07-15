@@ -18,6 +18,7 @@ import {
   Thumbnail,
   InlineError,
   RadioButton,
+  Toast,
 } from '@shopify/polaris';
 import { AlertCircleIcon, EditIcon, LinkIcon, ImageIcon } from '@shopify/polaris-icons';
 import { useQuery } from '@tanstack/react-query';
@@ -63,17 +64,15 @@ const WYSIWYGEditor = ({
   // Simple toolbar for SEO fields
   const simpleToolbar = 'bold italic | link | removeformat';
   
-  // Full toolbar for product description
-  const fullToolbar = 'undo redo | formatselect | bold italic underline strikethrough | ' +
-    'alignleft aligncenter alignright alignjustify | ' +
-    'bullist numlist outdent indent | link image | removeformat | help';
+  // Simplified toolbar for product description (matching Shopify native editor)
+  const fullToolbar = 'bold italic underline | alignleft aligncenter alignright | bullist numlist | link | removeformat';
 
   const toolbar = variant === 'simple' ? simpleToolbar : fullToolbar;
   
   // Configure plugins based on variant
   const plugins = variant === 'simple' 
     ? ['link', 'paste', 'wordcount']
-    : ['link', 'image', 'lists', 'paste', 'help', 'wordcount', 'table'];
+    : ['link', 'lists', 'paste', 'wordcount'];
 
   return (
     <Box borderColor="border" borderWidth="025" borderRadius="200">
@@ -84,7 +83,7 @@ const WYSIWYGEditor = ({
         value={value}
         init={{
           height: height,
-          menubar: variant === 'full',
+          menubar: false,
           plugins: plugins,
           toolbar: toolbar,
           placeholder: placeholder,
@@ -142,11 +141,10 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
   const [contextImages, setContextImages] = useState<File[]>([]);
   const [keywords, setKeywords] = useState({ primary: '', secondary: '' });
   const [isGenerating, setIsGenerating] = useState(false);
-  const [regenerationCount, setRegenerationCount] = useState(0);
   const [error, setError] = useState<{ message: string; details?: string; code?: string } | null>(null);
   const [hasGeneratedContent, setHasGeneratedContent] = useState(false);
   const [scrapingProgress, setScrapingProgress] = useState<string>('');
-  const [businessType, setBusinessType] = useState<'manufacturer' | 'retailer' | ''>('');
+  const [showKeywordToast, setShowKeywordToast] = useState(false);
   
   // Check if any content exists
   const hasExistingContent = formData.description || formData.seoTitle || formData.seoDescription;
@@ -160,15 +158,13 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
       return response.json();
     }
   });
-  
-  // Set default business type from shop settings
-  useEffect(() => {
-    if (shopSettings?.businessType && !businessType) {
-      setBusinessType(shopSettings.businessType);
-    }
-  }, [shopSettings, businessType]);
 
   const handleGenerate = async () => {
+    // Show toast if no keywords provided
+    if (!keywords.primary && !keywords.secondary) {
+      setShowKeywordToast(true);
+    }
+
     setIsGenerating(true);
     setError(null);
     setScrapingProgress('');
@@ -186,7 +182,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
         hasImages: formData.images.length > 0 || contextImages.length > 0,
         shopSettings: {
           ...shopSettings,
-          businessType: businessType || shopSettings?.businessType || 'retailer'
+          businessType: shopSettings?.businessType || 'retailer'
         },
       };
 
@@ -220,7 +216,6 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
         seoDescription: result.seoDescription,
       });
 
-      setRegenerationCount(prev => prev + 1);
       setHasGeneratedContent(true);
       setScrapingProgress('');
     } catch (err) {
@@ -234,11 +229,6 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
     }
   };
 
-  const handleRegenerate = () => {
-    if (regenerationCount < 3) {
-      handleGenerate();
-    }
-  };
 
   const handleDropZoneDrop = useCallback(
     (_dropFiles: File[], acceptedFiles: File[]) => {
@@ -340,41 +330,24 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
             </BlockStack>
           )}
 
-          {/* Business Type Selection */}
+          {/* Description Perspective from Settings */}
           {inputMethod !== 'manual' && (
             <BlockStack gap="400">
               <Divider />
-              <BlockStack gap="200">
+              <BlockStack gap="300">
                 <Text variant="headingSm" as="h3">Description Perspective</Text>
-                <Text variant="bodySm" as="p" tone="subdued">
-                  Choose how the AI should write about your products
-                </Text>
-                <BlockStack gap="300">
-                  <RadioButton
-                    label="As the Product Creator"
-                    helpText="Write in first person (we/our) - for products you make or design"
-                    checked={businessType === 'manufacturer'}
-                    id="ai-manufacturer"
-                    name="aiBusinessType"
-                    onChange={() => setBusinessType('manufacturer')}
-                  />
-                  <RadioButton
-                    label="As a Retailer"
-                    helpText="Write in third person (they/their) - for products from other brands"
-                    checked={businessType === 'retailer'}
-                    id="ai-retailer"
-                    name="aiBusinessType"
-                    onChange={() => setBusinessType('retailer')}
-                  />
-                </BlockStack>
-                {shopSettings?.businessType && businessType !== shopSettings.businessType && (
-                  <Box paddingBlockStart="200">
-                    <Banner tone="info">
-                      <Text as="p" variant="bodySm">
-                        This overrides your default setting of "{shopSettings.businessType === 'manufacturer' ? 'Product Creator' : 'Retailer'}" for this product only.
-                      </Text>
-                    </Banner>
-                  </Box>
+                {shopSettings?.businessType ? (
+                  <InlineStack gap="200" align="start">
+                    <Badge tone="info">
+                      Description Perspective: {shopSettings.businessType === 'manufacturer' ? 'Product Creator' : 'Retailer'}
+                    </Badge>
+                  </InlineStack>
+                ) : (
+                  <Banner tone="warning">
+                    <Text as="p">
+                      No description perspective selected. Please go to AI Description Settings to choose whether you create products or sell products from other brands. This will improve the quality of generated descriptions.
+                    </Text>
+                  </Banner>
                 )}
               </BlockStack>
             </BlockStack>
@@ -405,11 +378,11 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
             <BlockStack gap="400">
               <Divider />
               <TextField
-                label="Additional Context"
+                label="What makes this product special?"
                 value={additionalContext}
                 onChange={setAdditionalContext}
                 multiline={4}
-                helpText="Add details like size charts, special features, or usage instructions"
+                helpText="Include unique features, materials, benefits, or anything that should be highlighted in the description"
                 autoComplete="off"
               />
               
@@ -441,28 +414,11 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
                 loading={isGenerating}
                 disabled={
                   isGenerating ||
-                  (inputMethod === 'url' && (!productUrl || !isValidUrl(productUrl))) ||
-                  !keywords.primary
+                  (inputMethod === 'url' && (!productUrl || !isValidUrl(productUrl)))
                 }
               >
                 Generate Description
               </Button>
-              
-              {regenerationCount > 0 && regenerationCount < 3 && (
-                <Box paddingBlockStart="200">
-                  <InlineStack gap="200" align="center">
-                    <Button
-                      onClick={handleRegenerate}
-                      disabled={isGenerating}
-                    >
-                      Regenerate ({3 - regenerationCount} left)
-                    </Button>
-                    <Badge tone="info">
-                      {`Generation ${regenerationCount} of 3`}
-                    </Badge>
-                  </InlineStack>
-                </Box>
-              )}
               </Box>
             </BlockStack>
           )}
@@ -570,12 +526,21 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
             <Button
               variant="primary"
               onClick={onNext}
+              disabled={!formData.description}
             >
               Next
             </Button>
           </InlineStack>
         </BlockStack>
       </Card>
+      
+      {showKeywordToast && (
+        <Toast
+          content="Consider adding a primary keyword to help improve the AI-generated description quality. You can continue without one if preferred."
+          onDismiss={() => setShowKeywordToast(false)}
+          duration={5000}
+        />
+      )}
     </>
   );
 }

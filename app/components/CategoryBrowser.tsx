@@ -152,7 +152,7 @@ export function CategoryBrowser({
         paddingBlock="300"
         borderBlockEndWidth={index === categories.length - 1 ? "0" : "025"}
         borderColor="border"
-        background={isHovered ? "bg-surface-hover" : isSelected ? "bg-surface-selected" : isSuggested ? "bg-surface-success" : undefined}
+        background={isHovered ? "bg-surface-hover" : isSelected ? "bg-surface-selected" : undefined}
       >
         <div
           style={{
