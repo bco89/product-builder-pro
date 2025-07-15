@@ -278,8 +278,11 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
     } catch (error) {
       logger.error('Failed to generate product description', {
         error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
         descriptionType: descType,
-        productTitle: productData.title
+        productTitle: productData.title,
+        provider: this.provider,
+        model: this.config.model
       });
       
       // Log the error
@@ -290,7 +293,11 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
         metadata
       );
       
-      throw error;
+      // Throw a more descriptive error
+      if (error instanceof Error && error.message.includes('API')) {
+        throw error; // Pass through API errors
+      }
+      throw new Error(`Failed to generate description: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
   

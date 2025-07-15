@@ -311,7 +311,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
                   label="Primary Keyword"
                   value={keywords.primary}
                   onChange={(value) => setKeywords(prev => ({ ...prev, primary: value }))}
-                  helpText="Most important keyword for SEO"
+                  helpText="Optional - helps improve SEO focus"
                   autoComplete="off"
                 />
                 <TextField
@@ -427,8 +427,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
                 loading={isGenerating}
                 disabled={
                   isGenerating ||
-                  (inputMethod === 'url' && (!productUrl || !isValidUrl(productUrl))) ||
-                  !keywords.primary
+                  (inputMethod === 'url' && (!productUrl || !isValidUrl(productUrl)))
                 }
               >
                 Generate Description

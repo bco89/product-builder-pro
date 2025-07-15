@@ -11,6 +11,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticateAdmin(request);
   const data = await request.json();
 
+  // Validate required fields
+  if (!data.productTitle || !data.productType) {
+    return json({ 
+      error: 'Missing required fields',
+      code: 'VALIDATION_ERROR',
+      details: 'Product title and type are required'
+    }, { status: 400 });
+  }
+
+  // Ensure keywords is an array (can be empty)
+  if (!data.keywords) {
+    data.keywords = [];
+  }
+
   try {
     let scrapedData = null;
     let imageAnalysis = null;
