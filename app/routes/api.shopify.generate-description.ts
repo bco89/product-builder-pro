@@ -4,7 +4,6 @@ import { getAIService } from "../services/ai";
 import { ProductScraperService, ProductScraperError } from "../services/scraper.server";
 import { prisma } from "../db.server";
 import { logger } from "../services/logger.server";
-import { errorResponse } from "../utils/api-response";
 import type { ActionFunctionArgs } from "@remix-run/node";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
