@@ -7,7 +7,6 @@ import {
   TextField,
   InlineStack,
   Banner,
-  Spinner,
   ButtonGroup,
   FormLayout,
   Box,
@@ -22,6 +21,7 @@ import {
 import { AlertCircleIcon, EditIcon, LinkIcon, ImageIcon } from '@shopify/polaris-icons';
 import { useQuery } from '@tanstack/react-query';
 import { Editor } from '@tinymce/tinymce-react';
+import LoadingProgress from '../../../components/LoadingProgress';
 
 // URL validation helper
 const isValidUrl = (url: string): boolean => {
@@ -138,6 +138,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
   const [hasGeneratedContent, setHasGeneratedContent] = useState(false);
   const [scrapingProgress, setScrapingProgress] = useState<string>('');
   const [showKeywordToast, setShowKeywordToast] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
   
   // Check if any content exists
   const hasExistingContent = formData.description || formData.seoTitle || formData.seoDescription;
@@ -197,6 +198,9 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
       // Show progress for URL scraping
       if (inputMethod === 'url') {
         setScrapingProgress('Analyzing URL...');
+        setGenerationProgress(10);
+      } else {
+        setGenerationProgress(20);
       }
 
       const response = await fetch('/api/shopify/generate-description', {
@@ -208,6 +212,9 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
 
       // Clear timeout since request completed
       clearTimeout(timeoutId);
+      
+      // Update progress after fetch
+      setGenerationProgress(50);
 
       // Validate response before parsing JSON
       if (!response.ok) {
@@ -278,6 +285,9 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
         return;
       }
       
+      // Update progress before setting results
+      setGenerationProgress(90);
+      
       onChange({
         description: result.description || '',
         seoTitle: result.seoTitle || '',
@@ -286,6 +296,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
 
       setHasGeneratedContent(true);
       setScrapingProgress('');
+      setGenerationProgress(100);
     } catch (err) {
       clearTimeout(timeoutId);
       
@@ -311,6 +322,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
     } finally {
       setIsGenerating(false);
       setScrapingProgress('');
+      setGenerationProgress(0);
     }
   };
 
@@ -361,6 +373,32 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
         <BlockStack gap="500">
           <Text variant="headingMd" as="h2">AI-Powered Description Generation</Text>
 
+          {/* Show loading state when generating, otherwise show form */}
+          {isGenerating ? (
+            <LoadingProgress
+              variant="ai-generation"
+              progress={generationProgress}
+              messages={
+                inputMethod === 'url' ? [
+                  "🔍 Fetching product information from URL...",
+                  "📊 Analyzing product details and features...",
+                  "✨ Crafting compelling description...",
+                  "🎯 Optimizing for your SEO keywords...",
+                  "🚀 Finalizing your product description..."
+                ] : [
+                  "🔍 Analyzing your product information...",
+                  "🎨 Creating engaging content...",
+                  "✍️ Writing compelling copy...",
+                  "🎯 Optimizing for search engines...",
+                  "✅ Adding final touches..."
+                ]
+              }
+              showSkeleton={true}
+              title="Generating AI Description"
+              estimatedTime={inputMethod === 'url' ? 30 : 20}
+            />
+          ) : (
+            <>
           {/* Input Method Selection */}
           <BlockStack gap="400">
             <Text variant="headingSm" as="h3">Choose Input Method</Text>
@@ -518,16 +556,10 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
               </Box>
             </BlockStack>
           )}
-
-          {/* Progress indicator */}
-          {scrapingProgress && (
-            <Banner tone="info">
-              <InlineStack gap="200" align="center">
-                <Spinner accessibilityLabel="Loading" size="small" />
-                <Text as="p">{scrapingProgress}</Text>
-              </InlineStack>
-            </Banner>
+          
+          </>
           )}
+
 
           {/* Error display */}
           {error && (

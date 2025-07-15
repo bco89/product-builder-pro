@@ -1,11 +1,10 @@
-import { useCallback, useMemo, useState, useEffect } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Card,
   FormLayout,
   Button,
   Text,
   ButtonGroup,
-  Spinner,
   Combobox,
   Listbox,
   Autocomplete,
@@ -17,8 +16,9 @@ import {
   Modal,
   Checkbox
 } from '@shopify/polaris';
-import { SearchIcon, AlertCircleIcon, PlusIcon } from '@shopify/polaris-icons';
+import { SearchIcon, PlusIcon } from '@shopify/polaris-icons';
 import { useQuery } from '@tanstack/react-query';
+import LoadingProgress from '../../../components/LoadingProgress';
 
 interface ProductType {
   productType: string;
@@ -439,10 +439,14 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
         <BlockStack gap="200">
           <div style={{ height: vendorsLoading ? '44px' : 'auto' }}>
             {vendorsLoading ? (
-              <InlineStack gap="300" align="center">
-                <Spinner accessibilityLabel="Loading vendors" size="small" />
-                <Text as="p" variant="bodyMd" tone="subdued">Loading vendors...</Text>
-              </InlineStack>
+              <LoadingProgress
+                variant="data-fetch"
+                messages={[
+                  "🔍 Discovering available vendors...",
+                  "📦 Loading vendor catalog...",
+                  "✨ Preparing vendor list..."
+                ]}
+              />
             ) : (
               <Combobox
                 activator={
@@ -505,12 +509,22 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
                 }
               />
             ) : productTypesLoading ? (
-              <InlineStack gap="300" align="center">
-                <Spinner accessibilityLabel="Loading product types" size="small" />
-                <Text as="p" variant="bodyMd" tone="subdued">
-                  {productTypesData?.fromCache ? 'Refreshing product types...' : 'Loading product types for first time...'}
-                </Text>
-              </InlineStack>
+              <LoadingProgress
+                variant="data-fetch"
+                messages={
+                  productTypesData?.fromCache ? [
+                    `📊 Refreshing ${formData.vendor} product types...`,
+                    "✨ Updating suggestions...",
+                    "🎯 Almost ready..."
+                  ] : [
+                    `🔍 Discovering ${formData.vendor} product types...`,
+                    "📦 Analyzing product catalog...",
+                    "🎨 Creating personalized suggestions...",
+                    "✅ Organizing results for you..."
+                  ]
+                }
+                currentCount={filteredProductTypes.length}
+              />
             ) : (
               <Autocomplete
                 options={productTypeOptions}
