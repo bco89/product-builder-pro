@@ -1,4 +1,5 @@
-import { Card, BlockStack, Text, Button, InlineStack, Banner, Badge, List } from '@shopify/polaris';
+import { Card, BlockStack, Text, Banner, List, InlineStack, Button } from '@shopify/polaris';
+import { StepNavigation } from '../../../components/StepNavigation';
 
 interface StepFinalReviewProps {
   formData: any;
@@ -111,16 +112,12 @@ export default function StepFinalReview({
           </BlockStack>
         </Card>
 
-        <InlineStack gap="300" align="space-between">
-          <Button onClick={onBack}>Back</Button>
-          <Button
-            variant="primary"
-            loading={isSubmitting}
-            onClick={onSubmit}
-          >
-            Finalize Variants
-          </Button>
-        </InlineStack>
+        <StepNavigation
+          onBack={onBack}
+          onNext={onSubmit}
+          nextLabel="Finalize Variants"
+          nextLoading={isSubmitting}
+        />
       </BlockStack>
     </Card>
   );

@@ -1,6 +1,6 @@
 import FirecrawlApp from '@mendable/firecrawl-js';
 import { logger } from './logger.server';
-import { extractForDescriptionGeneration } from './product-description-extractor.server';
+import { extractForDescriptionGeneration } from './ai';
 
 interface ScrapedProductData {
   title?: string;

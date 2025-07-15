@@ -7,7 +7,6 @@ import {
   Text,
   Banner,
   Tag,
-  Button,
   Autocomplete,
   Icon,
   Box,
@@ -16,6 +15,8 @@ import {
 } from '@shopify/polaris';
 import { SearchIcon } from '@shopify/polaris-icons';
 import { useQuery } from '@tanstack/react-query';
+import { ProductInfoCard } from '../../../components/ProductInfoCard';
+import { StepNavigation } from '../../../components/StepNavigation';
 
 interface StepTagsProps {
   formData: {
@@ -248,24 +249,12 @@ export default function StepTags({ formData, onChange, onNext, onBack, productId
   return (
     <>
       {/* Enhanced Product Information Display Card */}
-      <Card>
-        <BlockStack gap="200">
-          <Text as="span">
-            <Text as="span" fontWeight="bold">Product Title:</Text> {formData.title || 'Not specified'}
-          </Text>
-          <InlineStack gap="400" wrap>
-            <Text as="span">
-              <Text as="span" fontWeight="bold">Vendor:</Text> {formData.vendor || 'Not specified'}
-            </Text>
-            <Text as="span">
-              <Text as="span" fontWeight="bold">Product Type:</Text> {formData.productType || 'Not specified'}
-            </Text>
-            <Text as="span">
-              <Text as="span" fontWeight="bold">Category:</Text> {formData.category?.name || 'Not specified'}
-            </Text>
-          </InlineStack>
-        </BlockStack>
-      </Card>
+      <ProductInfoCard
+        title={formData.title}
+        vendor={formData.vendor}
+        productType={formData.productType}
+        category={formData.category?.name}
+      />
 
       <Card>
         <BlockStack gap="500">
@@ -384,15 +373,10 @@ export default function StepTags({ formData, onChange, onNext, onBack, productId
             )}
           </BlockStack>
 
-          <InlineStack gap="300" align="end">
-            <Button onClick={onBack}>Back</Button>
-            <Button 
-              variant="primary" 
-              onClick={onNext}
-            >
-              Next
-            </Button>
-          </InlineStack>
+          <StepNavigation
+            onBack={onBack}
+            onNext={onNext}
+          />
         </BlockStack>
       </Card>
     </>

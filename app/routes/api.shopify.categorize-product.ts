@@ -1,7 +1,7 @@
 import { json } from "@remix-run/node";
 import type { ActionFunctionArgs } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
-import { AIService } from "../services/ai.server";
+import { authenticate } from "../services/auth.server";
+import { getAIService } from "../services/ai";
 import { logger } from "../services/logger.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -19,7 +19,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
-    const aiService = new AIService();
+    const aiService = getAIService();
     const categorization = await aiService.categorizeProduct({
       productTitle,
       productDescription,

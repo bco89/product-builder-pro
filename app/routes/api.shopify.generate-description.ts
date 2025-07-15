@@ -1,8 +1,7 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
-import { AIService } from "../services/ai.server";
+import { getAIService } from "../services/ai";
 import { ProductScraperService, ProductScraperError } from "../services/scraper.server";
-import { ImageAnalysisService } from "../services/image-analysis.server";
 import { prisma } from "../db.server";
 import { logger } from "../services/logger.server";
 import type { ActionFunctionArgs } from "@remix-run/node";
@@ -45,33 +44,32 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               }, { status: 400 });
             
             case 'NO_API_KEY':
-              return json({ 
-                error: 'URL analysis is currently unavailable. Please try the manual method or generate from context.',
-                code: error.code,
-                details: 'The URL analysis service is temporarily unavailable. You can still generate descriptions using the manual input or context-based methods.',
-                debug: error.details // This will include hasApiKey info in production logs
-              }, { status: 503 });
+              return errorResponse(
+                error,
+                'URL analysis is currently unavailable. Please try the manual method or generate from context.',
+                { shop: session.shop, endpoint: 'api.shopify.generate-description' }
+              );
             
             case 'TIMEOUT':
-              return json({ 
-                error: 'The website took too long to respond. Please try again.',
-                code: error.code,
-                details: 'The target website is slow or unresponsive. Please wait a moment and try again.'
-              }, { status: 504 });
+              return errorResponse(
+                error,
+                'The website took too long to respond. Please try again.',
+                { shop: session.shop, endpoint: 'api.shopify.generate-description' }
+              );
             
             case 'API_ERROR':
-              return json({ 
-                error: 'Unable to access the website. Please check if the URL is publicly accessible.',
-                code: error.code,
-                details: error.details?.message || 'The scraping service encountered an error. Please try a different URL or try again later.'
-              }, { status: 502 });
+              return errorResponse(
+                error,
+                'Unable to access the website. Please check if the URL is publicly accessible.',
+                { shop: session.shop, endpoint: 'api.shopify.generate-description' }
+              );
             
             case 'INITIALIZATION_ERROR':
-              return json({ 
-                error: 'URL analysis service initialization failed. Please try again later.',
-                code: error.code,
-                details: 'The service could not be initialized properly. Please contact support if this issue persists.'
-              }, { status: 503 });
+              return errorResponse(
+                error,
+                'URL analysis service initialization failed. Please try again later.',
+                { shop: session.shop, endpoint: 'api.shopify.generate-description' }
+              );
             
             default:
               throw error;
@@ -84,11 +82,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // Analyze images if available
     if (data.hasImages) {
       try {
-        const analyzer = new ImageAnalysisService();
+        const ai = getAIService();
         // In a real implementation, we'd pass actual image files/URLs
-        imageAnalysis = await analyzer.analyzeProductImages([]);
+        imageAnalysis = await ai.analyzeProductImages([]);
       } catch (error) {
-        logger.warn('Image analysis failed, continuing without it', { error });
         // Continue without image analysis
       }
     }
@@ -99,7 +96,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
 
     // Generate description
-    const ai = new AIService();
+    const ai = getAIService();
     const result = await ai.generateProductDescription({
       shop: session.shop,
       ...data,

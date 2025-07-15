@@ -79,7 +79,6 @@ export interface ShopifyApiService {
 }
 
 export class ShopifyApiServiceImpl implements ShopifyApiService {
-  constructor(private session: any) {}
 
   async getVendors(): Promise<string[]> {
     const response = await fetch('/api/shopify/vendors');
@@ -110,13 +109,22 @@ export class ShopifyApiServiceImpl implements ShopifyApiService {
   }
 
   async validateHandle(handle: string): Promise<HandleValidationResult> {
-    const response = await fetch(
-      `/api/shopify/validate-handle?handle=${encodeURIComponent(handle)}`
-    );
+    const response = await fetch('/api/shopify/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'handle', value: handle })
+    });
     if (!response.ok) {
       throw new Error('Failed to validate product handle');
     }
-    return response.json();
+    const result = await response.json();
+    // Transform to match expected interface
+    return {
+      available: result.isValid,
+      handle: handle,
+      suggestions: result.suggestions || [],
+      conflictingProduct: result.conflictingProduct
+    };
   }
 
   async createProduct(productData: ProductFormData): Promise<any> {
@@ -150,32 +158,97 @@ export class ShopifyApiServiceImpl implements ShopifyApiService {
   }
 
   async validateSKU(sku: string): Promise<SKUValidationResult> {
-    const response = await fetch(`/api/shopify/validate-sku?sku=${encodeURIComponent(sku)}`);
+    const response = await fetch('/api/shopify/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'sku', value: sku })
+    });
     if (!response.ok) {
       throw new Error('Failed to validate SKU');
     }
-    return response.json();
+    const result = await response.json();
+    // Transform to match expected interface
+    return {
+      available: result.isValid,
+      conflictingProduct: result.conflictingProduct
+    };
   }
 
   async validateBarcode(barcode: string): Promise<BarcodeValidationResult> {
-    const response = await fetch(`/api/shopify/validate-barcode?barcode=${encodeURIComponent(barcode)}`);
+    const response = await fetch('/api/shopify/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'barcode', value: barcode })
+    });
     if (!response.ok) {
       throw new Error('Failed to validate Barcode');
     }
-    return response.json();
+    const result = await response.json();
+    // Transform to match expected interface
+    return {
+      available: result.isValid,
+      conflictingProduct: result.conflictingProduct
+    };
   }
 
   async validateSKUsBatch(skus: string[], barcodes: string[] = []): Promise<BatchValidationResult> {
-    const response = await fetch('/api/shopify/validate-skus-batch', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ skus, barcodes }),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to validate SKUs/Barcodes batch');
+    const conflicts: ValidationConflict[] = [];
+    
+    // Validate SKUs if provided
+    if (skus.length > 0) {
+      const skuResponse = await fetch('/api/shopify/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'sku-batch', values: skus })
+      });
+      
+      if (!skuResponse.ok) {
+        throw new Error('Failed to validate SKUs batch');
+      }
+      
+      const skuResult = await skuResponse.json();
+      
+      // Transform SKU results to conflicts
+      skuResult.results.forEach((result: any, index: number) => {
+        if (!result.isValid && result.conflictingProduct) {
+          conflicts.push({
+            type: 'sku',
+            value: skus[index],
+            conflictingProduct: result.conflictingProduct
+          });
+        }
+      });
     }
-    return response.json();
+    
+    // Validate Barcodes if provided
+    if (barcodes.length > 0) {
+      const barcodeResponse = await fetch('/api/shopify/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'barcode-batch', values: barcodes })
+      });
+      
+      if (!barcodeResponse.ok) {
+        throw new Error('Failed to validate Barcodes batch');
+      }
+      
+      const barcodeResult = await barcodeResponse.json();
+      
+      // Transform Barcode results to conflicts
+      barcodeResult.results.forEach((result: any, index: number) => {
+        if (!result.isValid && result.conflictingProduct) {
+          conflicts.push({
+            type: 'barcode',
+            value: barcodes[index],
+            conflictingProduct: result.conflictingProduct
+          });
+        }
+      });
+    }
+    
+    return {
+      valid: conflicts.length === 0,
+      conflicts
+    };
   }
 } 

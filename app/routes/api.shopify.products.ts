@@ -1,5 +1,5 @@
-import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
+import { errorResponse, successResponse, logApiRequest } from "../utils/api-response";
 
 interface ProductCategory {
   id: string;
@@ -32,11 +32,18 @@ interface ProductsData {
 }
 
 export const loader = async ({ request }: { request: Request }) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const url = new URL(request.url);
   const queryType = url.searchParams.get('type');
   const vendor = url.searchParams.get('vendor');
   const productType = url.searchParams.get('productType');
+
+  logApiRequest("api.shopify.products", "GET", { 
+    shop: session.shop,
+    queryType,
+    vendor,
+    productType 
+  });
 
   try {
     let graphqlQuery = '';
@@ -58,7 +65,7 @@ export const loader = async ({ request }: { request: Request }) => {
 
       case 'productTypes':
         if (!vendor) {
-          return json({ productTypes: [] });
+          return successResponse({ productTypes: [] });
         }
         graphqlQuery = `#graphql
           query getProductTypesByVendor($query: String!) {
@@ -80,7 +87,7 @@ export const loader = async ({ request }: { request: Request }) => {
 
       case 'categories':
         if (!productType) {
-          return json({ categories: [] });
+          return successResponse({ categories: [] });
         }
         graphqlQuery = `#graphql
           query getCategories($query: String!) {
@@ -100,7 +107,7 @@ export const loader = async ({ request }: { request: Request }) => {
 
       case 'options':
         if (!productType) {
-          return json({ options: [] });
+          return successResponse({ options: [] });
         }
         graphqlQuery = `#graphql
           query getOptions($query: String!) {
@@ -137,7 +144,7 @@ export const loader = async ({ request }: { request: Request }) => {
 
       case 'tags':
         if (!productType) {
-          return json({ tags: [] });
+          return successResponse({ tags: [] });
         }
         graphqlQuery = `#graphql
           query getTags($query: String!) {
@@ -167,7 +174,11 @@ export const loader = async ({ request }: { request: Request }) => {
         break;
 
       default:
-        return json({ error: 'Invalid query type' }, { status: 400 });
+        return errorResponse(
+          new Error('Invalid query type'),
+          'Invalid query type',
+          { shop: session.shop, endpoint: 'api.shopify.products', queryType }
+        );
     }
 
     const response = await admin.graphql(graphqlQuery, { variables });
@@ -180,7 +191,7 @@ export const loader = async ({ request }: { request: Request }) => {
             .map(edge => edge.node.vendor)
             .filter(Boolean)
         )];
-        return json({ vendors });
+        return successResponse({ vendors });
 
       case 'productTypes':
         const productTypes = [...new Set(
@@ -190,7 +201,7 @@ export const loader = async ({ request }: { request: Request }) => {
         )].map(productType => ({
           productType,
         }));
-        return json({ productTypes });
+        return successResponse({ productTypes });
 
       case 'categories':
         // Get all categories used by products of this type
@@ -203,7 +214,7 @@ export const loader = async ({ request }: { request: Request }) => {
           new Map(categories.map(cat => [cat.id, cat])).values()
         );
 
-        return json({ categories: uniqueCategories });
+        return successResponse({ categories: uniqueCategories });
 
       case 'options':
         // Get all options used by products of this type
@@ -227,7 +238,7 @@ export const loader = async ({ request }: { request: Request }) => {
           values: Array.from(values)
         }));
 
-        return json({ options });
+        return successResponse({ options });
 
       case 'allOptions':
         // Get all options used by all products
@@ -256,7 +267,7 @@ export const loader = async ({ request }: { request: Request }) => {
             values: Array.from(values)
           }));
 
-        return json({ options: allOptions });
+        return successResponse({ options: allOptions });
 
       case 'tags':
         // Get all tags used by products of this type
@@ -265,7 +276,7 @@ export const loader = async ({ request }: { request: Request }) => {
         // Remove duplicates and sort alphabetically
         const uniqueTags = [...new Set(allTags)].sort();
 
-        return json({ tags: uniqueTags });
+        return successResponse({ tags: uniqueTags });
 
       case 'allTags':
         // Get all tags used by all products
@@ -274,11 +285,14 @@ export const loader = async ({ request }: { request: Request }) => {
         // Remove duplicates and sort alphabetically
         const uniqueAllTags = [...new Set(allTagsFromAllProducts)].sort();
 
-        return json({ tags: uniqueAllTags });
+        return successResponse({ tags: uniqueAllTags });
     }
 
   } catch (error) {
-    console.error(`Failed to fetch ${queryType}:`, error);
-    return json({ error: `Failed to fetch ${queryType}` }, { status: 500 });
+    return errorResponse(
+      error,
+      `Failed to fetch ${queryType}`,
+      { shop: session.shop, endpoint: "api.shopify.products", queryType }
+    );
   }
 }; 

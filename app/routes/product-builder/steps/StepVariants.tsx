@@ -19,6 +19,8 @@ import {
 } from '@shopify/polaris';
 import { SearchIcon, PlusIcon } from '@shopify/polaris-icons';
 import { useQuery } from '@tanstack/react-query';
+import { ProductInfoCard } from '../../../components/ProductInfoCard';
+import { StepNavigation } from '../../../components/StepNavigation';
 
 interface Option {
   name: string;
@@ -537,41 +539,15 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
       </style>
       
       {/* Enhanced Product Information Display Card */}
-      <Card>
-        <BlockStack gap="200">
-          <Text as="span">
-            <Text as="span" fontWeight="bold">Product Title:</Text> {formData.title || 'Not specified'}
-          </Text>
-          <InlineStack gap="400" wrap>
-            <Text as="span">
-              <Text as="span" fontWeight="bold">Vendor:</Text> {formData.vendor || 'Not specified'}
-            </Text>
-            <Text as="span">
-              <Text as="span" fontWeight="bold">Product Type:</Text> {formData.productType || 'Not specified'}
-            </Text>
-            <Text as="span">
-              <Text as="span" fontWeight="bold">Category:</Text> {formData.category?.name || 'Not specified'}
-            </Text>
-          </InlineStack>
-          {basePricing && (
-            <Text as="span">
-              <Text as="span" fontWeight="bold">Price:</Text> ${basePricing.price || '0.00'}
-              {basePricing.compareAtPrice && (
-                <>
-                  {' • '}
-                  <Text as="span" fontWeight="bold">Compare at:</Text> ${basePricing.compareAtPrice}
-                </>
-              )}
-              {basePricing.cost && (
-                <>
-                  {' • '}
-                  <Text as="span" fontWeight="bold">Cost:</Text> ${basePricing.cost}
-                </>
-              )}
-            </Text>
-          )}
-        </BlockStack>
-      </Card>
+      <ProductInfoCard
+        title={formData.title}
+        vendor={formData.vendor}
+        productType={formData.productType}
+        category={formData.category?.name}
+        price={basePricing?.price}
+        compareAtPrice={basePricing?.compareAtPrice}
+        cost={basePricing?.cost}
+      />
 
       <Card>
         <BlockStack gap="500">
@@ -1033,14 +1009,12 @@ export default function StepVariants({ formData, onChange, onNext, onBack, shoul
               </BlockStack>
             )}
 
-            <InlineStack gap="300" align="center">
-              <Button onClick={onBack}>Back</Button>
-              {formData.options.length > 0 && (
-                <Button variant="primary" onClick={onNext}>
-                  Continue with variants
-                </Button>
-              )}
-            </InlineStack>
+            <StepNavigation
+              onBack={onBack}
+              onNext={formData.options.length > 0 ? onNext : undefined}
+              nextLabel="Continue with variants"
+              align="center"
+            />
           </BlockStack>
         </BlockStack>
       </Card>

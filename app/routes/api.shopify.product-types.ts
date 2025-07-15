@@ -1,8 +1,10 @@
-import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
+import { errorResponse, successResponse, logApiRequest } from "../utils/api-response";
 
 export const loader = async ({ request }: { request: Request }) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
+
+  logApiRequest("api.shopify.product-types", "GET", { shop: session.shop });
 
   try {
     const response = await admin.graphql(
@@ -25,9 +27,12 @@ export const loader = async ({ request }: { request: Request }) => {
         .filter(Boolean)
     )];
 
-    return json({ productTypes });
+    return successResponse({ productTypes });
   } catch (error) {
-    console.error("Failed to fetch product types:", error);
-    return json({ productTypes: [] });
+    return errorResponse(
+      error,
+      "Failed to fetch product types",
+      { shop: session.shop, endpoint: "api.shopify.product-types" }
+    );
   }
 }; 

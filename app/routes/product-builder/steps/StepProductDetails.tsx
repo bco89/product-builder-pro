@@ -25,6 +25,8 @@ import { useQuery } from '@tanstack/react-query';
 import { generateHandle, isValidHandle } from '../../../utils/handleGenerator';
 import { ShopifyApiServiceImpl } from '../../../services/shopifyApi';
 import { CategoryBrowser } from '../../../components/CategoryBrowser';
+import { ProductInfoCard } from '../../../components/ProductInfoCard';
+import { StepNavigation } from '../../../components/StepNavigation';
 
 interface Category {
   id: string;
@@ -238,21 +240,11 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
   return (
     <>
       {/* Selected Information Display Card */}
-      <Card>
-        <BlockStack gap="200">
-          <InlineStack gap="400" wrap>
-            <Text as="span">
-              <Text as="span" fontWeight="bold">Vendor:</Text> {formData.vendor || 'Not specified'}
-            </Text>
-            <Text as="span">
-              <Text as="span" fontWeight="bold">Product Type:</Text> {formData.productType || 'Not specified'}
-            </Text>
-            <Text as="span">
-              <Text as="span" fontWeight="bold">Category:</Text> {formData.category?.name || 'Will be selected below'}
-            </Text>
-          </InlineStack>
-        </BlockStack>
-      </Card>
+      <ProductInfoCard
+        vendor={formData.vendor}
+        productType={formData.productType}
+        category={formData.category?.name || 'Will be selected below'}
+      />
 
       <Card>
         <FormLayout>
@@ -442,17 +434,13 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
             </Banner>
           )}
           
-          <InlineStack gap="300" align="end">
-            <Button onClick={onBack}>Back</Button>
-            <Button 
-              variant="primary"
-              onClick={handleSubmit}
-              disabled={!isFormValid()}
-              loading={handleValidationState === 'checking'}
-            >
-              {handleValidationState === 'checking' ? 'Validating...' : 'Next'}
-            </Button>
-          </InlineStack>
+          <StepNavigation
+            onBack={onBack}
+            onNext={handleSubmit}
+            nextDisabled={!isFormValid()}
+            nextLoading={handleValidationState === 'checking'}
+            nextLabel={handleValidationState === 'checking' ? 'Validating...' : 'Next'}
+          />
         </BlockStack>
       </FormLayout>
     </Card>
