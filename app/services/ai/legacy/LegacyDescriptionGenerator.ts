@@ -98,54 +98,26 @@ export class LegacyDescriptionGenerator {
     try {
       let response: string;
       
-      logger.info('Sending request to AI provider', {
-        provider: this.provider,
-        model: this.model,
-        promptLength: userPrompt.length,
-        systemPromptLength: systemPrompt.length
-      });
-      
       if (this.provider === 'anthropic' && this.anthropic) {
-        try {
-          const completion = await this.anthropic.messages.create({
-            model: 'claude-3-5-sonnet-20241022',
-            messages: [{ role: 'user', content: userPrompt }],
-            system: systemPrompt,
-            max_tokens: 2500,
-            temperature: 0.7,
-          });
-          response = completion.content[0].type === 'text' ? completion.content[0].text : '';
-          logger.info('Received response from Anthropic', { 
-            responseLength: response.length,
-            contentType: completion.content[0].type 
-          });
-        } catch (anthropicError) {
-          logger.error('Anthropic API error:', {
-            error: anthropicError instanceof Error ? anthropicError.message : String(anthropicError),
-            stack: anthropicError instanceof Error ? anthropicError.stack : undefined
-          });
-          throw new Error(`Anthropic API error: ${anthropicError instanceof Error ? anthropicError.message : 'Unknown error'}`);
-        }
+        const completion = await this.anthropic.messages.create({
+          model: 'claude-3-5-sonnet-20241022',
+          messages: [{ role: 'user', content: userPrompt }],
+          system: systemPrompt,
+          max_tokens: 2500,
+          temperature: 0.7,
+        });
+        response = completion.content[0].type === 'text' ? completion.content[0].text : '';
       } else if (this.provider === 'openai' && this.openai) {
-        try {
-          const completion = await this.openai.chat.completions.create({
-            model: this.model,
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt }
-            ],
-            temperature: 0.7,
-            max_tokens: 2500,
-          });
-          response = completion.choices[0].message?.content || '';
-          logger.info('Received response from OpenAI', { responseLength: response.length });
-        } catch (openaiError) {
-          logger.error('OpenAI API error:', {
-            error: openaiError instanceof Error ? openaiError.message : String(openaiError),
-            stack: openaiError instanceof Error ? openaiError.stack : undefined
-          });
-          throw new Error(`OpenAI API error: ${openaiError instanceof Error ? openaiError.message : 'Unknown error'}`);
-        }
+        const completion = await this.openai.chat.completions.create({
+          model: this.model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 0.7,
+          max_tokens: 2500,
+        });
+        response = completion.choices[0].message?.content || '';
       } else {
         throw new Error('AI provider not properly initialized');
       }
@@ -163,8 +135,8 @@ export class LegacyDescriptionGenerator {
       let result = this.parseAIResponse(response);
       
       // Quality evaluation
-      const primaryKeyword = params.keywords?.[0] || '';
-      const secondaryKeywords = params.keywords?.slice(1) || [];
+      const primaryKeyword = params.keywords[0];
+      const secondaryKeywords = params.keywords.slice(1);
       const metrics = await this.evaluateDescription(
         result.description,
         primaryKeyword,
@@ -234,8 +206,8 @@ PRODUCT INFORMATION:
 - Type: ${params.productType}
 - Category: ${params.category}
 - Vendor: ${params.vendor}
-- Primary Keyword: ${params.keywords?.[0] || 'Not specified'}
-- Secondary Keywords: ${params.keywords?.slice(1).join(', ') || 'None'}
+- Primary Keyword: ${params.keywords[0]}
+- Secondary Keywords: ${params.keywords.slice(1).join(', ')}
 ${params.additionalContext ? `- Additional Details: ${params.additionalContext}` : ''}
 ${formattedScrapedData ? `\n${formattedScrapedData}` : ''}
 ${params.imageAnalysis ? `- Visual Analysis: ${params.imageAnalysis}` : ''}
@@ -305,8 +277,8 @@ CRITICAL HTML RULES:
   }
   
   private getContentPrinciples(config: any, params: AIGenerationParams): string {
-    const primaryKeyword = params.keywords?.[0] || '';
-    const secondaryKeywords = params.keywords?.slice(1) || [];
+    const primaryKeyword = params.keywords[0];
+    const secondaryKeywords = params.keywords.slice(1);
     const productTerm = this.extractProductTerm(params);
     
     return `
@@ -353,7 +325,7 @@ IMPORTANT: Format lists correctly in HTML:
   
   private extractProductTerm(params: AIGenerationParams): string {
     const title = params.productTitle.toLowerCase();
-    const primaryKeyword = params.keywords?.[0]?.toLowerCase() || '';
+    const primaryKeyword = params.keywords[0]?.toLowerCase() || '';
     
     if (primaryKeyword && !['best', 'top', 'buy', 'sale', 'new'].includes(primaryKeyword)) {
       if (title.includes(primaryKeyword) || primaryKeyword.split(' ').some(word => title.includes(word))) {
@@ -407,7 +379,6 @@ IMPORTANT: Format lists correctly in HTML:
   
   private parseAIResponse(response: string): AIGenerationResult {
     try {
-      // First attempt: direct JSON parse
       const parsed = JSON.parse(response);
       return {
         description: formatProductDescription(parsed.description),
@@ -415,54 +386,16 @@ IMPORTANT: Format lists correctly in HTML:
         seoDescription: stripHTML(parsed.seoDescription),
       };
     } catch (error) {
-      logger.error('Failed to parse AI response as JSON, attempting fallback parsing:', {
-        error: error instanceof Error ? error.message : String(error),
-        responseSnippet: response.substring(0, 200)
-      });
+      logger.error('Failed to parse AI response as JSON:', error);
       
-      // Second attempt: extract JSON from markdown code blocks
-      const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/);
-      if (jsonMatch) {
-        try {
-          const parsed = JSON.parse(jsonMatch[1]);
-          return {
-            description: formatProductDescription(parsed.description),
-            seoTitle: stripHTML(parsed.seoTitle),
-            seoDescription: stripHTML(parsed.seoDescription),
-          };
-        } catch (e) {
-          logger.error('Failed to parse extracted JSON:', e);
-        }
-      }
+      const descriptionMatch = response.match(/"description":\s*"([^"]+)"/);
+      const seoTitleMatch = response.match(/"seoTitle":\s*"([^"]+)"/);
+      const seoDescriptionMatch = response.match(/"seoDescription":\s*"([^"]+)"/);
       
-      // Third attempt: improved regex with multiline support
-      const descriptionMatch = response.match(/"description"\s*:\s*"((?:[^"\\]|\\.)*)"/s);
-      const seoTitleMatch = response.match(/"seoTitle"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-      const seoDescriptionMatch = response.match(/"seoDescription"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-      
-      if (descriptionMatch || seoTitleMatch || seoDescriptionMatch) {
-        // Unescape JSON strings
-        const unescapeJson = (str: string) => {
-          return str.replace(/\\"/g, '"')
-                    .replace(/\\n/g, '\n')
-                    .replace(/\\r/g, '\r')
-                    .replace(/\\t/g, '\t')
-                    .replace(/\\\\/g, '\\');
-        };
-        
-        return {
-          description: descriptionMatch ? formatProductDescription(unescapeJson(descriptionMatch[1])) : '',
-          seoTitle: seoTitleMatch ? stripHTML(unescapeJson(seoTitleMatch[1])) : '',
-          seoDescription: seoDescriptionMatch ? stripHTML(unescapeJson(seoDescriptionMatch[1])) : '',
-        };
-      }
-      
-      // Final fallback: return error message
-      logger.error('Could not parse AI response in any format');
       return {
-        description: '<p>Failed to generate description. Please try again.</p>',
-        seoTitle: 'Product',
-        seoDescription: 'Product description',
+        description: descriptionMatch ? formatProductDescription(descriptionMatch[1]) : response,
+        seoTitle: seoTitleMatch ? stripHTML(seoTitleMatch[1]) : '',
+        seoDescription: seoDescriptionMatch ? stripHTML(seoDescriptionMatch[1]) : '',
       };
     }
   }
