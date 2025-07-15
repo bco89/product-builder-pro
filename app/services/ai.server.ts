@@ -466,6 +466,7 @@ PRODUCT INFORMATION:
 - Type: ${params.productType}
 - Category: ${params.category}
 - Vendor: ${params.vendor}
+- Price: ${params.pricing?.price ? `$${params.pricing.price}` : 'Not specified'}
 - Primary Keyword: ${params.keywords[0]}
 - Secondary Keywords: ${params.keywords.slice(1).join(', ')}
 ${params.additionalContext ? `- Additional Details: ${params.additionalContext}` : ''}

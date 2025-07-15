@@ -323,6 +323,9 @@ export default function StepProductDetails({ formData, onChange, onNext, onBack,
             <Text as="span">
               <Text as="span" fontWeight="bold">Category:</Text> {formData.category?.name || 'Will be selected below'}
             </Text>
+            <Text as="span">
+              <Text as="span" fontWeight="bold">Price:</Text> {formData.pricing[0]?.price ? `$${formData.pricing[0].price}` : 'Not specified'}
+            </Text>
           </InlineStack>
         </BlockStack>
       </Card>

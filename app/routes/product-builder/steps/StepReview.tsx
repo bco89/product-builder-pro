@@ -10,7 +10,7 @@ import {
   Thumbnail,
   Badge,
 } from '@shopify/polaris';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 
 interface ReviewFormData {
   vendor: string;
@@ -43,19 +43,6 @@ interface StepReviewProps {
 }
 
 export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmitting }: StepReviewProps) {
-  const [errorBanner, setErrorBanner] = useState<string>('');
-  const STEPS = {
-    VENDOR_TYPE: 0,
-    PRODUCT_DETAILS: 1,
-    VARIANTS: 2,
-    SKU_BARCODE: 3,
-    PRICING: 4,
-    TAGS: 5
-  } as const;
-
-  const handleEdit = (step: number) => {
-    onEdit(step);
-  };
 
   const generateVariants = () => {
     if (!formData.options.length) return [];
@@ -93,8 +80,92 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
   }, [onSubmit]);
 
   return (
-    <Card>
-      <BlockStack gap="500">
+    <>
+      <style>{`
+        .product-description-content {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        .product-description-content h1,
+        .product-description-content h2,
+        .product-description-content h3,
+        .product-description-content h4,
+        .product-description-content h5,
+        .product-description-content h6 {
+          margin: 1em 0 0.5em;
+          font-weight: 600;
+          line-height: 1.2;
+        }
+        .product-description-content h1 { font-size: 2em; }
+        .product-description-content h2 { font-size: 1.5em; }
+        .product-description-content h3 { font-size: 1.25em; }
+        .product-description-content h4 { font-size: 1.1em; }
+        .product-description-content h5 { font-size: 1em; }
+        .product-description-content h6 { font-size: 0.9em; }
+        .product-description-content p {
+          margin: 0.5em 0;
+          line-height: 1.5;
+        }
+        .product-description-content ul,
+        .product-description-content ol {
+          margin: 0.5em 0;
+          padding-left: 2em;
+        }
+        .product-description-content li {
+          margin: 0.25em 0;
+        }
+        .product-description-content strong {
+          font-weight: 600;
+        }
+        .product-description-content em {
+          font-style: italic;
+        }
+        .product-description-content u {
+          text-decoration: underline;
+        }
+        .product-description-content a {
+          color: #0066cc;
+          text-decoration: underline;
+        }
+        .product-description-content a:hover {
+          color: #0052a3;
+        }
+        .product-description-content blockquote {
+          margin: 1em 0;
+          padding-left: 1em;
+          border-left: 3px solid #e0e0e0;
+          color: #666;
+        }
+        .product-description-content pre {
+          background-color: #f5f5f5;
+          padding: 1em;
+          border-radius: 4px;
+          overflow-x: auto;
+          font-family: monospace;
+        }
+        .product-description-content code {
+          background-color: #f5f5f5;
+          padding: 0.2em 0.4em;
+          border-radius: 3px;
+          font-family: monospace;
+          font-size: 0.9em;
+        }
+        .product-description-content br {
+          display: block;
+          margin: 0.5em 0;
+          content: "";
+        }
+        .product-description-content div[style*="text-align: center"] {
+          text-align: center !important;
+        }
+        .product-description-content div[style*="text-align: right"] {
+          text-align: right !important;
+        }
+        .product-description-content div[style*="text-align: left"] {
+          text-align: left !important;
+        }
+      `}</style>
+      <Card>
+        <BlockStack gap="500">
         <Text variant="headingMd" as="h2">
           Review Product Information
         </Text>
@@ -134,7 +205,15 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
               <Text variant="headingSm" as="h3">Description</Text>
               <BlockStack gap="300">
                 {formData.description ? (
-                  <div dangerouslySetInnerHTML={{ __html: formData.description }} />
+                  <div 
+                    dangerouslySetInnerHTML={{ __html: formData.description }}
+                    style={{
+                      fontSize: '14px',
+                      lineHeight: '1.5',
+                      color: 'inherit',
+                    }}
+                    className="product-description-content"
+                  />
                 ) : (
                   <Text as="p">No description provided</Text>
                 )}
@@ -259,5 +338,6 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
         </InlineStack>
       </BlockStack>
     </Card>
+    </>
   );
 } 
