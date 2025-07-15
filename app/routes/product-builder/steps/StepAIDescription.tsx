@@ -13,12 +13,12 @@ import {
   Badge,
   Divider,
   Icon,
-  DropZone,
-  Thumbnail,
   InlineError,
   Toast,
+  Spinner,
+  Tooltip,
 } from '@shopify/polaris';
-import { AlertCircleIcon, EditIcon, LinkIcon, ImageIcon } from '@shopify/polaris-icons';
+import { AlertCircleIcon, EditIcon, LinkIcon, ImageIcon, InfoIcon } from '@shopify/polaris-icons';
 import { useQuery } from '@tanstack/react-query';
 import { Editor } from '@tinymce/tinymce-react';
 import LoadingProgress from '../../../components/LoadingProgress';
@@ -131,7 +131,6 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
   const [inputMethod, setInputMethod] = useState<'manual' | 'url' | 'context'>('context');
   const [productUrl, setProductUrl] = useState('');
   const [additionalContext, setAdditionalContext] = useState('');
-  const [contextImages, setContextImages] = useState<File[]>([]);
   const [keywords, setKeywords] = useState({ primary: '', secondary: '' });
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<{ message: string; details?: string; code?: string } | null>(null);
@@ -179,7 +178,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
         keywords: [keywords.primary, keywords.secondary].filter(Boolean),
         productUrl: inputMethod === 'url' ? productUrl : undefined,
         additionalContext: inputMethod === 'context' ? additionalContext : undefined,
-        hasImages: formData.images.length > 0 || contextImages.length > 0,
+        hasImages: formData.images.length > 0,
         shopSettings: {
           businessType: 'retailer',
           storeName: '',
@@ -190,8 +189,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
           targetCustomerOverride: '',
           additionalCustomerInsights: '',
           excludedCustomerSegments: '',
-          ...shopSettings,
-          businessType: shopSettings?.businessType || 'retailer'
+          ...shopSettings
         },
       };
 
@@ -326,31 +324,6 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
     }
   };
 
-
-  const handleDropZoneDrop = useCallback(
-    (_dropFiles: File[], acceptedFiles: File[]) => {
-      setContextImages((current) => [...current, ...acceptedFiles]);
-    },
-    [],
-  );
-
-  const contextImagesMarkup = contextImages.length > 0 && (
-    <InlineStack gap="400">
-      {contextImages.map((file, index) => (
-        <InlineStack gap="200" align="center" key={index}>
-          <Thumbnail
-            size="small"
-            alt={file.name}
-            source={URL.createObjectURL(file)}
-          />
-          <Button onClick={() => {
-            setContextImages(current => current.filter((_, i) => i !== index));
-          }} variant="plain">Remove</Button>
-        </InlineStack>
-      ))}
-    </InlineStack>
-  );
-
   return (
     <>
       <Card>
@@ -371,7 +344,32 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
 
       <Card>
         <BlockStack gap="500">
-          <Text variant="headingMd" as="h2">AI-Powered Description Generation</Text>
+          <InlineStack gap="400" align="space-between">
+            <Text variant="headingMd" as="h2">AI-Powered Description Generation</Text>
+            {inputMethod !== 'manual' && (
+              <InlineStack gap="200" align="center">
+                {isLoadingSettings ? (
+                  <>
+                    <Spinner accessibilityLabel="Loading settings" size="small" />
+                    <Text as="p" variant="bodySm" tone="subdued">Loading...</Text>
+                  </>
+                ) : settingsError ? (
+                  <Badge tone="warning">Default perspective</Badge>
+                ) : shopSettings?.businessType ? (
+                  <Badge tone="success">
+                    {shopSettings.businessType === 'manufacturer' ? 'Product Creator' : 'Retailer'}
+                  </Badge>
+                ) : (
+                  <>
+                    <Text as="span" variant="bodySm" tone="subdued">No perspective</Text>
+                    <Tooltip content="Please go to AI Description Settings to choose whether you create products or sell products from other brands. This will improve the quality of generated descriptions.">
+                      <Icon source={InfoIcon} tone="subdued" />
+                    </Tooltip>
+                  </>
+                )}
+              </InlineStack>
+            )}
+          </InlineStack>
 
           {/* Show loading state when generating, otherwise show form */}
           {isGenerating ? (
@@ -397,7 +395,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
               title="Generating AI Description"
               estimatedTime={inputMethod === 'url' ? 30 : 20}
             />
-          ) : (
+          ) : (!hasGeneratedContent && inputMethod !== 'manual') ? (
             <>
           {/* Input Method Selection */}
           <BlockStack gap="400">
@@ -408,7 +406,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
                 onClick={() => setInputMethod('context')}
                 icon={ImageIcon}
               >
-                Generate from text/images
+                Generate from text
               </Button>
               <Button
                 pressed={inputMethod === 'url'}
@@ -419,7 +417,11 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
               </Button>
               <Button
                 pressed={inputMethod === 'manual'}
-                onClick={() => setInputMethod('manual')}
+                onClick={() => {
+                  setInputMethod('manual');
+                  // Reset hasGeneratedContent when switching to manual
+                  setHasGeneratedContent(false);
+                }}
                 icon={EditIcon}
               >
                 Write manually
@@ -453,40 +455,6 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
             </BlockStack>
           )}
 
-          {/* Description Perspective from Settings */}
-          {inputMethod !== 'manual' && (
-            <BlockStack gap="400">
-              <Divider />
-              <BlockStack gap="300">
-                <Text variant="headingSm" as="h3">Description Perspective</Text>
-                {isLoadingSettings ? (
-                  <InlineStack gap="200" align="center">
-                    <Spinner accessibilityLabel="Loading settings" size="small" />
-                    <Text as="p">Loading settings...</Text>
-                  </InlineStack>
-                ) : settingsError ? (
-                  <Banner tone="warning">
-                    <Text as="p">
-                      Unable to load settings. Using default retailer perspective. Please check your connection and refresh if needed.
-                    </Text>
-                  </Banner>
-                ) : shopSettings?.businessType ? (
-                  <InlineStack gap="200" align="start">
-                    <Badge tone="success">
-                      Description Perspective: {shopSettings.businessType === 'manufacturer' ? 'Product Creator' : 'Retailer'}
-                    </Badge>
-                  </InlineStack>
-                ) : (
-                  <Banner tone="warning">
-                    <Text as="p">
-                      No description perspective selected. Please go to AI Description Settings to choose whether you create products or sell products from other brands. This will improve the quality of generated descriptions.
-                    </Text>
-                  </Banner>
-                )}
-              </BlockStack>
-            </BlockStack>
-          )}
-
           {/* Conditional Input Fields */}
           {inputMethod === 'url' && (
             <BlockStack gap="400">
@@ -512,28 +480,20 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
             <BlockStack gap="400">
               <Divider />
               <TextField
-                label="What makes this product special?"
+                label={
+                  <InlineStack gap="100" align="start">
+                    <Text as="span">Enter your existing product description and additional details</Text>
+                    <Tooltip content="Paste your existing description plus any technical specs, materials, sizing information, or special features. The AI will reorganize and enhance this content to create a compelling, SEO-optimized product description.">
+                      <Icon source={InfoIcon} tone="subdued" />
+                    </Tooltip>
+                  </InlineStack>
+                }
                 value={additionalContext}
                 onChange={setAdditionalContext}
                 multiline={4}
                 helpText="Include unique features, materials, benefits, or anything that should be highlighted in the description"
                 autoComplete="off"
               />
-              
-              <Box>
-                <Text variant="bodyMd" as="p" fontWeight="semibold">
-                  Reference Images
-                </Text>
-                <Box paddingBlockStart="200">
-                  <DropZone
-                    accept="image/*"
-                    type="image"
-                    onDrop={handleDropZoneDrop}
-                  >
-                    {contextImagesMarkup || <DropZone.FileUpload />}
-                  </DropZone>
-                </Box>
-              </Box>
             </BlockStack>
           )}
 
@@ -558,46 +518,64 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
           )}
           
           </>
-          )}
-
-
-          {/* Error display */}
-          {error && (
-            <Banner tone="critical">
-              <BlockStack gap="200">
-                <InlineStack gap="200" align="center">
-                  <Icon source={AlertCircleIcon} />
-                  <Text as="p" fontWeight="semibold">{error.message}</Text>
-                </InlineStack>
-                {error.details && (
-                  <Text as="p" variant="bodySm">{error.details}</Text>
-                )}
-                {error.code === 'INVALID_URL' && (
-                  <Text as="p" variant="bodySm">
-                    Tip: Make sure the URL starts with http:// or https:// and points to a product page.
-                  </Text>
-                )}
-                {error.code === 'TIMEOUT' && (
-                  <Text as="p" variant="bodySm">
-                    Tip: Some websites are slow to load. Try waiting a moment and generating again.
-                  </Text>
-                )}
-              </BlockStack>
-            </Banner>
-          )}
-
-          {/* Show editors only after method selection or generation */}
-          {inputMethod === 'manual' && (
+          ) : inputMethod === 'manual' ? (
             <>
+              {/* Manual Input Mode */}
               <Divider />
               <Banner tone="info">
                 <Text as="p">You've chosen to write the description manually. Use the editors below to craft your product description and SEO content.</Text>
               </Banner>
+              
+              {/* Description Editor */}
+              <BlockStack gap="400">
+                <Text variant="headingSm" as="h3">Product Description</Text>
+                <WYSIWYGEditor
+                  id="product-description"
+                  value={formData.description}
+                  onChange={(content) => onChange({ description: content })}
+                  height={400}
+                  placeholder="Enter your compelling product description here..."
+                  variant="full"
+                  apiKey={tinymceApiKey}
+                />
+              </BlockStack>
+
+              {/* SEO Title Editor */}
+              <BlockStack gap="400">
+                <TextField
+                  label="SEO Title"
+                  value={formData.seoTitle}
+                  onChange={(value) => onChange({ seoTitle: value })}
+                  placeholder="Enter SEO optimized title..."
+                  helpText="Maximum 60 characters for optimal search engine display"
+                  autoComplete="off"
+                  maxLength={60}
+                />
+                <Text variant="bodySm" as="p" tone={formData.seoTitle.length > 60 ? 'critical' : 'subdued'}>
+                  {formData.seoTitle.length}/60 characters
+                </Text>
+              </BlockStack>
+
+              {/* SEO Description Editor */}
+              <BlockStack gap="400">
+                <TextField
+                  label="SEO Meta Description"
+                  value={formData.seoDescription}
+                  onChange={(value) => onChange({ seoDescription: value })}
+                  placeholder="Enter SEO meta description..."
+                  helpText="Maximum 155 characters for optimal search engine display"
+                  autoComplete="off"
+                  maxLength={155}
+                  multiline={2}
+                />
+                <Text variant="bodySm" as="p" tone={formData.seoDescription.length > 155 ? 'critical' : 'subdued'}>
+                  {formData.seoDescription.length}/155 characters
+                </Text>
+              </BlockStack>
             </>
-          )}
-          
-          {(inputMethod === 'manual' || hasGeneratedContent || hasExistingContent) && (
+          ) : (
             <>
+              {/* Phase 3: Clean Results View */}
               <Divider />
               
               {/* Description Editor */}
@@ -648,6 +626,32 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
               </BlockStack>
             </>
           )}
+
+          {/* Error display */}
+          {error && (
+            <Banner tone="critical">
+              <BlockStack gap="200">
+                <InlineStack gap="200" align="center">
+                  <Icon source={AlertCircleIcon} />
+                  <Text as="p" fontWeight="semibold">{error.message}</Text>
+                </InlineStack>
+                {error.details && (
+                  <Text as="p" variant="bodySm">{error.details}</Text>
+                )}
+                {error.code === 'INVALID_URL' && (
+                  <Text as="p" variant="bodySm">
+                    Tip: Make sure the URL starts with http:// or https:// and points to a product page.
+                  </Text>
+                )}
+                {error.code === 'TIMEOUT' && (
+                  <Text as="p" variant="bodySm">
+                    Tip: Some websites are slow to load. Try waiting a moment and generating again.
+                  </Text>
+                )}
+              </BlockStack>
+            </Banner>
+          )}
+
 
           <InlineStack gap="300" align="end">
             <Button onClick={onBack}>Back</Button>

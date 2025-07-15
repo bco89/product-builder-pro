@@ -14,7 +14,7 @@ import {
 import {
   MagicIcon,
   SearchIcon,
-  AnalyticsIcon,
+  ChartLineIcon,
   EditIcon,
   CheckIcon,
 } from '@shopify/polaris-icons';
@@ -93,7 +93,7 @@ export default function LoadingProgress({
   // Get icon based on progress
   const getProgressIcon = () => {
     if (displayProgress < 20) return SearchIcon;
-    if (displayProgress < 40) return AnalyticsIcon;
+    if (displayProgress < 40) return ChartLineIcon;
     if (displayProgress < 60) return MagicIcon;
     if (displayProgress < 80) return EditIcon;
     return CheckIcon;

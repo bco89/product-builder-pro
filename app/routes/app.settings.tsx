@@ -114,8 +114,9 @@ export default function Settings() {
       title="AI Description Settings"
       subtitle="Configure your store's brand identity and customer profile for AI-powered product descriptions"
     >
-      <Form method="post" onSubmit={handleSubmit}>
-        <Layout>
+      <Box paddingBlockEnd="800">
+        <Form method="post" onSubmit={handleSubmit}>
+          <Layout>
           <Layout.Section>
             <BlockStack gap="600">
               {/* Store Information */}
@@ -266,6 +267,7 @@ export default function Settings() {
         onComplete={() => setShowOnboarding(false)}
         onSkip={() => setShowOnboarding(false)}
       />
+      </Box>
     </Page>
   );
 }
