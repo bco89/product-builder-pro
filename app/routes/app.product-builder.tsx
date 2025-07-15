@@ -28,7 +28,6 @@ import StepProductDetails from './product-builder/steps/StepProductDetails';
 import StepAIDescription from './product-builder/steps/StepAIDescription';
 import StepVariants from './product-builder/steps/StepVariants';
 import StepSKUBarcode from './product-builder/steps/StepSKUBarcode';
-import StepPricing from './product-builder/steps/StepPricing';
 import StepTags from './product-builder/steps/StepTags';
 import StepReview from './product-builder/steps/StepReview';
 import StepVariantDecision from './product-builder/steps/StepVariantDecision';
@@ -101,19 +100,17 @@ export default function ProductBuilder() {
         { title: 'Product Details', component: StepProductDetails, phase: 1 },
         { title: 'AI Description', component: StepAIDescription, phase: 1 },
         { title: 'Tags', component: StepTags, phase: 1 },
-        { title: 'Pricing', component: StepPricing, phase: 1 },
         { title: 'Variants?', component: StepVariantDecision, phase: 1 }
       ];
     } else if (hasVariants === false) {
-      // No variants flow - CREATE PRODUCT AFTER PRICING (unified with variant flow)
+      // No variants flow - CREATE PRODUCT AFTER VARIANT DECISION
       if (!productId) {
-        // Phase 1: Before product creation - pricing already set, just create product
+        // Phase 1: Before product creation - pricing included in product details
         return [
           { title: 'Vendor & Type', component: StepVendorType, phase: 1 },
           { title: 'Product Details', component: StepProductDetails, phase: 1 },
           { title: 'AI Description', component: StepAIDescription, phase: 1 },
           { title: 'Tags', component: StepTags, phase: 1 },
-          { title: 'Pricing', component: StepPricing, phase: 1 },
           { title: 'Variants?', component: StepVariantDecision, phase: 1 }
           // Product creation happens after variant decision, then continues to phase 2
         ];
@@ -125,15 +122,14 @@ export default function ProductBuilder() {
         ];
       }
     } else {
-      // Has variants flow - pricing already set, create product then configure variants
+      // Has variants flow - pricing included in product details, create product then configure variants
       if (!productId) {
-        // Phase 1: Before product creation - pricing already set, just create product
+        // Phase 1: Before product creation - pricing included in product details
         return [
           { title: 'Vendor & Type', component: StepVendorType, phase: 1 },
           { title: 'Product Details', component: StepProductDetails, phase: 1 },
           { title: 'AI Description', component: StepAIDescription, phase: 1 },
           { title: 'Tags', component: StepTags, phase: 1 },
-          { title: 'Pricing', component: StepPricing, phase: 1 },
           { title: 'Variants?', component: StepVariantDecision, phase: 1 }
         ];
       } else {
