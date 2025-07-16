@@ -40,156 +40,176 @@ export const FIRECRAWL_SCRAPE_CONFIG = {
 };
 
 /**
- * LLM extraction schema focused on description-relevant data
+ * Enhanced LLM extraction schema for comprehensive e-commerce product data
  */
 export const DESCRIPTION_EXTRACTION_SCHEMA = {
   type: "object",
   properties: {
     // Product Identity
-    productTitle: {
+    productName: {
       type: "string",
-      description: "The main product title/name as it appears on the page"
+      description: "The exact product name/title as displayed on the page"
     },
-    brandVendor: {
+    brand: {
       type: "string", 
       description: "Brand or manufacturer name"
     },
-    productCategory: {
+    model: {
       type: "string",
-      description: "Product category/type (e.g., 'Wakesurf Board', 'Athletic Apparel')"
+      description: "Product model number or name if available"
+    },
+    sku: {
+      type: "string",
+      description: "Product SKU or item number"
+    },
+    category: {
+      type: "string",
+      description: "Product category/type (e.g., 'Car Freshener', 'Running Shoes')"
     },
     
-    // Core Product Information for Descriptions
-    keyFeatures: {
-      type: "array",
-      items: { type: "string" },
-      description: "Primary product features and technologies that make this product unique"
-    },
-    benefits: {
-      type: "array",
-      items: { type: "string" },
-      description: "Customer benefits and value propositions (what problems it solves)"
-    },
-    detailedDescription: {
+    // Product Descriptions
+    shortDescription: {
       type: "string",
-      description: "Comprehensive product description from the page, including all relevant details"
+      description: "Brief product description or tagline (1-2 sentences)"
+    },
+    fullDescription: {
+      type: "string",
+      description: "Complete product description including all details from the page"
+    },
+    keySellingPoints: {
+      type: "array",
+      items: { type: "string" },
+      description: "Top 3-5 unique selling points or key benefits"
     },
     
-    // Construction & Materials
+    // Features & Benefits (Structured)
+    features: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          feature: { type: "string", description: "The feature itself" },
+          benefit: { type: "string", description: "How this feature benefits the customer" }
+        }
+      },
+      description: "Product features paired with their customer benefits"
+    },
+    
+    // Technical Specifications
+    technicalSpecs: {
+      type: "object",
+      description: "All technical specifications as key-value pairs"
+    },
+    dimensions: {
+      type: "object",
+      properties: {
+        length: { type: "string" },
+        width: { type: "string" },
+        height: { type: "string" },
+        depth: { type: "string" },
+        diameter: { type: "string" },
+        weight: { type: "string" },
+        volume: { type: "string" }
+      },
+      description: "Product dimensions and measurements"
+    },
+    
+    // Materials & Construction
     materials: {
       type: "array",
       items: { type: "string" },
-      description: "Materials used in construction (fabric, foam, fiberglass, etc.)"
+      description: "Primary materials used (e.g., '100% cotton', 'stainless steel')"
     },
-    construction: {
-      type: "object",
-      properties: {
-        method: { type: "string", description: "How the product is made/constructed" },
-        details: { 
-          type: "array", 
-          items: { type: "string" },
-          description: "Specific construction details and techniques"
-        },
-        quality: { type: "string", description: "Quality indicators or certifications" }
-      }
+    constructionDetails: {
+      type: "array",
+      items: { type: "string" },
+      description: "How the product is made, construction methods, quality details"
     },
     
-    // Technical Specifications for Description Context
-    specifications: {
-      type: "object",
-      properties: {
-        dimensions: {
-          type: "object",
-          properties: {
-            length: { type: "string" },
-            width: { type: "string" }, 
-            height: { type: "string" },
-            thickness: { type: "string" },
-            volume: { type: "string" }
-          }
-        },
-        performance: {
-          type: "object",
-          properties: {
-            level: { type: "string", description: "Skill level (beginner, intermediate, advanced)" },
-            conditions: { type: "string", description: "Ideal conditions for use" },
-            capacity: { type: "string", description: "Weight capacity or size recommendations" }
-          }
-        },
-        technical: {
-          type: "array",
-          items: { type: "string" },
-          description: "Technical specifications that add value to the description"
-        }
-      }
+    // Variants & Options
+    availableColors: {
+      type: "array",
+      items: { type: "string" },
+      description: "List of available colors"
     },
-    
-    // Product Variants & Options
+    availableSizes: {
+      type: "array",
+      items: { type: "string" },
+      description: "List of available sizes"
+    },
     variants: {
       type: "array",
       items: {
-        type: "object", 
+        type: "object",
         properties: {
-          optionName: {
-            type: "string",
-            description: "Variant option name (e.g., 'Size', 'Color', 'Style')"
-          },
-          availableValues: {
-            type: "array",
-            items: { type: "string" },
-            description: "Available values for this option"
-          },
-          description: {
-            type: "string",
-            description: "Any additional context about this variant option"
-          }
+          optionType: { type: "string", description: "Type of variant (size, color, style, etc.)" },
+          values: { type: "array", items: { type: "string" } },
+          notes: { type: "string", description: "Additional notes about this variant" }
         }
       },
-      description: "Product options like sizes, colors, materials, styles"
+      description: "All product variants and options"
     },
     
     // Size & Fit Information
     sizeChart: {
       type: "object",
       properties: {
-        available: { type: "boolean", description: "Whether size chart information was found" },
-        measurements: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              size: { type: "string" },
-              measurements: { type: "object" },
-              recommendations: { type: "string" }
-            }
-          }
-        },
-        fitNotes: { 
-          type: "string", 
-          description: "General fit notes, sizing recommendations, or fit guide information" 
-        }
+        available: { type: "boolean" },
+        chartData: { type: "object", description: "Size chart measurements if available" },
+        fitDescription: { type: "string", description: "How the product fits (true to size, runs large, etc.)" },
+        sizingNotes: { type: "string", description: "Any additional sizing guidance" }
       }
     },
     
+    // Usage & Care
+    usageInstructions: {
+      type: "array",
+      items: { type: "string" },
+      description: "How to use the product"
+    },
+    careInstructions: {
+      type: "array",
+      items: { type: "string" },
+      description: "Care, maintenance, washing instructions"
+    },
+    compatibility: {
+      type: "array",
+      items: { type: "string" },
+      description: "What this product works with or is compatible with"
+    },
+    
     // Target Audience & Use Cases
-    targetAudience: {
-      type: "string",
-      description: "Who this product is designed for (beginners, pros, specific demographics)"
+    idealFor: {
+      type: "array",
+      items: { type: "string" },
+      description: "Who would benefit most from this product"
+    },
+    notSuitableFor: {
+      type: "array",
+      items: { type: "string" },
+      description: "Who this product is NOT suitable for"
     },
     useCases: {
       type: "array",
       items: { type: "string" },
-      description: "Different ways or scenarios where this product would be used"
+      description: "Specific scenarios or activities this product is perfect for"
     },
     
-    // Care & Maintenance
-    careInstructions: {
+    // Additional Information
+    warranty: {
+      type: "string",
+      description: "Warranty information if mentioned"
+    },
+    certifications: {
       type: "array",
       items: { type: "string" },
-      description: "Care, maintenance, or storage instructions"
+      description: "Any certifications, awards, or compliance standards"
     },
-    
-    // Technology & Innovation
+    inBox: {
+      type: "array",
+      items: { type: "string" },
+      description: "What's included in the package"
+    },
     technologies: {
       type: "array",
       items: {
@@ -199,63 +219,71 @@ export const DESCRIPTION_EXTRACTION_SCHEMA = {
           description: { type: "string" }
         }
       },
-      description: "Proprietary technologies, innovations, or unique design elements"
+      description: "Proprietary technologies or special features"
     },
     
-    // Awards & Recognition
-    awards: {
+    // Unique Product Attributes
+    uniqueAttributes: {
       type: "array",
       items: { type: "string" },
-      description: "Awards, certifications, or recognition this product has received"
+      description: "Any unique or standout features not captured elsewhere"
     }
   },
-  required: ["productTitle", "keyFeatures", "detailedDescription"]
+  required: ["productName", "features", "keySellingPoints"]
 };
 
 export interface ExtractedDescriptionData {
-  productTitle: string;
-  brandVendor?: string;
-  productCategory?: string;
-  keyFeatures: string[];
-  benefits: string[];
-  detailedDescription: string;
+  productName: string;
+  brand?: string;
+  model?: string;
+  sku?: string;
+  category?: string;
+  shortDescription?: string;
+  fullDescription?: string;
+  keySellingPoints: string[];
+  features: Array<{
+    feature: string;
+    benefit: string;
+  }>;
+  technicalSpecs?: Record<string, string>;
+  dimensions?: {
+    length?: string;
+    width?: string;
+    height?: string;
+    depth?: string;
+    diameter?: string;
+    weight?: string;
+    volume?: string;
+  };
   materials: string[];
-  construction: {
-    method?: string;
-    details: string[];
-    quality?: string;
-  };
-  specifications: {
-    dimensions: Record<string, string>;
-    performance: {
-      level?: string;
-      conditions?: string;
-      capacity?: string;
-    };
-    technical: string[];
-  };
+  constructionDetails: string[];
+  availableColors: string[];
+  availableSizes: string[];
   variants: Array<{
-    optionName: string;
-    availableValues: string[];
-    description?: string;
+    optionType: string;
+    values: string[];
+    notes?: string;
   }>;
   sizeChart: {
     available: boolean;
-    measurements?: Array<{
-      size: string;
-      measurements: Record<string, any>;
-      recommendations?: string;
-    }>;
-    fitNotes?: string;
+    chartData?: Record<string, any>;
+    fitDescription?: string;
+    sizingNotes?: string;
   };
-  targetAudience?: string;
-  useCases: string[];
+  usageInstructions: string[];
   careInstructions: string[];
+  compatibility: string[];
+  idealFor: string[];
+  notSuitableFor: string[];
+  useCases: string[];
+  warranty?: string;
+  certifications: string[];
+  inBox: string[];
   technologies: Array<{
     name: string;
     description?: string;
   }>;
-  awards: string[];
+  uniqueAttributes: string[];
 }
 
 export interface ExtractionResult {
@@ -268,6 +296,7 @@ export interface ExtractionResult {
   metadata?: Record<string, any>;
   error?: string;
   note?: string;
+  extractionMethod?: 'llm' | 'structured_data' | 'pattern' | 'fallback';
 }
 
 /**
@@ -276,51 +305,68 @@ export interface ExtractionResult {
  * @param {Object} firecrawlClient - Initialized Firecrawl client
  * @returns {Object} Structured product data for description generation
  */
+// Extend Firecrawl type for retry count
+type FirecrawlWithRetry = FirecrawlApp & { retryCount?: number };
+
 export async function extractProductDescriptionData(
   url: string, 
   firecrawlClient: FirecrawlApp
 ): Promise<ExtractionResult> {
+  // Cast to our extended type
+  const client = firecrawlClient as FirecrawlWithRetry;
+  
+  // Initialize retry count for this instance
+  if (!client.retryCount) {
+    client.retryCount = 0;
+  }
+  
   try {
     logger.info('\n=== FIRECRAWL EXTRACTION START ===');
     logger.info('Extracting from URL', { url });
     logger.info('Using scrape config', { config: FIRECRAWL_SCRAPE_CONFIG });
     
-    // Use Firecrawl's extract feature for structured data
-    const response: any = await firecrawlClient.scrapeUrl(url, {
+    // Configure extraction inline with scraping for efficiency
+    const extractConfig = {
       ...FIRECRAWL_SCRAPE_CONFIG,
       extract: {
         schema: DESCRIPTION_EXTRACTION_SCHEMA,
-        systemPrompt: `You are a product information extraction expert specializing in gathering data for AI-powered product description generation. 
-        Your goal is to extract comprehensive product information that will help create compelling, accurate, and detailed product descriptions.
-        
-        Focus on extracting:
-        - Detailed features and benefits (not just bullet points, but explanatory content)
-        - Materials, construction methods, and quality indicators
-        - Technical specifications that customers care about
-        - Size charts and fit information
-        - Target audience and use case information
-        - Unique technologies or innovations
-        - Care instructions and maintenance info
-        
-        Ignore pricing information completely - focus only on product characteristics, features, and descriptive content.
-        Prioritize information that would help someone understand what makes this product special and why they should choose it.`,
-        prompt: `Extract comprehensive product information for description generation, including:
-        
-        1. Product identity (title, brand, category)
-        2. Detailed features and benefits (what makes it special)
-        3. Materials and construction details
-        4. Technical specifications and dimensions
-        5. Available variants/options with descriptions
-        6. Size chart and fit information
-        7. Target audience and use cases
-        8. Technologies, innovations, or unique design elements
-        9. Care and maintenance instructions
-        10. Awards or certifications
-        
-        Focus on extracting rich, descriptive content that would help create compelling product descriptions.
-        Do not extract pricing information. Prioritize detailed explanations over simple bullet points.`
+        systemPrompt: `You are an expert e-commerce data extractor. Extract ONLY factual product information that would help create a compelling product description. 
+          
+          Rules:
+          1. Extract actual content from the page, not generic descriptions
+          2. For features, pair each feature with its customer benefit
+          3. Ignore all pricing, promotions, and sales information
+          4. Skip navigation, UI elements, and marketing fluff
+          5. Focus on specifications, materials, construction, and unique characteristics
+          6. If size chart data exists, extract it completely
+          7. Differentiate between what the product IS vs what it DOES
+          
+          Return clean, structured JSON data ready for AI processing.`,
+        prompt: `Extract comprehensive product information including:
+          
+          - Product name, brand, model, SKU
+          - Short tagline and full description
+          - Features WITH their benefits (as feature/benefit pairs)
+          - All technical specifications
+          - Materials and construction methods
+          - Available colors, sizes, and variants
+          - Size chart and fit information
+          - Usage and care instructions
+          - Who it's ideal for and use cases
+          - What's included in the package
+          - Any unique technologies or innovations
+          
+          Extract ACTUAL content from the page. Be thorough but factual.`
       }
-    } as any); // Type assertion needed due to Firecrawl type definitions
+    };
+    
+    logger.info('Scraping with enhanced extraction config', {
+      url,
+      includeTagsCount: FIRECRAWL_SCRAPE_CONFIG.includeTags.length,
+      excludeTagsCount: FIRECRAWL_SCRAPE_CONFIG.excludeTags.length
+    });
+    
+    const response: any = await client.scrapeUrl(url, extractConfig as any);
 
     // Log the raw Firecrawl response
     logger.info('\n--- RAW FIRECRAWL RESPONSE ---');
@@ -331,46 +377,99 @@ export async function extractProductDescriptionData(
       hasExtract: !!(response?.extract || response?.data?.extract)
     });
     
-    // Check if response has extract data
-    const extractedData = (response as any).extract || (response as any).data?.extract;
+    // Handle various response structures from Firecrawl
+    const extractedData = response.extract || response.data?.extract || response.llm_extraction;
+    const markdown = response.markdown || response.data?.markdown;
+    const html = response.html || response.data?.html;
+    const metadata = response.metadata || response.data?.metadata || {};
     
-    if (extractedData) {
-      logger.info('\n--- EXTRACTED DATA FROM LLM ---');
-      logger.info('LLM extracted data', { data: extractedData });
+    if (extractedData && Object.keys(extractedData).length > 0) {
+      logger.info('\n--- SUCCESSFUL LLM EXTRACTION ---');
+      logger.info('Extraction metrics', { 
+        fieldsExtracted: Object.keys(extractedData).length,
+        hasFeatures: !!extractedData.features?.length,
+        hasSpecs: !!extractedData.technicalSpecs,
+        hasSizeInfo: !!extractedData.sizeChart?.available
+      });
+      
+      // Log sample of extracted data for debugging
+      logger.info('Sample extracted data', {
+        productName: extractedData.productName,
+        featuresCount: extractedData.features?.length || 0,
+        keySellingPoints: extractedData.keySellingPoints?.slice(0, 2)
+      });
       
       return {
         success: true,
         data: cleanExtractedData(extractedData),
         rawContent: {
-          markdown: response.markdown || (response as any).data?.markdown,
-          html: response.html || (response as any).data?.html
+          markdown: markdown?.substring(0, 1000), // Truncate for logging
+          html: html?.substring(0, 1000)
         },
-        metadata: response.metadata || (response as any).data?.metadata || {}
+        metadata,
+        extractionMethod: 'llm'
       };
     } else {
-      // Fallback to basic extraction if LLM extraction didn't work
-      logger.warn('\n--- FALLBACK EXTRACTION ---');
-      logger.warn('No extract data found, falling back to basic extraction');
+      // Implement intelligent fallback strategies
+      logger.warn('\n--- INTELLIGENT FALLBACK EXTRACTION ---');
+      logger.warn('LLM extraction failed, trying alternative methods');
       
-      // Log what content we have for fallback
-      if (response?.markdown) {
-        logger.info('Fallback content available', {
-          markdownLength: response.markdown.length,
-          markdownPreview: response.markdown.substring(0, 500) + '...'
-        });
+      // Strategy 1: Try to extract structured data (JSON-LD, microdata)
+      if (html) {
+        try {
+          const structuredData = await extractStructuredData(html);
+          if (structuredData) {
+            logger.info('Found structured data, using for extraction');
+            const cleanedData = cleanExtractedData(structuredData);
+            return {
+              success: true,
+              data: cleanedData,
+              rawContent: { markdown, html },
+              metadata,
+              extractionMethod: 'structured_data'
+            };
+          }
+        } catch (e) {
+          logger.debug('Structured data extraction failed', { error: e });
+        }
       }
       
+      // Strategy 2: Try simplified LLM extraction with smaller schema
+      if (client.retryCount < 1) {
+        try {
+          client.retryCount++;
+          logger.info('Attempting simplified LLM extraction');
+          const simplifiedResponse = await client.scrapeUrl(url, {
+            ...FIRECRAWL_SCRAPE_CONFIG,
+            extract: {
+              prompt: `Extract only: product name, brand, 3-5 key features, materials, available sizes and colors`
+            }
+          } as any);
+          
+          if ((simplifiedResponse as any).extract) {
+            return {
+              success: true,
+              data: cleanExtractedData((simplifiedResponse as any).extract),
+              rawContent: { markdown, html },
+              metadata,
+              extractionMethod: 'llm'
+            };
+          }
+        } catch (e) {
+          logger.debug('Simplified LLM extraction failed', { error: e });
+        }
+      }
+      
+      // Strategy 3: Pattern-based extraction
+      logger.info('Falling back to pattern-based extraction');
       const fallbackData = fallbackExtractDescriptionData(response);
       
       return {
         success: true,
         data: fallbackData,
-        rawContent: {
-          markdown: response.markdown || (response as any).data?.markdown,
-          html: response.html || (response as any).data?.html
-        },
-        metadata: response.metadata || (response as any).data?.metadata || {},
-        note: "Used fallback extraction method"
+        rawContent: { markdown, html },
+        metadata,
+        extractionMethod: 'pattern'
       };
     }
 
@@ -411,23 +510,45 @@ function fallbackExtractDescriptionData(firecrawlResponse: any): ExtractedDescri
   const markdown = firecrawlResponse.markdown || firecrawlResponse.data?.markdown || '';
   const metadata = firecrawlResponse.metadata || firecrawlResponse.data?.metadata || {};
   
+  // Extract features and benefits separately first
+  const extractedFeatures = extractFeatures(markdown);
+  const extractedBenefits = extractBenefits(markdown);
+  
+  // Try to pair features with benefits
+  const features = extractedFeatures.map((feature, index) => ({
+    feature,
+    benefit: extractedBenefits[index] || ''
+  }));
+  
   const descriptionData: ExtractedDescriptionData = {
-    productTitle: metadata.ogTitle || metadata.title || extractTitle(markdown) || '',
-    brandVendor: extractBrand(markdown, metadata),
-    productCategory: extractCategory(markdown),
-    keyFeatures: extractFeatures(markdown),
-    benefits: extractBenefits(markdown),
-    detailedDescription: extractDetailedDescription(markdown, metadata),
+    productName: metadata.ogTitle || metadata.title || extractTitle(markdown) || '',
+    brand: extractBrand(markdown, metadata),
+    model: undefined,
+    sku: undefined,
+    category: extractCategory(markdown),
+    shortDescription: metadata.description || undefined,
+    fullDescription: extractDetailedDescription(markdown, metadata),
+    keySellingPoints: extractedFeatures.slice(0, 5), // Top 5 features as key selling points
+    features,
+    technicalSpecs: extractTechnicalSpecs(markdown),
+    dimensions: extractDimensions(markdown),
     materials: extractMaterials(markdown),
-    construction: extractConstruction(markdown),
-    specifications: extractSpecifications(markdown),
+    constructionDetails: extractConstructionDetails(markdown),
+    availableColors: extractColors(markdown),
+    availableSizes: extractSizes(markdown),
     variants: extractVariants(markdown),
     sizeChart: extractSizeChart(markdown),
-    targetAudience: extractTargetAudience(markdown),
-    useCases: extractUseCases(markdown),
+    usageInstructions: [],
     careInstructions: extractCareInstructions(markdown),
+    compatibility: [],
+    idealFor: extractTargetAudience(markdown) ? [extractTargetAudience(markdown)!] : [],
+    notSuitableFor: [],
+    useCases: extractUseCases(markdown),
+    warranty: extractWarranty(markdown),
+    certifications: extractAwards(markdown),
+    inBox: [],
     technologies: extractTechnologies(markdown),
-    awards: extractAwards(markdown)
+    uniqueAttributes: []
   };
 
   return descriptionData;
@@ -549,44 +670,171 @@ function extractMaterials(markdown: string): string[] {
   return [...new Set(materials)]; // Remove duplicates
 }
 
-function extractConstruction(markdown: string): ExtractedDescriptionData['construction'] {
-  const construction: ExtractedDescriptionData['construction'] = {
-    method: undefined,
-    details: [],
-    quality: undefined
-  };
+function extractConstructionDetails(markdown: string): string[] {
+  const details: string[] = [];
   
-  const constructionMatch = markdown.match(/(?:Construction|How it's made)[\s\S]*?([^\n#]+)/i);
+  // Look for construction-related content
+  const constructionMatch = markdown.match(/(?:Construction|How it's made|Built with|Made from)[\s\S]*?([^\n#]+)/gi);
   if (constructionMatch) {
-    construction.method = constructionMatch[1].trim();
+    constructionMatch.forEach(match => {
+      const detail = match.replace(/^.*?:/, '').trim();
+      if (detail.length > 10) details.push(detail);
+    });
   }
   
-  return construction;
+  return details;
 }
 
-function extractSpecifications(markdown: string): ExtractedDescriptionData['specifications'] {
-  const specs: ExtractedDescriptionData['specifications'] = {
-    dimensions: {},
-    performance: {},
-    technical: []
-  };
+function extractTechnicalSpecs(markdown: string): Record<string, string> {
+  const specs: Record<string, string> = {};
   
-  // Extract dimensions
-  const dimensionPatterns = [
-    /Length[:]\s*([^\n]+)/i,
-    /Width[:]\s*([^\n]+)/i,
-    /Height[:]\s*([^\n]+)/i,
-    /(\d+(?:\.\d+)?)\s*(?:inches|in|cm|mm|feet|ft)/gi
-  ];
-  
-  for (const pattern of dimensionPatterns) {
-    const match = markdown.match(pattern);
-    if (match) {
-      specs.technical.push(match[0]);
+  // Look for key-value patterns
+  const specMatches = markdown.matchAll(/^([A-Za-z\s]+):\s*(.+)$/gm);
+  for (const match of specMatches) {
+    const key = match[1].trim();
+    const value = match[2].trim();
+    if (key && value && key.length < 50 && value.length < 200) {
+      specs[key] = value;
     }
   }
   
   return specs;
+}
+
+function extractDimensions(markdown: string): ExtractedDescriptionData['dimensions'] {
+  const dimensions: ExtractedDescriptionData['dimensions'] = {};
+  
+  // Extract specific dimensions
+  const patterns = {
+    length: /Length[:]\s*([^\n]+)/i,
+    width: /Width[:]\s*([^\n]+)/i,
+    height: /Height[:]\s*([^\n]+)/i,
+    depth: /Depth[:]\s*([^\n]+)/i,
+    diameter: /Diameter[:]\s*([^\n]+)/i,
+    weight: /Weight[:]\s*([^\n]+)/i,
+    volume: /Volume[:]\s*([^\n]+)/i
+  };
+  
+  for (const [key, pattern] of Object.entries(patterns)) {
+    const match = markdown.match(pattern);
+    if (match) {
+      dimensions[key as keyof typeof dimensions] = match[1].trim();
+    }
+  }
+  
+  return dimensions;
+}
+
+function extractColors(markdown: string): string[] {
+  const colors: string[] = [];
+  
+  // Look for color patterns
+  const colorMatch = markdown.match(/(?:Colors?|Colours?|Available in)[:]?\s*([^\n]+)/i);
+  if (colorMatch) {
+    const colorText = colorMatch[1];
+    // Split by common delimiters
+    const colorList = colorText.split(/[,;/]|\band\b/i);
+    colors.push(...colorList.map(c => c.trim()).filter(c => c.length > 0));
+  }
+  
+  return colors;
+}
+
+function extractSizes(markdown: string): string[] {
+  const sizes: string[] = [];
+  
+  // Look for size patterns
+  const sizePatterns = [
+    /Sizes?[:]\s*([^\n]+)/i,
+    /Available sizes?[:]\s*([^\n]+)/i,
+    /(XS|S|M|L|XL|XXL|XXXL|\d+)/g
+  ];
+  
+  for (const pattern of sizePatterns) {
+    const matches = markdown.matchAll(pattern);
+    for (const match of matches) {
+      const size = match[1] || match[0];
+      if (size && !sizes.includes(size)) {
+        sizes.push(size);
+      }
+    }
+  }
+  
+  return sizes;
+}
+
+function extractWarranty(markdown: string): string | undefined {
+  const warrantyMatch = markdown.match(/(?:Warranty|Guarantee)[:]?\s*([^\n]+)/i);
+  return warrantyMatch ? warrantyMatch[1].trim() : undefined;
+}
+
+/**
+ * Extract structured data from HTML (JSON-LD, microdata)
+ */
+async function extractStructuredData(html: string): Promise<any> {
+  try {
+    // Look for JSON-LD structured data
+    const jsonLdMatches = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+    
+    for (const match of jsonLdMatches) {
+      try {
+        const jsonData = JSON.parse(match[1]);
+        
+        // Check if it's a Product schema
+        if (jsonData['@type'] === 'Product' || jsonData.type === 'Product') {
+          logger.info('Found Product JSON-LD data');
+          
+          // Map JSON-LD to our schema
+          return {
+            productName: jsonData.name,
+            brand: jsonData.brand?.name || jsonData.manufacturer?.name,
+            model: jsonData.model || jsonData.mpn,
+            sku: jsonData.sku,
+            shortDescription: jsonData.description,
+            features: jsonData.additionalProperty?.map((p: any) => ({
+              feature: p.name,
+              benefit: p.value
+            })) || [],
+            technicalSpecs: jsonData.additionalProperty?.reduce((acc: any, p: any) => {
+              acc[p.name] = p.value;
+              return acc;
+            }, {}) || {},
+            materials: jsonData.material ? [jsonData.material] : [],
+            ...(jsonData.offers && {
+              warranty: jsonData.offers.warranty
+            })
+          };
+        }
+      } catch (e) {
+        logger.debug('Failed to parse JSON-LD', { error: e });
+      }
+    }
+    
+    // Look for microdata
+    const microdataMatch = html.match(/itemtype=["']https?:\/\/schema\.org\/Product["'][^>]*>([\s\S]*?)<\/[^>]+>/i);
+    if (microdataMatch) {
+      logger.info('Found Product microdata');
+      // Extract microdata properties (simplified)
+      const productData: any = {};
+      
+      const propMatches = microdataMatch[1].matchAll(/itemprop=["']([^"']+)["'][^>]*>([^<]+)</gi);
+      for (const propMatch of propMatches) {
+        productData[propMatch[1]] = propMatch[2].trim();
+      }
+      
+      return {
+        productName: productData.name,
+        brand: productData.brand,
+        shortDescription: productData.description,
+        features: [],
+        materials: productData.material ? [productData.material] : []
+      };
+    }
+  } catch (error) {
+    logger.debug('Error extracting structured data', { error });
+  }
+  
+  return null;
 }
 
 function extractVariants(markdown: string): ExtractedDescriptionData['variants'] {
@@ -601,9 +849,9 @@ function extractVariants(markdown: string): ExtractedDescriptionData['variants']
   
   if (sizes.length > 0) {
     variants.push({
-      optionName: 'Size',
-      availableValues: sizes,
-      description: 'Available sizes'
+      optionType: 'Size',
+      values: sizes,
+      notes: 'Available sizes'
     });
   }
   
@@ -613,8 +861,9 @@ function extractVariants(markdown: string): ExtractedDescriptionData['variants']
 function extractSizeChart(markdown: string): ExtractedDescriptionData['sizeChart'] {
   const sizeChart: ExtractedDescriptionData['sizeChart'] = {
     available: false,
-    measurements: [],
-    fitNotes: undefined
+    chartData: undefined,
+    fitDescription: undefined,
+    sizingNotes: undefined
   };
   
   // Look for size chart indicators
@@ -623,7 +872,7 @@ function extractSizeChart(markdown: string): ExtractedDescriptionData['sizeChart
     
     const fitMatch = markdown.match(/(?:Fit|Sizing)[:]\s*([^\n]+)/i);
     if (fitMatch) {
-      sizeChart.fitNotes = fitMatch[1].trim();
+      sizeChart.fitDescription = fitMatch[1].trim();
     }
   }
   
@@ -717,36 +966,73 @@ function extractAwards(markdown: string): string[] {
  * @returns {Object} Cleaned and organized data
  */
 export function cleanExtractedData(rawData: any): ExtractedDescriptionData {
+  // Handle both old and new field names for backward compatibility
+  const productName = rawData.productName || rawData.productTitle || '';
+  const brand = rawData.brand || rawData.brandVendor || undefined;
+  const category = rawData.category || rawData.productCategory || undefined;
+  
   return {
     // Product Identity
-    productTitle: rawData.productTitle || '',
-    brandVendor: rawData.brandVendor || undefined,
-    productCategory: rawData.productCategory || undefined,
+    productName,
+    brand,
+    model: rawData.model || undefined,
+    sku: rawData.sku || undefined,
+    category,
     
-    // Core Description Elements
-    keyFeatures: (rawData.keyFeatures || []).filter((f: any) => f && f.length > 10),
-    benefits: (rawData.benefits || []).filter((b: any) => b && b.length > 15),
-    detailedDescription: rawData.detailedDescription || '',
+    // Descriptions
+    shortDescription: rawData.shortDescription || undefined,
+    fullDescription: rawData.fullDescription || rawData.detailedDescription || undefined,
+    keySellingPoints: (rawData.keySellingPoints || rawData.keyFeatures || []).filter((p: any) => p && p.length > 10),
+    
+    // Features & Benefits
+    features: rawData.features?.length > 0 ? rawData.features : 
+      // Convert old format to new format if needed
+      (rawData.keyFeatures || []).map((f: string) => ({
+        feature: f,
+        benefit: (rawData.benefits && rawData.benefits[0]) || ''
+      })).filter((f: any) => f.feature),
+    
+    // Technical Specifications
+    technicalSpecs: rawData.technicalSpecs || rawData.specifications?.technical || undefined,
+    dimensions: rawData.dimensions || rawData.specifications?.dimensions || undefined,
     
     // Materials & Construction
     materials: (rawData.materials || []).filter((m: any) => m && m.length > 2),
-    construction: rawData.construction || { details: [] },
+    constructionDetails: rawData.constructionDetails || rawData.construction?.details || [],
     
-    // Technical Information
-    specifications: rawData.specifications || { dimensions: {}, performance: {}, technical: [] },
+    // Variants
+    availableColors: rawData.availableColors || [],
+    availableSizes: rawData.availableSizes || [],
+    variants: (rawData.variants || []).map((v: any) => ({
+      optionType: v.optionType || v.optionName || '',
+      values: v.values || v.availableValues || [],
+      notes: v.notes || v.description || undefined
+    })).filter((v: any) => v.optionType && v.values.length > 0),
     
-    // Variants & Sizing
-    variants: (rawData.variants || []).filter((v: any) => v.optionName && v.availableValues?.length > 0),
-    sizeChart: rawData.sizeChart || { available: false },
+    // Size Chart
+    sizeChart: {
+      available: rawData.sizeChart?.available || false,
+      chartData: rawData.sizeChart?.chartData || rawData.sizeChart?.measurements || undefined,
+      fitDescription: rawData.sizeChart?.fitDescription || rawData.sizeChart?.fitNotes || undefined,
+      sizingNotes: rawData.sizeChart?.sizingNotes || undefined
+    },
     
-    // Audience & Usage
-    targetAudience: rawData.targetAudience || undefined,
+    // Usage & Care
+    usageInstructions: rawData.usageInstructions || [],
+    careInstructions: (rawData.careInstructions || []).filter((c: any) => c && c.length > 10),
+    compatibility: rawData.compatibility || [],
+    
+    // Target Audience
+    idealFor: rawData.idealFor || (rawData.targetAudience ? [rawData.targetAudience] : []),
+    notSuitableFor: rawData.notSuitableFor || [],
     useCases: (rawData.useCases || []).filter((u: any) => u && u.length > 5),
     
-    // Additional Context
-    careInstructions: (rawData.careInstructions || []).filter((c: any) => c && c.length > 10),
+    // Additional Information
+    warranty: rawData.warranty || undefined,
+    certifications: rawData.certifications || rawData.awards || [],
+    inBox: rawData.inBox || [],
     technologies: (rawData.technologies || []).filter((t: any) => t.name && t.name.length > 5),
-    awards: (rawData.awards || []).filter((a: any) => a && a.length > 5)
+    uniqueAttributes: rawData.uniqueAttributes || []
   };
 }
 
@@ -777,11 +1063,11 @@ export async function extractForDescriptionGeneration(
     // Log the final cleaned data that will be sent to AI
     logger.info('\n--- FINAL CLEANED DATA FOR AI ---');
     logger.info('Extraction summary', {
-      productTitle: extractionResult.data.productTitle,
-      brandVendor: extractionResult.data.brandVendor,
-      category: extractionResult.data.productCategory,
-      keyFeaturesCount: extractionResult.data.keyFeatures.length,
-      benefitsCount: extractionResult.data.benefits.length,
+      productName: extractionResult.data.productName,
+      brand: extractionResult.data.brand,
+      category: extractionResult.data.category,
+      featuresCount: extractionResult.data.features.length,
+      keySellingPointsCount: extractionResult.data.keySellingPoints.length,
       materialsCount: extractionResult.data.materials.length,
       variantsCount: extractionResult.data.variants.length,
       hasSizeChart: extractionResult.data.sizeChart.available,
@@ -790,11 +1076,11 @@ export async function extractForDescriptionGeneration(
     });
     
     // Log a sample of the detailed content
-    if (extractionResult.data.detailedDescription) {
+    if (extractionResult.data.fullDescription) {
       logger.info('Content preview', {
-        descriptionPreview: extractionResult.data.detailedDescription.substring(0, 300) + '...',
-        keyFeatures: extractionResult.data.keyFeatures.slice(0, 3),
-        benefits: extractionResult.data.benefits.slice(0, 3)
+        descriptionPreview: extractionResult.data.fullDescription.substring(0, 300) + '...',
+        features: extractionResult.data.features.slice(0, 3),
+        keySellingPoints: extractionResult.data.keySellingPoints.slice(0, 3)
       });
     }
     
@@ -802,7 +1088,7 @@ export async function extractForDescriptionGeneration(
     
     // Save the extracted data
     if (extractionResult.data) {
-      const titleForFile = productTitle || extractionResult.data.productTitle || 'unknown-product';
+      const titleForFile = productTitle || extractionResult.data.productName || 'unknown-product';
       
       // In production, save to database; in dev, save to files
       if (process.env.NODE_ENV === 'production' && shop) {
