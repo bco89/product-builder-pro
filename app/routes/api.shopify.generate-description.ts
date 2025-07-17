@@ -21,12 +21,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       
       try {
         const scraper = new ProductScraperService();
-        scrapedData = await scraper.scrapeProductInfo(data.productUrl, session.shop);
-        logger.info('URL scraping successful', { 
-          shop: session.shop, 
-          url: data.productUrl,
-          hasData: !!scrapedData 
-        });
+        // Try extract endpoint first for better results
+        try {
+          scrapedData = await scraper.extractProductInfo(data.productUrl, session.shop);
+          logger.info('URL extraction successful using extract endpoint', { 
+            shop: session.shop, 
+            url: data.productUrl,
+            hasData: !!scrapedData,
+            extractionMethod: scrapedData?.extractionMethod
+          });
+        } catch (extractError) {
+          // If extract fails, try regular scraping
+          logger.warn('Extract endpoint failed, trying regular scraping', { error: extractError });
+          scrapedData = await scraper.scrapeProductInfo(data.productUrl, session.shop);
+          logger.info('URL scraping successful using fallback method', { 
+            shop: session.shop, 
+            url: data.productUrl,
+            hasData: !!scrapedData 
+          });
+        }
       } catch (error) {
         if (error instanceof ProductScraperError) {
           logger.error('Product scraping failed', error, { 

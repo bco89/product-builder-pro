@@ -451,6 +451,8 @@ Return as JSON with these exact keys:
       primaryKeyword: params.keywords[0],
       hasScrapedData: !!params.scrapedData,
       hasEnhancedData: !!params.scrapedData?.descriptionData,
+      extractionMethod: params.scrapedData?.extractionMethod,
+      hasSizeInfo: this.checkForSizeChart(params),
       templateType: useDetailedTemplate ? 'TECHNICAL' : 'LIFESTYLE'
     });
     
@@ -937,133 +939,130 @@ Every sentence should serve multiple purposes - inform newcomers, differentiate 
     // Check if we have enhanced description data (new format)
     if (scrapedData.descriptionData) {
       const data = scrapedData.descriptionData;
-      let formatted = '## 📊 PRODUCT INFORMATION\n';
+      let formatted = '## 📊 PRODUCT DATA\n';
       
-      // Core Product Identity (always include)
-      if (data.productName || data.brand) {
-        formatted += `\n**Product**: ${data.productName || 'Not specified'}`;
-        if (data.brand) formatted += ` by ${data.brand}`;
-        if (data.model) formatted += ` (Model: ${data.model})`;
+      // Core Product Identity (concise)
+      if (data.productTitle || data.brandVendor) {
+        formatted += `\n**Product**: ${data.productTitle || 'Not specified'}`;
+        if (data.brandVendor) formatted += ` by ${data.brandVendor}`;
         formatted += '\n';
       }
       
-      // Key Selling Points (high priority)
-      if (data.keySellingPoints?.length > 0) {
-        formatted += `\n**Key Benefits**:\n${data.keySellingPoints.map((p: string) => `- ${p}`).join('\n')}\n`;
-      }
-      
-      // Features with Benefits (structured format)
-      if (data.features?.length > 0) {
-        formatted += `\n**Features**:\n`;
-        data.features.slice(0, 8).forEach((f: any) => {
-          formatted += `- ${f.feature}`;
-          if (f.benefit) formatted += `: ${f.benefit}`;
-          formatted += '\n';
+      // Key Features (limit to 5-7 most important)
+      if (data.keyFeatures?.length > 0) {
+        formatted += `\n**Key Points**:\n`;
+        data.keyFeatures.slice(0, 7).forEach((feature: string) => {
+          formatted += `- ${feature}\n`;
         });
       }
       
-      // Materials & Construction (concise)
-      if (data.materials?.length > 0 || data.constructionDetails?.length > 0) {
-        formatted += `\n**Construction**:\n`;
-        if (data.materials?.length > 0) {
-          formatted += `Materials: ${data.materials.join(', ')}\n`;
+      // Materials & Specs (combined for efficiency)
+      const hasMaterials = data.materials?.length > 0;
+      const hasSpecs = data.specifications?.technical?.length > 0;
+      
+      if (hasMaterials || hasSpecs) {
+        formatted += `\n**Details**:\n`;
+        if (hasMaterials) {
+          formatted += `Materials: ${data.materials.slice(0, 3).join(', ')}\n`;
         }
-        if (data.constructionDetails?.length > 0) {
-          formatted += `${data.constructionDetails.slice(0, 2).join('. ')}\n`;
+        if (hasSpecs) {
+          data.specifications.technical.slice(0, 4).forEach((spec: string) => {
+            formatted += `${spec}\n`;
+          });
         }
       }
       
-      // Technical Specs (if relevant)
-      if (data.technicalSpecs && Object.keys(data.technicalSpecs).length > 0) {
-        formatted += `\n**Specifications**:\n`;
-        Object.entries(data.technicalSpecs).slice(0, 6).forEach(([key, value]) => {
-          formatted += `${key}: ${value}\n`;
-        });
-      }
+      // ALWAYS include size information if available
+      const hasSizes = data.availableSizes?.length > 0 || 
+                      data.sizeChart?.available || 
+                      data.variants?.some((v: any) => v.optionName?.toLowerCase() === 'size');
       
-      // Dimensions (if available)
-      if (data.dimensions && Object.keys(data.dimensions).length > 0) {
-        const dims = Object.entries(data.dimensions)
-          .filter(([_, v]) => v)
-          .map(([k, v]) => `${k}: ${v}`)
-          .join(', ');
-        if (dims) formatted += `\n**Dimensions**: ${dims}\n`;
-      }
-      
-      // Variants (colors, sizes)
-      const hasVariants = data.availableColors?.length > 0 || data.availableSizes?.length > 0;
-      if (hasVariants) {
-        formatted += `\n**Options**:\n`;
-        if (data.availableColors?.length > 0) {
-          formatted += `Colors: ${data.availableColors.join(', ')}\n`;
-        }
+      if (hasSizes) {
+        formatted += `\n⚠️ **SIZE INFORMATION**:\n`;
+        
+        // Available sizes
         if (data.availableSizes?.length > 0) {
-          formatted += `Sizes: ${data.availableSizes.join(', ')}\n`;
+          formatted += `Available Sizes: ${data.availableSizes.join(', ')}\n`;
+        } else if (data.variants?.length > 0) {
+          const sizeVariant = data.variants.find((v: any) => v.optionName?.toLowerCase() === 'size');
+          if (sizeVariant?.availableValues?.length > 0) {
+            formatted += `Available Sizes: ${sizeVariant.availableValues.join(', ')}\n`;
+          }
+        }
+        
+        // Size chart and fit notes
+        if (data.sizeChart?.available) {
+          formatted += `Size Chart: Available on product page\n`;
+          if (data.sizeChart.fitNotes) {
+            formatted += `Fit: ${data.sizeChart.fitNotes}\n`;
+          }
         }
       }
       
-      // Size Chart Alert
-      if (data.sizeChart?.available) {
-        formatted += `\n⚠️ **SIZE CHART AVAILABLE** - Include sizing information\n`;
-        if (data.sizeChart.fitDescription) {
-          formatted += `Fit: ${data.sizeChart.fitDescription}\n`;
-        }
+      // Color options (brief)
+      if (data.availableColors?.length > 0) {
+        formatted += `Colors: ${data.availableColors.slice(0, 5).join(', ')}\n`;
       }
       
-      // Target Audience & Use Cases
-      if (data.idealFor?.length > 0) {
-        formatted += `\n**Ideal For**: ${data.idealFor.slice(0, 3).join(', ')}\n`;
+      // Use cases (if available, limit to 3)
+      if (data.useCases?.length > 0) {
+        formatted += `\n**Best For**: ${data.useCases.slice(0, 3).join(', ')}\n`;
       }
       
-      // Care Instructions (if present)
-      if (data.careInstructions?.length > 0) {
-        formatted += `\n**Care**: ${data.careInstructions.slice(0, 2).join('. ')}\n`;
-      }
-      
-      // Technologies/Unique Features
+      // Technologies (only if unique)
       if (data.technologies?.length > 0) {
-        formatted += `\n**Special Features**:\n`;
-        data.technologies.slice(0, 3).forEach((t: any) => {
-          formatted += `- ${t.name}`;
-          if (t.description) formatted += `: ${t.description.substring(0, 50)}...`;
-          formatted += '\n';
-        });
+        formatted += `\n**Special Features**: ${data.technologies.slice(0, 2).map((t: any) => t.name).join(', ')}\n`;
       }
       
       return formatted;
     }
     
     // Fallback for unstructured scraped data
-    const filteredContent = typeof scrapedData === 'string' 
-      ? this.filterScrapedContent(scrapedData)
-      : this.filterScrapedContent(scrapedData.rawContent || JSON.stringify(scrapedData));
+    const content = typeof scrapedData === 'string' 
+      ? scrapedData 
+      : (scrapedData.rawContent || scrapedData.description || '');
     
-    // Extremely condensed format for raw content
+    if (!content) return '';
+    
+    // Apply aggressive filtering
+    const filtered = this.filterScrapedContent(content);
+    
     let formatted = '## 📊 PRODUCT DATA\n';
     
-    // Extract only the most relevant patterns
-    const content = filteredContent.toLowerCase();
-    
-    // Quick feature extraction
-    const bulletMatches = filteredContent.match(/[•–—-]\s*([^•–—\n-]{15,100})/g);
-    if (bulletMatches && bulletMatches.length > 0) {
+    // Extract key features from bullet points
+    const bullets = filtered.match(/[•–—-]\s*([^•–—\n-]{20,150})/g);
+    if (bullets && bullets.length > 0) {
       formatted += '\n**Key Points**:\n';
-      bulletMatches.slice(0, 5).forEach(match => {
-        const cleaned = match.replace(/^[•–—-]\s*/, '').trim();
-        if (cleaned.length > 15) formatted += `- ${cleaned}\n`;
+      bullets.slice(0, 5).forEach(bullet => {
+        const clean = bullet.replace(/^[•–—-]\s*/, '').trim();
+        formatted += `- ${clean}\n`;
       });
     }
     
-    // Size alert
-    if (content.includes('size') || content.includes('dimension')) {
-      formatted += '\n⚠️ **SIZE INFO DETECTED** - Check source for details\n';
+    // ALWAYS check for size information
+    const lowerContent = filtered.toLowerCase();
+    const hasSizeInfo = lowerContent.includes('size') || 
+                       lowerContent.includes('sizing') || 
+                       lowerContent.includes('measurements') ||
+                       lowerContent.includes('dimensions');
+    
+    if (hasSizeInfo) {
+      formatted += '\n⚠️ **SIZE INFORMATION DETECTED** - Include sizing details in description\n';
+      
+      // Try to extract size-related content
+      const sizeMatches = filtered.match(/(?:size|sizing|measurements?|dimensions?)[\s:]*([^\n.]{10,100})/gi);
+      if (sizeMatches) {
+        sizeMatches.slice(0, 2).forEach(match => {
+          formatted += `${match.trim()}\n`;
+        });
+      }
     }
     
-    // Only include first 2500 chars of raw content
-    if (filteredContent.length > 0) {
-      formatted += '\n**Reference**: ';
-      formatted += filteredContent.substring(0, 2500).replace(/\s+/g, ' ');
-      if (filteredContent.length > 2500) formatted += '...';
+    // Include brief reference (limit to 1000 chars for token efficiency)
+    if (filtered.length > 0) {
+      formatted += '\n**Additional Context**: ';
+      formatted += filtered.substring(0, 1000).replace(/\s+/g, ' ');
+      if (filtered.length > 1000) formatted += '...';
     }
     
     return formatted;
@@ -1074,14 +1073,34 @@ Every sentence should serve multiple purposes - inform newcomers, differentiate 
    */
   private checkForSizeChart(params: AIGenerationParams): boolean {
     // Check additional context
-    if (params.additionalContext?.includes('size chart')) return true;
+    const contextLower = params.additionalContext?.toLowerCase() || '';
+    if (contextLower.includes('size') || contextLower.includes('sizing') || contextLower.includes('measurement')) {
+      return true;
+    }
+    
+    // Check enhanced description data (new format)
+    if (params.scrapedData?.descriptionData) {
+      const data = params.scrapedData.descriptionData;
+      
+      // Check multiple indicators
+      if (data.sizeChart?.available === true) return true;
+      if (data.availableSizes?.length > 0) return true;
+      if (data.variants?.some((v: any) => v.optionName?.toLowerCase() === 'size')) return true;
+      if (data.specifications?.dimensions && Object.keys(data.specifications.dimensions).length > 0) return true;
+    }
     
     // Check raw scraped content
-    if (typeof params.scrapedData === 'string' && params.scrapedData.includes('size')) return true;
-    if (params.scrapedData?.rawContent && params.scrapedData.rawContent.includes('size')) return true;
-    
-    // Check enhanced description data
-    if (params.scrapedData?.descriptionData?.sizeChart?.available === true) return true;
+    if (params.scrapedData) {
+      const content = (typeof params.scrapedData === 'string' 
+        ? params.scrapedData 
+        : params.scrapedData.rawContent || ''
+      ).toLowerCase();
+      
+      return content.includes('size') || 
+             content.includes('sizing') || 
+             content.includes('measurement') ||
+             content.includes('dimension');
+    }
     
     return false;
   }
