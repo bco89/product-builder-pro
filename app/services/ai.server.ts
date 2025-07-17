@@ -988,149 +988,20 @@ Every sentence should serve multiple purposes - inform newcomers, differentiate 
   }
 
   /**
-   * Format scraped data for the AI prompt - optimized for token efficiency
+   * Format scraped data for the AI prompt - JSON data only
    */
   private formatScrapedDataForPrompt(scrapedData: any): string {
     if (!scrapedData) return '';
     
-    // PRIORITY 1: Check if we have raw JSON data from Firecrawl extract endpoint
-    // This is the cleanest, most structured data - use it exclusively when available
+    // Only accept clean JSON data from Firecrawl extract endpoint
     if (scrapedData.extractedJson && scrapedData.extractionMethod === 'extract') {
       logger.info('Using clean extracted JSON from Firecrawl extract endpoint');
-      // Return ONLY the JSON data - no raw content, no fallbacks
       return JSON.stringify(scrapedData.extractedJson, null, 2);
     }
     
-    // PRIORITY 2: Check if we have enhanced description data (structured format)
-    // Only use this if we DON'T have extractedJson
-    if (scrapedData.descriptionData && !scrapedData.extractedJson) {
-      const data = scrapedData.descriptionData;
-      let formatted = '## 📊 PRODUCT DATA\n';
-      
-      // Core Product Identity (concise)
-      if (data.productTitle || data.brandVendor) {
-        formatted += `\n**Product**: ${data.productTitle || 'Not specified'}`;
-        if (data.brandVendor) formatted += ` by ${data.brandVendor}`;
-        formatted += '\n';
-      }
-      
-      // Key Features (limit to 5-7 most important)
-      if (data.keyFeatures?.length > 0) {
-        formatted += `\n**Key Points**:\n`;
-        data.keyFeatures.slice(0, 7).forEach((feature: string) => {
-          formatted += `- ${feature}\n`;
-        });
-      }
-      
-      // Materials & Specs (combined for efficiency)
-      const hasMaterials = data.materials?.length > 0;
-      const hasSpecs = data.specifications?.technical?.length > 0;
-      
-      if (hasMaterials || hasSpecs) {
-        formatted += `\n**Details**:\n`;
-        if (hasMaterials) {
-          formatted += `Materials: ${data.materials.slice(0, 3).join(', ')}\n`;
-        }
-        if (hasSpecs) {
-          data.specifications.technical.slice(0, 4).forEach((spec: string) => {
-            formatted += `${spec}\n`;
-          });
-        }
-      }
-      
-      // ALWAYS include size information if available
-      const hasSizes = data.availableSizes?.length > 0 || 
-                      data.sizeChart?.available || 
-                      data.variants?.some((v: any) => v.optionName?.toLowerCase() === 'size');
-      
-      if (hasSizes) {
-        formatted += `\n⚠️ **SIZE INFORMATION**:\n`;
-        
-        // Available sizes
-        if (data.availableSizes?.length > 0) {
-          formatted += `Available Sizes: ${data.availableSizes.join(', ')}\n`;
-        } else if (data.variants?.length > 0) {
-          const sizeVariant = data.variants.find((v: any) => v.optionName?.toLowerCase() === 'size');
-          if (sizeVariant?.availableValues?.length > 0) {
-            formatted += `Available Sizes: ${sizeVariant.availableValues.join(', ')}\n`;
-          }
-        }
-        
-        // Size chart and fit notes
-        if (data.sizeChart?.available) {
-          formatted += `Size Chart: Available on product page\n`;
-          if (data.sizeChart.fitNotes) {
-            formatted += `Fit: ${data.sizeChart.fitNotes}\n`;
-          }
-        }
-      }
-      
-      // Color options (brief)
-      if (data.availableColors?.length > 0) {
-        formatted += `Colors: ${data.availableColors.slice(0, 5).join(', ')}\n`;
-      }
-      
-      // Use cases (if available, limit to 3)
-      if (data.useCases?.length > 0) {
-        formatted += `\n**Best For**: ${data.useCases.slice(0, 3).join(', ')}\n`;
-      }
-      
-      // Technologies (only if unique)
-      if (data.technologies?.length > 0) {
-        formatted += `\n**Special Features**: ${data.technologies.slice(0, 2).map((t: any) => t.name).join(', ')}\n`;
-      }
-      
-      return formatted;
-    }
-    
-    // Fallback for unstructured scraped data
-    const content = typeof scrapedData === 'string' 
-      ? scrapedData 
-      : (scrapedData.rawContent || scrapedData.description || '');
-    
-    if (!content) return '';
-    
-    // Apply aggressive filtering
-    const filtered = this.filterScrapedContent(content);
-    
-    let formatted = '## 📊 PRODUCT DATA\n';
-    
-    // Extract key features from bullet points
-    const bullets = filtered.match(/[•–—-]\s*([^•–—\n-]{20,150})/g);
-    if (bullets && bullets.length > 0) {
-      formatted += '\n**Key Points**:\n';
-      bullets.slice(0, 5).forEach(bullet => {
-        const clean = bullet.replace(/^[•–—-]\s*/, '').trim();
-        formatted += `- ${clean}\n`;
-      });
-    }
-    
-    // ALWAYS check for size information
-    const lowerContent = filtered.toLowerCase();
-    const hasSizeInfo = lowerContent.includes('size') || 
-                       lowerContent.includes('sizing') || 
-                       lowerContent.includes('measurements') ||
-                       lowerContent.includes('dimensions');
-    
-    if (hasSizeInfo) {
-      formatted += '\n⚠️ **SIZE INFORMATION DETECTED** - Include sizing details in description\n';
-      
-      // Try to extract size-related content
-      const sizeMatches = filtered.match(/(?:size|sizing|measurements?|dimensions?)[\s:]*([^\n.]{10,100})/gi);
-      if (sizeMatches) {
-        sizeMatches.slice(0, 2).forEach(match => {
-          formatted += `${match.trim()}\n`;
-        });
-      }
-    }
-    
-    // Include full reference without artificial limits
-    if (filtered.length > 0) {
-      formatted += '\n**Additional Context**: ';
-      formatted += filtered.replace(/\s+/g, ' ');
-    }
-    
-    return formatted;
+    // No fallback - if we don't have clean JSON, return empty
+    logger.warn('No clean JSON data available from Firecrawl extract endpoint');
+    return '';
   }
   
   /**
@@ -1154,17 +1025,15 @@ Every sentence should serve multiple purposes - inform newcomers, differentiate 
       if (data.specifications?.dimensions && Object.keys(data.specifications.dimensions).length > 0) return true;
     }
     
-    // Check raw scraped content
-    if (params.scrapedData) {
-      const content = (typeof params.scrapedData === 'string' 
-        ? params.scrapedData 
-        : params.scrapedData.rawContent || ''
-      ).toLowerCase();
-      
-      return content.includes('size') || 
-             content.includes('sizing') || 
-             content.includes('measurement') ||
-             content.includes('dimension');
+    // Check scraped data for size information
+    if (params.scrapedData?.extractedJson) {
+      const data = params.scrapedData.extractedJson;
+      // Check if we have size-related data in the JSON
+      return !!(data.availableSizes?.length > 0 ||
+                data.sizeChart?.available ||
+                data.sizingInfo ||
+                data.dimensions ||
+                data.variants?.some((v: any) => v.type?.toLowerCase() === 'size'));
     }
     
     return false;

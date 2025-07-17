@@ -2,6 +2,34 @@
 
 ## 2025.01.17
 
+### Complete Removal of Fallback Logic for Clean JSON-Only Processing
+
+- **Removed ALL Fallback Mechanisms to Ensure JSON-Only Data**:
+  - Fixed critical issue where raw webpage content could still reach LLM through various fallback paths
+  - **Removed from `scraper.server.ts`**:
+    - Deleted `scrapeProductInfo` method completely
+    - Deleted `extractProductData` and all helper extraction methods
+    - Removed `rawContent` field from ScrapedProductData interface
+    - Updated `extractionMethod` to only allow 'extract' value
+  - **Removed from `product-description-extractor.server.ts`**:
+    - Deleted all pattern-based extraction methods
+    - Deleted simplified LLM extraction fallback
+    - Removed `rawContent` from ExtractionResult interface
+    - Updated extraction to return error when extract endpoint fails
+  - **Simplified `ai.server.ts`**:
+    - `formatScrapedDataForPrompt` now only accepts JSON data from extract endpoint
+    - Removed all fallback formatting logic
+    - Returns empty string if no clean JSON is available
+    - Updated `checkForSizeChart` to only check extractedJson data
+  - **Updated `api.shopify.generate-description.ts`**:
+    - Removed scrapeProductInfo fallback attempt
+    - Only uses extractProductInfo method
+  - **Benefits**:
+    - Guarantees NO non-JSON data can ever reach the LLM prompt
+    - Eliminates all navigation, UI elements, and irrelevant content
+    - Ensures consistent, structured data for AI processing
+    - Reduces token usage and improves description quality
+
 ### Fixed Firecrawl Extract Data Processing
 
 - **Resolved Issue with Raw Content in AI Prompts**:
