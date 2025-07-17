@@ -918,16 +918,46 @@ Every sentence should serve multiple purposes - inform newcomers, differentiate 
     } catch (error) {
       // Fallback parsing if not valid JSON
       logger.error('Failed to parse AI response as JSON:', error);
+      logger.error('Raw AI response for debugging:', response.substring(0, 500) + '...');
       
-      // Try to extract content from the response
-      const descriptionMatch = response.match(/"description":\s*"([^"]+)"/);
-      const seoTitleMatch = response.match(/"seoTitle":\s*"([^"]+)"/);
-      const seoDescriptionMatch = response.match(/"seoDescription":\s*"([^"]+)"/);
+      // Try to extract the JSON object first
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          // Attempt to parse the extracted JSON
+          const parsed = JSON.parse(jsonMatch[0]);
+          return {
+            description: formatProductDescription(parsed.description || ''),
+            seoTitle: stripHTML(parsed.seoTitle || ''),
+            seoDescription: stripHTML(parsed.seoDescription || ''),
+          };
+        } catch (jsonError) {
+          logger.error('Failed to parse extracted JSON object:', jsonError);
+        }
+      }
+      
+      // Enhanced regex patterns that handle escaped characters
+      // This pattern matches quoted strings including escaped quotes and backslashes
+      const descriptionMatch = response.match(/"description":\s*"((?:[^"\\]|\\.)*)"/);
+      const seoTitleMatch = response.match(/"seoTitle":\s*"((?:[^"\\]|\\.)*)"/);
+      const seoDescriptionMatch = response.match(/"seoDescription":\s*"((?:[^"\\]|\\.)*)"/);
+      
+      // Function to unescape JSON string content
+      const unescapeJson = (str: string): string => {
+        return str
+          .replace(/\\"/g, '"')
+          .replace(/\\\\/g, '\\')
+          .replace(/\\n/g, '\n')
+          .replace(/\\r/g, '\r')
+          .replace(/\\t/g, '\t')
+          .replace(/\\b/g, '\b')
+          .replace(/\\f/g, '\f');
+      };
       
       return {
-        description: descriptionMatch ? formatProductDescription(descriptionMatch[1]) : response,
-        seoTitle: seoTitleMatch ? stripHTML(seoTitleMatch[1]) : '',
-        seoDescription: seoDescriptionMatch ? stripHTML(seoDescriptionMatch[1]) : '',
+        description: descriptionMatch ? formatProductDescription(unescapeJson(descriptionMatch[1])) : response,
+        seoTitle: seoTitleMatch ? stripHTML(unescapeJson(seoTitleMatch[1])) : '',
+        seoDescription: seoDescriptionMatch ? stripHTML(unescapeJson(seoDescriptionMatch[1])) : '',
       };
     }
   }
