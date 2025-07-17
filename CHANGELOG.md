@@ -2,6 +2,24 @@
 
 ## 2025.01.17
 
+### Fixed Firecrawl Extract API Integration
+
+- **Updated Firecrawl Extract Implementation**:
+  - Fixed API call to match Firecrawl documentation format (URLs as array)
+  - Updated schema to match provided format with `products` array structure
+  - Added `agent: { model: 'FIRE-1' }` parameter for better extraction
+  - Enhanced error handling with specific error type detection (401, 403, 404, timeout)
+  - Added detailed logging for debugging API responses
+  - **Schema Changes**:
+    - Changed from flat product object to `products` array format
+    - Updated field names to match: `title`, `brand`, `description`, `size_charts`, `materials`, `unique_features`, `best_for`, `other_information`
+    - Required fields: `brand`, `title`, `description`, `size_charts`
+  - **Error Handling Improvements**:
+    - Better error messages for authentication failures
+    - Specific handling for blocked access (anti-scraping)
+    - Clear feedback for missing pages or timeouts
+    - Enhanced logging of error details for troubleshooting
+
 ### Complete Removal of Fallback Logic for Clean JSON-Only Processing
 
 - **Removed ALL Fallback Mechanisms to Ensure JSON-Only Data**:

@@ -15,83 +15,52 @@ interface ScrapedProductData {
   extractionTime?: number;
 }
 
-// Focused schema for extract endpoint
+// Schema matching your provided format
 const EXTRACT_SCHEMA = {
   type: "object",
   properties: {
-    productName: {
-      type: "string",
-      description: "The exact product name/title"
-    },
-    brand: {
-      type: "string",
-      description: "Brand or manufacturer name"
-    },
-    category: {
-      type: "string",
-      description: "Product category/type"
-    },
-    description: {
-      type: "string",
-      description: "Full product description from the page"
-    },
-    keyFeatures: {
-      type: "array",
-      items: { type: "string" },
-      description: "Top 5-7 key features or selling points"
-    },
-    specifications: {
-      type: "object",
-      description: "Technical specifications as key-value pairs"
-    },
-    materials: {
-      type: "array",
-      items: { type: "string" },
-      description: "Materials used in the product"
-    },
-    dimensions: {
-      type: "object",
-      properties: {
-        length: { type: "string" },
-        width: { type: "string" },
-        height: { type: "string" },
-        weight: { type: "string" }
-      }
-    },
-    sizingInfo: {
-      type: "object",
-      properties: {
-        availableSizes: {
-          type: "array",
-          items: { type: "string" }
-        },
-        sizeChartAvailable: { type: "boolean" },
-        fitNotes: { type: "string" }
-      }
-    },
-    variants: {
+    products: {
       type: "array",
       items: {
         type: "object",
         properties: {
-          type: { type: "string" },
-          options: { type: "array", items: { type: "string" } }
-        }
-      },
-      description: "Product variants (colors, sizes, styles)"
-    },
-    useCases: {
-      type: "array",
-      items: { type: "string" },
-      description: "What this product is best used for"
-    },
-    uniqueAttributes: {
-      type: "array",
-      items: { type: "string" },
-      description: "Unique or standout features"
+          brand: {
+            type: "string"
+          },
+          title: {
+            type: "string"
+          },
+          description: {
+            type: "string"
+          },
+          size_charts: {
+            type: "string"
+          },
+          materials: {
+            type: "string"
+          },
+          unique_features: {
+            type: "string"
+          },
+          best_for: {
+            type: "string"
+          },
+          other_information: {
+            type: "string"
+          }
+        },
+        required: [
+          "brand",
+          "title",
+          "description",
+          "size_charts"
+        ]
+      }
     }
   },
-  required: ["productName", "keyFeatures"]
+  required: [
+    "products"
+  ]
 };
 
 export class ProductScraperError extends Error {
@@ -164,33 +133,48 @@ export class ProductScraperService {
       logger.info('Using Firecrawl extract endpoint with focused schema');
       
       try {
-        // Use the extract method with our focused schema
-        const extractResult = await (this.firecrawl as any).extract(url, {
+        // Use the extract method with array of URLs as per Firecrawl docs
+        const extractResult = await (this.firecrawl as any).extract([url], {
+          prompt: "Extract comprehensive product information from this page. Focus on: brand, product title, full description, size charts (if available), materials used, unique features that differentiate this product, what this product is best used for, and any other important product information.",
           schema: EXTRACT_SCHEMA,
-          prompt: `Extract comprehensive product information for creating an e-commerce product description. 
-          Focus on: product name, brand, key features (5-7 most important), technical specifications, 
-          materials, dimensions, all available sizes and colors, unique attributes.
-          For sizing: check for size charts, available sizes, and fit information.
-          Extract actual content from the page, not generic descriptions.`
+          agent: {
+            model: 'FIRE-1'
+          }
         });
 
         const extractionTime = Date.now() - startTime;
         logger.info('Extract endpoint completed', {
           success: extractResult.success,
           hasData: !!extractResult.data,
+          dataStructure: extractResult.data ? Object.keys(extractResult.data) : [],
           extractionTime
         });
+        
+        // Log the actual response structure for debugging
+        if (extractResult.data) {
+          logger.info('Extract response data structure:', {
+            hasProducts: !!extractResult.data.products,
+            productsCount: extractResult.data.products?.length || 0,
+            firstProductKeys: extractResult.data.products?.[0] ? Object.keys(extractResult.data.products[0]) : []
+          });
+        }
 
-        if (extractResult.success && extractResult.data) {
-          // Convert extract data to our format
-          const data = extractResult.data;
+        if (extractResult.success && extractResult.data && extractResult.data.products && extractResult.data.products.length > 0) {
+          // Get the first product from the array
+          const product = extractResult.data.products[0];
+          
+          // Convert to our format
           return {
-            title: data.productName,
-            description: data.description,
-            features: data.keyFeatures || [],
-            specifications: data.specifications || {},
-            // Pass through the raw extract data - this is all we need!
-            extractedJson: extractResult.data,
+            title: product.title,
+            description: product.description,
+            features: product.unique_features ? product.unique_features.split('\n').filter((f: string) => f.trim()) : [],
+            specifications: {
+              materials: product.materials,
+              sizeChart: product.size_charts,
+              bestFor: product.best_for
+            },
+            // Pass through the raw extract data
+            extractedJson: product,
             extractionMethod: 'extract',
             extractionTime
           };
@@ -207,7 +191,54 @@ export class ProductScraperService {
         );
         
       } catch (extractError) {
-        logger.error('Extract endpoint failed', { error: extractError });
+        logger.error('Extract endpoint failed', { 
+          error: extractError,
+          errorMessage: extractError instanceof Error ? extractError.message : 'Unknown error',
+          errorStack: extractError instanceof Error ? extractError.stack : undefined,
+          url 
+        });
+        
+        // Check for specific error types
+        if (extractError instanceof Error) {
+          if (extractError.message.includes('401') || extractError.message.includes('Unauthorized')) {
+            throw new ProductScraperError(
+              'Invalid API key or authentication failed',
+              'API_ERROR',
+              {
+                error: 'Authentication failed. Please check your Firecrawl API key.',
+                url
+              }
+            );
+          } else if (extractError.message.includes('403') || extractError.message.includes('Forbidden')) {
+            throw new ProductScraperError(
+              'Access denied to the target website',
+              'API_ERROR',
+              {
+                error: 'The website is blocking access. It may have anti-scraping measures.',
+                url
+              }
+            );
+          } else if (extractError.message.includes('404')) {
+            throw new ProductScraperError(
+              'Product page not found',
+              'API_ERROR',
+              {
+                error: 'The URL does not exist or has been moved.',
+                url
+              }
+            );
+          } else if (extractError.message.includes('timeout') || extractError.message.includes('ETIMEDOUT')) {
+            throw new ProductScraperError(
+              'Request timed out',
+              'TIMEOUT',
+              {
+                error: 'The website took too long to respond.',
+                url
+              }
+            );
+          }
+        }
+        
         throw new ProductScraperError(
           'Failed to extract product data from URL',
           'API_ERROR',
