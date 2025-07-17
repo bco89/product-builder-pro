@@ -463,6 +463,7 @@ Return as JSON with these exact keys:
     
     // Format scraped data for better AI comprehension
     const formattedScrapedData = this.formatScrapedDataForPrompt(params.scrapedData);
+    const isJsonData = params.scrapedData?.extractedJson && params.scrapedData?.extractionMethod === 'extract';
     
     // Log what we're sending to the AI
     logger.info('\n=== AI PROMPT GENERATION ===');
@@ -473,6 +474,7 @@ Return as JSON with these exact keys:
       hasScrapedData: !!params.scrapedData,
       hasEnhancedData: !!params.scrapedData?.descriptionData,
       extractionMethod: params.scrapedData?.extractionMethod,
+      isJsonData: isJsonData,
       hasSizeInfo: this.checkForSizeChart(params),
       templateType: useDetailedTemplate ? 'TECHNICAL' : 'LIFESTYLE'
     });
@@ -493,7 +495,11 @@ PRODUCT INFORMATION:
 - Primary Keyword: ${params.keywords[0]}
 - Secondary Keywords: ${params.keywords.slice(1).join(', ')}
 ${params.additionalContext ? `- Additional Details: ${params.additionalContext}` : ''}
-${formattedScrapedData ? `\n${formattedScrapedData}` : ''}
+${formattedScrapedData ? (
+  isJsonData ? 
+  `\n## EXTRACTED PRODUCT DATA (JSON):\n\`\`\`json\n${formattedScrapedData}\n\`\`\`\n` :
+  `\n${formattedScrapedData}`
+) : ''}
 ${params.imageAnalysis ? `- Visual Analysis: ${params.imageAnalysis}` : ''}
 
 IMPORTANT CONTEXT:
@@ -986,6 +992,12 @@ Every sentence should serve multiple purposes - inform newcomers, differentiate 
    */
   private formatScrapedDataForPrompt(scrapedData: any): string {
     if (!scrapedData) return '';
+    
+    // Check if we have raw JSON data from Firecrawl extract endpoint
+    if (scrapedData.extractedJson && scrapedData.extractionMethod === 'extract') {
+      // Return the raw JSON data directly for better structure and completeness
+      return JSON.stringify(scrapedData.extractedJson, null, 2);
+    }
     
     // Check if we have enhanced description data (new format)
     if (scrapedData.descriptionData) {

@@ -298,6 +298,7 @@ export interface ExtractionResult {
   error?: string;
   note?: string;
   extractionMethod?: 'llm' | 'structured_data' | 'pattern' | 'fallback';
+  extractedJson?: any; // Raw JSON data from Firecrawl extract endpoint
 }
 
 /**
@@ -398,7 +399,8 @@ export async function extractProductDescriptionData(
         data: cleanExtractedData(extractedData),
         rawContent: undefined, // Extract endpoint doesn't return raw content
         metadata: {},
-        extractionMethod: 'llm'
+        extractionMethod: 'llm',
+        extractedJson: extractedData // Pass through raw JSON data
       };
     } else {
       // Implement intelligent fallback strategies
@@ -425,7 +427,8 @@ export async function extractProductDescriptionData(
               data: cleanExtractedData(simplifiedResponse.data),
               rawContent: undefined,
               metadata: {},
-              extractionMethod: 'llm'
+              extractionMethod: 'llm',
+              extractedJson: simplifiedResponse.data // Pass through raw JSON data
             };
           }
         } catch (e) {
@@ -1171,7 +1174,9 @@ export async function extractForDescriptionGeneration(
       data: extractionResult.data,
       rawContent: extractionResult.rawContent,
       metadata: extractionResult.metadata,
-      note: extractionResult.note
+      note: extractionResult.note,
+      extractedJson: extractionResult.extractedJson,
+      extractionMethod: extractionResult.extractionMethod
     };
 
   } catch (error) {

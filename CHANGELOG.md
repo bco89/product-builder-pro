@@ -1,5 +1,33 @@
 # @shopify/shopify-app-template-remix
 
+## 2025.01.17
+
+### Fixed AI Description Truncation & Enhanced Token Limits
+
+- **Fixed Product Description Truncation Issue**:
+  - Resolved critical bug where product descriptions were being truncated at escape sequences (e.g., `59\"`)
+  - Updated `parseAIResponse` method in `ai.server.ts` with enhanced JSON parsing
+  - Added regex pattern that properly handles escaped characters: `/"description":\s*"((?:[^"\\]|\\.)*)"/`
+  - Implemented JSON unescape function to handle all standard escape sequences (`\"`, `\\`, `\n`, etc.)
+  - Added secondary fallback that extracts and parses JSON objects separately
+  - Enhanced error logging to capture raw AI responses for debugging
+
+- **Increased AI Generation Token Limits**:
+  - Initial description generation: increased from 2,500 to **8,000 tokens**
+  - Auto-improvement phase: increased from 1,500 to **6,000 tokens**
+  - Removed 1,000 character limit on scraped data context
+  - Added token estimation with warnings for requests exceeding 20,000 input tokens
+  - Ensures complete product descriptions without artificial truncation
+  - Cost remains minimal (~$0.12-0.30 per description) while preventing truncation
+
+- **Enhanced Firecrawl Integration**:
+  - Migrated from `scrapeUrl` to more powerful `extract` endpoint with FIRE-1 agent
+  - Better handling of complex websites and dynamic content
+  - Improved extraction reliability with multiple fallback strategies
+  - Comprehensive error handling for various failure scenarios
+
+These changes ensure that product descriptions with measurements, special characters, and extensive content are fully captured and displayed without truncation, significantly improving the quality of AI-generated descriptions.
+
 ## 2025.01.15
 
 ### Enhanced Loading States with Polaris Components

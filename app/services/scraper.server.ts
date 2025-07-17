@@ -56,6 +56,8 @@ interface ScrapedProductData {
     }>;
     awards: string[];
   };
+  // Raw extracted JSON data from Firecrawl extract endpoint
+  extractedJson?: any;
   // Extraction metadata
   extractionMethod?: 'extract' | 'scrape' | 'fallback';
   extractionTime?: number;
@@ -264,6 +266,8 @@ export class ProductScraperService {
               technologies: [],
               awards: []
             },
+            // Pass through the raw extract data
+            extractedJson: extractResult.data,
             extractionMethod: 'extract',
             extractionTime
           };
@@ -357,7 +361,10 @@ export class ProductScraperService {
                 .reduce((acc, [key, value]) => ({ ...acc, [key]: value as string }), {})
             },
             rawContent: extractionResult.rawContent?.markdown,
-            descriptionData: extractionResult.data
+            descriptionData: extractionResult.data,
+            // Pass through the raw extracted JSON if available
+            extractedJson: (extractionResult as any).extractedJson,
+            extractionMethod: (extractionResult as any).extractionMethod || 'extract'
           };
           
           return enhancedData;
