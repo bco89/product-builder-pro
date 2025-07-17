@@ -1,10 +1,11 @@
 /**
  * Product Description Data Extractor for Product Builder Pro
- * Uses Firecrawl's advanced scraping capabilities and LLM extraction
+ * Uses Firecrawl's advanced Extract endpoint with FIRE-1 agent
  * to extract comprehensive product information for AI-powered description generation
  */
 
 import type FirecrawlApp from '@mendable/firecrawl-js';
+import type { ExtractResponse } from '@mendable/firecrawl-js';
 import { logger } from './logger.server';
 import { saveExtractedData } from './prompt-logger.server';
 import { saveExtractedDataToDB } from './prompt-logger-db.server';
@@ -300,8 +301,8 @@ export interface ExtractionResult {
 }
 
 /**
- * Extract product information for description generation
- * @param {string} url - Product page URL to scrape
+ * Extract product information for description generation using Firecrawl's Extract endpoint
+ * @param {string} url - Product page URL to extract from
  * @param {Object} firecrawlClient - Initialized Firecrawl client
  * @returns {Object} Structured product data for description generation
  */
@@ -323,67 +324,60 @@ export async function extractProductDescriptionData(
   try {
     logger.info('\n=== FIRECRAWL EXTRACTION START ===');
     logger.info('Extracting from URL', { url });
-    logger.info('Using scrape config', { config: FIRECRAWL_SCRAPE_CONFIG });
+    logger.info('Using Firecrawl Extract endpoint with FIRE-1 agent');
     
-    // Configure extraction inline with scraping for efficiency
-    const extractConfig = {
-      ...FIRECRAWL_SCRAPE_CONFIG,
-      extract: {
-        schema: DESCRIPTION_EXTRACTION_SCHEMA,
-        systemPrompt: `You are an expert e-commerce data extractor. Extract ONLY factual product information that would help create a compelling product description. 
-          
-          Rules:
-          1. Extract actual content from the page, not generic descriptions
-          2. For features, pair each feature with its customer benefit
-          3. Ignore all pricing, promotions, and sales information
-          4. Skip navigation, UI elements, and marketing fluff
-          5. Focus on specifications, materials, construction, and unique characteristics
-          6. If size chart data exists, extract it completely
-          7. Differentiate between what the product IS vs what it DOES
-          
-          Return clean, structured JSON data ready for AI processing.`,
-        prompt: `Extract comprehensive product information including:
-          
-          - Product name, brand, model, SKU
-          - Short tagline and full description
-          - Features WITH their benefits (as feature/benefit pairs)
-          - All technical specifications
-          - Materials and construction methods
-          - Available colors, sizes, and variants
-          - Size chart and fit information
-          - Usage and care instructions
-          - Who it's ideal for and use cases
-          - What's included in the package
-          - Any unique technologies or innovations
-          
-          Extract ACTUAL content from the page. Be thorough but factual.`
+    // Configure extraction for the extract endpoint
+    const extractOptions = {
+      prompt: `You are an expert e-commerce data extractor. Extract ONLY factual product information that would help create a compelling product description.
+      
+      Rules:
+      1. Extract actual content from the page, not generic descriptions
+      2. For features, pair each feature with its customer benefit
+      3. Ignore all pricing, promotions, and sales information
+      4. Skip navigation, UI elements, and marketing fluff
+      5. Focus on specifications, materials, construction, and unique characteristics
+      6. If size chart data exists, extract it completely
+      7. Differentiate between what the product IS vs what it DOES
+      
+      Extract comprehensive product information including:
+      - Product name, brand, model, SKU
+      - Short tagline and full description
+      - Features WITH their benefits (as feature/benefit pairs)
+      - All technical specifications
+      - Materials and construction methods
+      - Available colors, sizes, and variants
+      - Size chart and fit information
+      - Usage and care instructions
+      - Who it's ideal for and use cases
+      - What's included in the package
+      - Any unique technologies or innovations
+      
+      Extract ACTUAL content from the page. Be thorough but factual. Return clean, structured JSON data ready for AI processing.`,
+      schema: DESCRIPTION_EXTRACTION_SCHEMA,
+      agent: {
+        model: 'FIRE-1'
       }
     };
     
-    logger.info('Scraping with enhanced extraction config', {
+    logger.info('Calling Firecrawl extract with FIRE-1 agent', {
       url,
-      includeTagsCount: FIRECRAWL_SCRAPE_CONFIG.includeTags.length,
-      excludeTagsCount: FIRECRAWL_SCRAPE_CONFIG.excludeTags.length
+      schemaFields: Object.keys(DESCRIPTION_EXTRACTION_SCHEMA.properties).length
     });
     
-    const response: any = await client.scrapeUrl(url, extractConfig as any);
+    const response = await client.extract([url], extractOptions) as ExtractResponse;
 
     // Log the raw Firecrawl response
     logger.info('\n--- RAW FIRECRAWL RESPONSE ---');
     logger.info('Response structure', {
-      keys: Object.keys(response || {}),
-      hasMarkdown: !!response?.markdown,
-      hasHtml: !!response?.html,
-      hasExtract: !!(response?.extract || response?.data?.extract)
+      success: response?.success,
+      hasData: !!response?.data,
+      dataType: typeof response?.data
     });
     
-    // Handle various response structures from Firecrawl
-    const extractedData = response.extract || response.data?.extract || response.llm_extraction;
-    const markdown = response.markdown || response.data?.markdown;
-    const html = response.html || response.data?.html;
-    const metadata = response.metadata || response.data?.metadata || {};
-    
-    if (extractedData && Object.keys(extractedData).length > 0) {
+    // Handle extract endpoint response structure
+    if (response.success && response.data) {
+      const extractedData = response.data;
+      
       logger.info('\n--- SUCCESSFUL LLM EXTRACTION ---');
       logger.info('Extraction metrics', { 
         fieldsExtracted: Object.keys(extractedData).length,
@@ -402,11 +396,8 @@ export async function extractProductDescriptionData(
       return {
         success: true,
         data: cleanExtractedData(extractedData),
-        rawContent: {
-          markdown: markdown?.substring(0, 1000), // Truncate for logging
-          html: html?.substring(0, 1000)
-        },
-        metadata,
+        rawContent: undefined, // Extract endpoint doesn't return raw content
+        metadata: {},
         extractionMethod: 'llm'
       };
     } else {
@@ -414,44 +405,26 @@ export async function extractProductDescriptionData(
       logger.warn('\n--- INTELLIGENT FALLBACK EXTRACTION ---');
       logger.warn('LLM extraction failed, trying alternative methods');
       
-      // Strategy 1: Try to extract structured data (JSON-LD, microdata)
-      if (html) {
-        try {
-          const structuredData = await extractStructuredData(html);
-          if (structuredData) {
-            logger.info('Found structured data, using for extraction');
-            const cleanedData = cleanExtractedData(structuredData);
-            return {
-              success: true,
-              data: cleanedData,
-              rawContent: { markdown, html },
-              metadata,
-              extractionMethod: 'structured_data'
-            };
-          }
-        } catch (e) {
-          logger.debug('Structured data extraction failed', { error: e });
-        }
-      }
-      
-      // Strategy 2: Try simplified LLM extraction with smaller schema
+      // Strategy 1: Try simplified LLM extraction with smaller schema
       if (client.retryCount < 1) {
         try {
           client.retryCount++;
           logger.info('Attempting simplified LLM extraction');
-          const simplifiedResponse = await client.scrapeUrl(url, {
-            ...FIRECRAWL_SCRAPE_CONFIG,
-            extract: {
-              prompt: `Extract only: product name, brand, 3-5 key features, materials, available sizes and colors`
+          const simplifiedOptions = {
+            prompt: `Extract only: product name, brand, 3-5 key features, materials, available sizes and colors. Be concise but accurate.`,
+            agent: {
+              model: 'FIRE-1'
             }
-          } as any);
+          };
           
-          if ((simplifiedResponse as any).extract) {
+          const simplifiedResponse = await client.extract([url], simplifiedOptions) as ExtractResponse;
+          
+          if (simplifiedResponse.success && simplifiedResponse.data) {
             return {
               success: true,
-              data: cleanExtractedData((simplifiedResponse as any).extract),
-              rawContent: { markdown, html },
-              metadata,
+              data: cleanExtractedData(simplifiedResponse.data),
+              rawContent: undefined,
+              metadata: {},
               extractionMethod: 'llm'
             };
           }
@@ -460,16 +433,88 @@ export async function extractProductDescriptionData(
         }
       }
       
-      // Strategy 3: Pattern-based extraction
-      logger.info('Falling back to pattern-based extraction');
-      const fallbackData = fallbackExtractDescriptionData(response);
+      // Strategy 2: Try scraping with basic Firecrawl and pattern extraction
+      try {
+        logger.info('Attempting basic scrape for pattern extraction');
+        const scrapeResponse: any = await client.scrapeUrl(url, {
+          formats: ["markdown", "html"] as const,
+          onlyMainContent: true,
+          waitFor: 2000,
+          timeout: 30000
+        });
+        
+        if (scrapeResponse && (scrapeResponse.markdown || scrapeResponse.html)) {
+          // Try to extract structured data from HTML
+          if (scrapeResponse.html) {
+            try {
+              const structuredData = await extractStructuredData(scrapeResponse.html);
+              if (structuredData) {
+                logger.info('Found structured data, using for extraction');
+                const cleanedData = cleanExtractedData(structuredData);
+                return {
+                  success: true,
+                  data: cleanedData,
+                  rawContent: {
+                    markdown: scrapeResponse.markdown,
+                    html: scrapeResponse.html
+                  },
+                  metadata: scrapeResponse.metadata || {},
+                  extractionMethod: 'structured_data'
+                };
+              }
+            } catch (e) {
+              logger.debug('Structured data extraction failed', { error: e });
+            }
+          }
+          
+          // Fall back to pattern-based extraction
+          logger.info('Using pattern-based extraction on scraped content');
+          const fallbackData = fallbackExtractDescriptionData(scrapeResponse);
+          
+          return {
+            success: true,
+            data: fallbackData,
+            rawContent: {
+              markdown: scrapeResponse.markdown,
+              html: scrapeResponse.html
+            },
+            metadata: scrapeResponse.metadata || {},
+            extractionMethod: 'pattern'
+          };
+        }
+      } catch (scrapeError) {
+        logger.error('Fallback scraping failed:', scrapeError);
+      }
       
+      // Final fallback: Return minimal data
+      logger.error('All extraction methods failed, returning minimal data');
       return {
         success: true,
-        data: fallbackData,
-        rawContent: { markdown, html },
-        metadata,
-        extractionMethod: 'pattern'
+        data: {
+          productName: '',
+          keySellingPoints: [],
+          features: [],
+          materials: [],
+          constructionDetails: [],
+          availableColors: [],
+          availableSizes: [],
+          variants: [],
+          sizeChart: { available: false },
+          usageInstructions: [],
+          careInstructions: [],
+          compatibility: [],
+          idealFor: [],
+          notSuitableFor: [],
+          useCases: [],
+          certifications: [],
+          inBox: [],
+          technologies: [],
+          uniqueAttributes: []
+        },
+        rawContent: undefined,
+        metadata: {},
+        extractionMethod: 'fallback',
+        note: 'All extraction methods failed'
       };
     }
 
@@ -477,20 +522,33 @@ export async function extractProductDescriptionData(
     logger.error('\n=== FIRECRAWL EXTRACTION ERROR ===');
     logger.error('Error details:', error);
     
-    // Try fallback extraction if we have any response data
-    if (error && typeof error === 'object' && 'response' in error) {
-      try {
-        const fallbackData = fallbackExtractDescriptionData((error as any).response);
+    // Try basic scraping as a last resort
+    try {
+      logger.info('Attempting basic scrape after extraction error');
+      const client = firecrawlClient as FirecrawlWithRetry;
+      const scrapeResponse: any = await client.scrapeUrl(url, {
+        formats: ["markdown", "html"] as const,
+        onlyMainContent: true,
+        waitFor: 2000,
+        timeout: 30000
+      });
+      
+      if (scrapeResponse && (scrapeResponse.markdown || scrapeResponse.html)) {
+        const fallbackData = fallbackExtractDescriptionData(scrapeResponse);
         return {
           success: true,
           data: fallbackData,
-          rawContent: (error as any).response,
-          metadata: (error as any).response?.metadata || {},
+          rawContent: {
+            markdown: scrapeResponse.markdown,
+            html: scrapeResponse.html
+          },
+          metadata: scrapeResponse.metadata || {},
+          extractionMethod: 'pattern',
           note: "Used fallback extraction after error"
         };
-      } catch (fallbackError) {
-        logger.error('Fallback extraction also failed:', fallbackError);
       }
+    } catch (fallbackError) {
+      logger.error('Fallback extraction also failed:', fallbackError);
     }
     
     return {
