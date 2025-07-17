@@ -205,6 +205,16 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
     }
   }
 
+  /**
+   * Estimate token count for a string (rough approximation)
+   * @param text - The text to estimate tokens for
+   * @returns Estimated token count
+   */
+  private estimateTokens(text: string): number {
+    // Rough estimation: ~1 token per 4 characters
+    return Math.ceil(text.length / 4);
+  }
+
   async generateProductDescription(params: AIGenerationParams): Promise<AIGenerationResult> {
     logger.info('\n=== AI DESCRIPTION GENERATION START ===');
     logger.info('Initial parameters', {
@@ -256,6 +266,17 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
     const systemPrompt = getProductTypePrompt(productType);
     const userPrompt = this.buildUserPrompt({ ...params, productType });
     
+    // Token estimation and safety check
+    const estimatedInputTokens = this.estimateTokens(systemPrompt + userPrompt);
+    if (estimatedInputTokens > 20000) {
+      logger.warn('⚠️ HIGH TOKEN USAGE WARNING', {
+        estimatedInputTokens,
+        estimatedCost: `$${(estimatedInputTokens * 0.003 / 1000).toFixed(2)} input + ~$${(8000 * 0.015 / 1000).toFixed(2)} output`,
+        promptLength: userPrompt.length,
+        systemPromptLength: systemPrompt.length
+      });
+    }
+    
     // Save the prompts
     const scrapedDataSection = params.scrapedData ? this.formatScrapedDataForPrompt(params.scrapedData) : undefined;
     
@@ -287,7 +308,7 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
           model: 'claude-3-5-sonnet-20241022',
           messages: [{ role: 'user', content: userPrompt }],
           system: systemPrompt,
-          max_tokens: 2500,  // Increased for more comprehensive descriptions
+          max_tokens: 8000,  // Increased to prevent truncation of comprehensive descriptions
           temperature: 0.7,
         });
         response = completion.content[0].type === 'text' ? completion.content[0].text : '';
@@ -299,7 +320,7 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
             { role: 'user', content: userPrompt }
           ],
           temperature: 0.7,
-          max_tokens: 2500,  // Increased for more comprehensive descriptions
+          max_tokens: 8000,  // Increased to prevent truncation of comprehensive descriptions
         });
         response = completion.choices[0].message?.content || '';
       } else {
@@ -370,7 +391,7 @@ Return as JSON with these exact keys:
               model: 'claude-3-5-sonnet-20241022',
               messages: [{ role: 'user', content: improvementPrompt }],
               system: systemPrompt,
-              max_tokens: 1500,  // Increased for comprehensive improvements
+              max_tokens: 6000,  // Increased to handle comprehensive improvements without truncation
               temperature: 0.6,
             });
             improvedResponse = completion.content[0].type === 'text' ? completion.content[0].text : '';
@@ -382,7 +403,7 @@ Return as JSON with these exact keys:
                 { role: 'user', content: improvementPrompt }
               ],
               temperature: 0.6,
-              max_tokens: 1500,  // Increased for comprehensive improvements
+              max_tokens: 6000,  // Increased to handle comprehensive improvements without truncation
             });
             improvedResponse = completion.choices[0].message?.content || '';
           } else {
@@ -1058,11 +1079,10 @@ Every sentence should serve multiple purposes - inform newcomers, differentiate 
       }
     }
     
-    // Include brief reference (limit to 1000 chars for token efficiency)
+    // Include full reference without artificial limits
     if (filtered.length > 0) {
       formatted += '\n**Additional Context**: ';
-      formatted += filtered.substring(0, 1000).replace(/\s+/g, ' ');
-      if (filtered.length > 1000) formatted += '...';
+      formatted += filtered.replace(/\s+/g, ' ');
     }
     
     return formatted;
