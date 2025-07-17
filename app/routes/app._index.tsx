@@ -1,8 +1,24 @@
 import { redirect } from "@remix-run/node";
+import { useFetcher } from "@remix-run/react";
+import { useEffect } from "react";
+import { useAppBridge } from "@shopify/app-bridge-react";
+import {
+  Page,
+  Layout,
+  Card,
+  BlockStack,
+  Text,
+  Link,
+  InlineStack,
+  Button,
+  Box,
+  List,
+  TitleBar,
+} from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
-  const { admin, session } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   
   // Get the URL with all query parameters
   const url = new URL(request.url);

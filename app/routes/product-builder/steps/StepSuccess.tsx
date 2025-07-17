@@ -1,5 +1,5 @@
-import { Card, BlockStack, Text, Button, InlineStack, Banner, Box } from '@shopify/polaris';
-import { useNavigate } from '@remix-run/react';
+import { Card, BlockStack, Text, Button, Banner, Box } from '@shopify/polaris';
+import { usePreservedParamsNavigate } from '~/hooks/usePreservedParamsNavigate';
 
 interface StepSuccessProps {
   productId: string | null;
@@ -10,7 +10,7 @@ interface StepSuccessProps {
 }
 
 export default function StepSuccess({ productId, shop, variantCount, onBuildAnother, productTitle }: StepSuccessProps) {
-  const navigate = useNavigate();
+  const preservedNavigate = usePreservedParamsNavigate();
   
   const handleViewProduct = () => {
     if (productId) {
@@ -24,7 +24,7 @@ export default function StepSuccess({ productId, shop, variantCount, onBuildAnot
     if (onBuildAnother) {
       onBuildAnother();
     } else {
-      navigate('/app/product-builder');
+      preservedNavigate('/app/product-builder');
     }
   };
 

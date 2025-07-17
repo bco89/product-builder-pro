@@ -6,7 +6,6 @@ import {
   DataTable,
   Thumbnail,
   Button,
-  TextField,
   Badge,
   BlockStack,
   InlineStack,
@@ -16,17 +15,19 @@ import {
   Toast,
   Modal,
   Box,
-  Banner,
   Spinner,
-  ButtonGroup,
-  Divider,
-  InlineError,
+  Tooltip,
+  Icon,
+  Banner,
 } from '@shopify/polaris';
-import { EditIcon, MagicIcon, LinkIcon } from '@shopify/polaris-icons';
+import { MagicIcon, AlertCircleIcon, InfoIcon } from '@shopify/polaris-icons';
 import { authenticate } from '../shopify.server';
 import { json } from '@remix-run/node';
-import { useLoaderData, useSubmit, useNavigation } from '@remix-run/react';
+import { useLoaderData } from '@remix-run/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import LoadingProgress from '../components/LoadingProgress';
+import DescriptionEditor from '../components/product-builder/DescriptionEditor';
+import AIGenerationForm from '../components/product-builder/AIGenerationForm';
 import type { LoaderFunctionArgs } from "@remix-run/node";
 
 interface Product {
@@ -49,29 +50,29 @@ interface Product {
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
   
-  return json({ shop: admin.rest.session.shop });
+  const url = new URL(request.url);
+  const searchParams = url.searchParams;
+  const tinymceApiKey = process.env.TINYMCE_API_KEY || searchParams.get('tinymce_api_key') || '';
+  
+  return json({ 
+    shop: admin.rest.session.shop,
+    tinymceApiKey 
+  });
 };
 
-// Helper function to validate URLs
-const isValidUrl = (url: string): boolean => {
-  try {
-    const urlObj = new URL(url);
-    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
-  } catch {
-    return false;
-  }
-};
 
 export default function ImproveDescriptions() {
-  const { shop } = useLoaderData<typeof loader>();
+  const { tinymceApiKey } = useLoaderData<typeof loader>();
   const queryClient = useQueryClient();
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [toastMessage, setToastMessage] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const [inputMethod, setInputMethod] = useState<'existing' | 'url'>('existing');
-  const [productUrl, setProductUrl] = useState('');
+  const [showGenerationForm, setShowGenerationForm] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [error, setError] = useState<{ message: string; details?: string; code?: string } | null>(null);
+  const [showKeywordToast, setShowKeywordToast] = useState(false);
 
   // Fetch products
   const { data: productsData, isLoading } = useQuery({
@@ -89,23 +90,56 @@ export default function ImproveDescriptions() {
 
   const products = productsData?.products || [];
 
+  // Fetch shop settings
+  const { data: shopSettings, isLoading: isLoadingSettings, error: settingsError } = useQuery({
+    queryKey: ['shopSettings'],
+    queryFn: async () => {
+      const response = await fetch('/api/shopify/shop-settings');
+      if (!response.ok) throw new Error('Failed to fetch settings');
+      return response.json();
+    },
+    retry: 2,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
   // Generate improved description
   const generateDescription = useMutation({
-    mutationFn: async (product: Product) => {
-      const payload: any = {
-        productTitle: product.title,
-        productType: product.productType,
-        vendor: product.vendor,
-        keywords: [product.title.split(' ')[0], product.productType],
+    mutationFn: async (params: {
+      product: Product;
+      method: 'manual' | 'url' | 'context';
+      productUrl?: string;
+      additionalContext?: string;
+      keywords: { primary: string; secondary: string };
+    }) => {
+      // Show progress
+      setGenerationProgress(10);
+      
+      const payload = {
+        method: params.method,
+        productTitle: params.product.title,
+        productType: params.product.productType,
+        vendor: params.product.vendor,
+        keywords: [params.keywords.primary, params.keywords.secondary].filter(Boolean),
+        productUrl: params.productUrl,
+        additionalContext: params.additionalContext,
+        existingDescription: params.method === 'context' ? params.product.description : undefined,
+        hasImages: false,
+        shopSettings: {
+          businessType: 'retailer',
+          storeName: '',
+          storeLocation: '',
+          uniqueSellingPoints: '',
+          coreValues: '',
+          brandPersonality: '',
+          targetCustomerOverride: '',
+          additionalCustomerInsights: '',
+          excludedCustomerSegments: '',
+          ...shopSettings
+        },
       };
 
-      if (inputMethod === 'url' && productUrl) {
-        payload.method = 'url';
-        payload.productUrl = productUrl;
-      } else {
-        payload.method = 'manual';
-        payload.existingDescription = product.description;
-      }
+      // Update progress
+      setGenerationProgress(50);
 
       const response = await fetch('/api/shopify/generate-description', {
         method: 'POST',
@@ -113,8 +147,17 @@ export default function ImproveDescriptions() {
         body: JSON.stringify(payload),
       });
       
-      if (!response.ok) throw new Error('Failed to generate description');
-      return response.json();
+      // Update progress
+      setGenerationProgress(90);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw errorData;
+      }
+      
+      const result = await response.json();
+      setGenerationProgress(100);
+      return result;
     },
     onSuccess: (data) => {
       if (selectedProduct) {
@@ -126,10 +169,19 @@ export default function ImproveDescriptions() {
             description: data.seoDescription,
           }
         });
+        setShowGenerationForm(false);
+        setError(null);
       }
     },
-    onError: () => {
-      setToastMessage('Failed to generate description. Please try again.');
+    onError: (err: any) => {
+      setError({
+        message: err.error || 'Failed to generate description. Please try again.',
+        details: err.details,
+        code: err.code
+      });
+    },
+    onSettled: () => {
+      setGenerationProgress(0);
     }
   });
 
@@ -172,8 +224,27 @@ export default function ImproveDescriptions() {
   const handleImproveClick = (product: Product) => {
     setSelectedProduct(product);
     setModalOpen(true);
-    setInputMethod('existing');
-    setProductUrl('');
+    setShowGenerationForm(true);
+    setError(null);
+  };
+
+  const handleGenerate = (params: {
+    method: 'manual' | 'url' | 'context';
+    productUrl?: string;
+    additionalContext?: string;
+    keywords: { primary: string; secondary: string };
+  }) => {
+    if (!selectedProduct) return;
+    
+    // Show toast if no keywords provided
+    if (!params.keywords.primary && !params.keywords.secondary) {
+      setShowKeywordToast(true);
+    }
+    
+    generateDescription.mutate({
+      product: selectedProduct,
+      ...params
+    });
   };
 
   const rows = products.map((product: Product) => [
@@ -281,14 +352,16 @@ export default function ImproveDescriptions() {
         onClose={() => {
           setModalOpen(false);
           setSelectedProduct(null);
-          setInputMethod('existing');
-          setProductUrl('');
+          setShowGenerationForm(true);
+          setError(null);
+          generateDescription.reset();
         }}
         title={`Improve: ${selectedProduct?.title || ''}`}
         primaryAction={{
           content: 'Save Changes',
           onAction: () => selectedProduct && updateProduct.mutate(selectedProduct),
           loading: updateProduct.isPending,
+          disabled: !selectedProduct?.description,
         }}
         secondaryActions={[
           {
@@ -296,8 +369,9 @@ export default function ImproveDescriptions() {
             onAction: () => {
               setModalOpen(false);
               setSelectedProduct(null);
-              setInputMethod('existing');
-              setProductUrl('');
+              setShowGenerationForm(true);
+              setError(null);
+              generateDescription.reset();
             },
           },
         ]}
@@ -305,108 +379,117 @@ export default function ImproveDescriptions() {
       >
         <Modal.Section>
           {selectedProduct && (
-            <BlockStack gap="400">
-              <Text variant="headingSm" as="h3">Choose Input Method</Text>
-              <ButtonGroup variant="segmented">
-                <Button
-                  pressed={inputMethod === 'existing'}
-                  onClick={() => setInputMethod('existing')}
-                  icon={EditIcon}
-                >
-                  Use existing description
-                </Button>
-                <Button
-                  pressed={inputMethod === 'url'}
-                  onClick={() => setInputMethod('url')}
-                  icon={LinkIcon}
-                >
-                  Import from URL
-                </Button>
-              </ButtonGroup>
-
-              {inputMethod === 'existing' && (
+            <BlockStack gap="500">
+              {/* Shop Settings Badge */}
+              <InlineStack gap="400" align="space-between">
+                <Text variant="headingMd" as="h2">AI-Powered Description Generation</Text>
+                <InlineStack gap="200" align="center">
+                  {isLoadingSettings ? (
+                    <>
+                      <Spinner accessibilityLabel="Loading settings" size="small" />
+                      <Text as="p" variant="bodySm" tone="subdued">Loading...</Text>
+                    </>
+                  ) : settingsError ? (
+                    <Badge tone="warning">Default perspective</Badge>
+                  ) : shopSettings?.businessType ? (
+                    <Badge tone="success">
+                      {shopSettings.businessType === 'manufacturer' ? 'Product Creator' : 'Retailer'}
+                    </Badge>
+                  ) : (
+                    <>
+                      <Text as="span" variant="bodySm" tone="subdued">No perspective</Text>
+                      <Tooltip content="Please go to AI Description Settings to choose whether you create products or sell products from other brands. This will improve the quality of generated descriptions.">
+                        <Icon source={InfoIcon} tone="subdued" />
+                      </Tooltip>
+                    </>
+                  )}
+                </InlineStack>
+              </InlineStack>
+              
+              {/* Loading State */}
+              {generateDescription.isPending ? (
+                <LoadingProgress
+                  variant="ai-generation"
+                  progress={generationProgress}
+                  messages={[
+                    "🔍 Analyzing your product information...",
+                    "🎨 Creating engaging content...",
+                    "✍️ Writing compelling copy...",
+                    "🎯 Optimizing for search engines...",
+                    "✅ Adding final touches..."
+                  ]}
+                  showSkeleton={true}
+                  title="Generating AI Description"
+                  estimatedTime={20}
+                />
+              ) : showGenerationForm ? (
                 <>
-                  <Divider />
-                  <Banner tone="info">
-                    <Text as="p">
-                      Click "Generate with AI" to improve the existing product description using AI.
-                    </Text>
-                  </Banner>
-                </>
-              )}
-
-              {inputMethod === 'url' && (
-                <>
-                  <Divider />
-                  <TextField
-                    label="Product URL"
-                    value={productUrl}
-                    onChange={setProductUrl}
-                    placeholder="https://example.com/product-page"
-                    helpText="Enter the URL of the product from manufacturer or supplier website"
-                    autoComplete="off"
+                  {/* Generation Form */}
+                  <AIGenerationForm
+                    onGenerate={handleGenerate}
+                    isGenerating={generateDescription.isPending}
+                    showManualOption={false}
+                    defaultMethod={selectedProduct.description ? 'context' : 'url'}
                   />
-                  {productUrl && !isValidUrl(productUrl) && (
-                    <InlineError 
-                      message="Please enter a valid URL starting with http:// or https://" 
-                      fieldID="productUrl" 
-                    />
+                  
+                  {/* Error display */}
+                  {error && (
+                    <Banner tone="critical">
+                      <BlockStack gap="200">
+                        <InlineStack gap="200" align="center">
+                          <Icon source={AlertCircleIcon} />
+                          <Text as="p" fontWeight="semibold">{error.message}</Text>
+                        </InlineStack>
+                        {error.details && (
+                          <Text as="p" variant="bodySm">{error.details}</Text>
+                        )}
+                        {error.code === 'INVALID_URL' && (
+                          <Text as="p" variant="bodySm">
+                            Tip: Make sure the URL starts with http:// or https:// and points to a product page.
+                          </Text>
+                        )}
+                        {error.code === 'TIMEOUT' && (
+                          <Text as="p" variant="bodySm">
+                            Tip: Some websites are slow to load. Try waiting a moment and generating again.
+                          </Text>
+                        )}
+                      </BlockStack>
+                    </Banner>
                   )}
                 </>
+              ) : (
+                <>
+                  {/* Description Editor */}
+                  <DescriptionEditor
+                    description={selectedProduct.description || ''}
+                    seoTitle={selectedProduct.seo?.title || ''}
+                    seoDescription={selectedProduct.seo?.description || ''}
+                    onChange={(updates) => {
+                      setSelectedProduct({
+                        ...selectedProduct,
+                        description: updates.description ?? selectedProduct.description,
+                        seo: {
+                          ...selectedProduct.seo,
+                          title: updates.seoTitle ?? selectedProduct.seo?.title,
+                          description: updates.seoDescription ?? selectedProduct.seo?.description,
+                        }
+                      });
+                    }}
+                    tinymceApiKey={tinymceApiKey}
+                    descriptionHeight={300}
+                  />
+                  
+                  {/* Regenerate Button */}
+                  <Box>
+                    <Button 
+                      onClick={() => setShowGenerationForm(true)}
+                      icon={MagicIcon}
+                    >
+                      Regenerate with AI
+                    </Button>
+                  </Box>
+                </>
               )}
-
-              <Divider />
-              
-              <Button
-                variant="primary"
-                icon={MagicIcon}
-                onClick={() => generateDescription.mutate(selectedProduct)}
-                loading={generateDescription.isPending}
-                disabled={inputMethod === 'url' && (!productUrl || !isValidUrl(productUrl))}
-                fullWidth
-              >
-                Generate with AI
-              </Button>
-
-              <TextField
-                label="Product Description"
-                value={selectedProduct.description || ''}
-                onChange={(value) => setSelectedProduct({
-                  ...selectedProduct,
-                  description: value
-                })}
-                multiline={8}
-                autoComplete="off"
-              />
-
-              <TextField
-                label="SEO Title"
-                value={selectedProduct.seo?.title || ''}
-                onChange={(value) => setSelectedProduct({
-                  ...selectedProduct,
-                  seo: {
-                    ...selectedProduct.seo,
-                    title: value
-                  }
-                })}
-                helpText="Maximum 60 characters"
-                autoComplete="off"
-              />
-
-              <TextField
-                label="SEO Description"
-                value={selectedProduct.seo?.description || ''}
-                onChange={(value) => setSelectedProduct({
-                  ...selectedProduct,
-                  seo: {
-                    ...selectedProduct.seo,
-                    description: value
-                  }
-                })}
-                multiline={3}
-                helpText="Maximum 155 characters"
-                autoComplete="off"
-              />
             </BlockStack>
           )}
         </Modal.Section>
@@ -417,6 +500,14 @@ export default function ImproveDescriptions() {
           content={toastMessage}
           onDismiss={() => setToastMessage('')}
           duration={4000}
+        />
+      )}
+      
+      {showKeywordToast && (
+        <Toast
+          content="Consider adding a primary keyword to help improve the AI-generated description quality. You can continue without one if preferred."
+          onDismiss={() => setShowKeywordToast(false)}
+          duration={5000}
         />
       )}
     </Page>

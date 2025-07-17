@@ -1,114 +1,25 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState } from 'react';
 import {
   Card,
   BlockStack,
   Text,
   Button,
-  TextField,
   InlineStack,
   Banner,
-  ButtonGroup,
-  FormLayout,
   Box,
   Badge,
   Divider,
   Icon,
-  InlineError,
   Toast,
   Spinner,
   Tooltip,
 } from '@shopify/polaris';
-import { AlertCircleIcon, EditIcon, LinkIcon, ImageIcon, InfoIcon } from '@shopify/polaris-icons';
+import { AlertCircleIcon, InfoIcon } from '@shopify/polaris-icons';
 import { useQuery } from '@tanstack/react-query';
-import { Editor } from '@tinymce/tinymce-react';
 import LoadingProgress from '../../../components/LoadingProgress';
+import AIGenerationForm from '../../../components/product-builder/AIGenerationForm';
+import DescriptionEditor from '../../../components/product-builder/DescriptionEditor';
 
-// URL validation helper
-const isValidUrl = (url: string): boolean => {
-  try {
-    const urlObj = new URL(url);
-    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
-  } catch {
-    return false;
-  }
-};
-
-
-// TinyMCE Editor Component
-const WYSIWYGEditor = ({ 
-  value, 
-  onChange, 
-  height = 400,
-  placeholder = "Enter content here...",
-  id,
-  variant = 'full',
-  apiKey
-}: { 
-  value: string; 
-  onChange: (content: string) => void; 
-  height?: number;
-  placeholder?: string;
-  id: string;
-  variant?: 'full' | 'simple';
-  apiKey?: string;
-}) => {
-  const editorRef = useRef<any>(null);
-
-  // Simple toolbar for SEO fields
-  const simpleToolbar = 'bold italic | link | removeformat';
-  
-  // Simplified toolbar for product description (matching Shopify native editor)
-  const fullToolbar = 'bold italic underline | alignleft aligncenter alignright | bullist numlist | link | removeformat';
-
-  const toolbar = variant === 'simple' ? simpleToolbar : fullToolbar;
-  
-  // Configure plugins based on variant
-  const plugins = variant === 'simple' 
-    ? ['link', 'paste', 'wordcount']
-    : ['link', 'lists', 'paste', 'wordcount'];
-
-  return (
-    <Box borderColor="border" borderWidth="025" borderRadius="200">
-      <Editor
-        id={id}
-        apiKey={apiKey}
-        onInit={(_evt, editor) => editorRef.current = editor}
-        value={value}
-        init={{
-          height: height,
-          menubar: false,
-          plugins: plugins,
-          toolbar: toolbar,
-          placeholder: placeholder,
-          content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; }',
-          paste_as_text: variant === 'simple',
-          branding: false,
-          resize: false,
-          statusbar: true,
-          elementpath: false,
-          wordcount: {
-            countHTML: false,
-            countCharacters: true,
-            showWordCount: false,
-            showCharCount: true,
-          },
-          // Restrict formatting for SEO fields
-          ...(variant === 'simple' && {
-            formats: {
-              bold: { inline: 'strong' },
-              italic: { inline: 'em' },
-            },
-            valid_elements: 'strong,em,a[href|target|title]',
-            extended_valid_elements: '',
-          }),
-        }}
-        onEditorChange={(content) => {
-          onChange(content);
-        }}
-      />
-    </Box>
-  );
-};
 
 interface StepAIDescriptionProps {
   formData: {
@@ -128,16 +39,12 @@ interface StepAIDescriptionProps {
 }
 
 export default function StepAIDescription({ formData, onChange, onNext, onBack, tinymceApiKey }: StepAIDescriptionProps) {
-  const [inputMethod, setInputMethod] = useState<'manual' | 'url' | 'context'>('context');
-  const [productUrl, setProductUrl] = useState('');
-  const [additionalContext, setAdditionalContext] = useState('');
-  const [keywords, setKeywords] = useState({ primary: '', secondary: '' });
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<{ message: string; details?: string; code?: string } | null>(null);
   const [hasGeneratedContent, setHasGeneratedContent] = useState(false);
-  const [scrapingProgress, setScrapingProgress] = useState<string>('');
   const [showKeywordToast, setShowKeywordToast] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
+  const [isManualMode, setIsManualMode] = useState(false);
   
   // Check if any content exists
   const hasExistingContent = formData.description || formData.seoTitle || formData.seoDescription;
@@ -154,15 +61,19 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (params: {
+    method: 'manual' | 'url' | 'context';
+    productUrl?: string;
+    additionalContext?: string;
+    keywords: { primary: string; secondary: string };
+  }) => {
     // Show toast if no keywords provided
-    if (!keywords.primary && !keywords.secondary) {
+    if (!params.keywords.primary && !params.keywords.secondary) {
       setShowKeywordToast(true);
     }
 
     setIsGenerating(true);
     setError(null);
-    setScrapingProgress('');
 
     // Create AbortController for request timeout
     const controller = new AbortController();
@@ -170,14 +81,14 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
 
     try {
       const payload = {
-        method: inputMethod,
+        method: params.method,
         productTitle: formData.title,
         productType: formData.productType,
         category: formData.category?.name || '',
         vendor: formData.vendor,
-        keywords: [keywords.primary, keywords.secondary].filter(Boolean),
-        productUrl: inputMethod === 'url' ? productUrl : undefined,
-        additionalContext: inputMethod === 'context' ? additionalContext : undefined,
+        keywords: [params.keywords.primary, params.keywords.secondary].filter(Boolean),
+        productUrl: params.productUrl,
+        additionalContext: params.additionalContext,
         hasImages: formData.images.length > 0,
         shopSettings: {
           businessType: 'retailer',
@@ -194,8 +105,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
       };
 
       // Show progress for URL scraping
-      if (inputMethod === 'url') {
-        setScrapingProgress('Analyzing URL...');
+      if (params.method === 'url') {
         setGenerationProgress(10);
       } else {
         setGenerationProgress(20);
@@ -293,7 +203,6 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
       });
 
       setHasGeneratedContent(true);
-      setScrapingProgress('');
       setGenerationProgress(100);
     } catch (err) {
       clearTimeout(timeoutId);
@@ -319,7 +228,6 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
       }
     } finally {
       setIsGenerating(false);
-      setScrapingProgress('');
       setGenerationProgress(0);
     }
   };
@@ -376,254 +284,47 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
             <LoadingProgress
               variant="ai-generation"
               progress={generationProgress}
-              messages={
-                inputMethod === 'url' ? [
-                  "🔍 Fetching product information from URL...",
-                  "📊 Analyzing product details and features...",
-                  "✨ Crafting compelling description...",
-                  "🎯 Optimizing for your SEO keywords...",
-                  "🚀 Finalizing your product description..."
-                ] : [
-                  "🔍 Analyzing your product information...",
-                  "🎨 Creating engaging content...",
-                  "✍️ Writing compelling copy...",
-                  "🎯 Optimizing for search engines...",
-                  "✅ Adding final touches..."
-                ]
-              }
+              messages={[
+                "🔍 Analyzing your product information...",
+                "🎨 Creating engaging content...",
+                "✍️ Writing compelling copy...",
+                "🎯 Optimizing for search engines...",
+                "✅ Adding final touches..."
+              ]}
               showSkeleton={true}
               title="Generating AI Description"
-              estimatedTime={inputMethod === 'url' ? 30 : 20}
+              estimatedTime={20}
             />
-          ) : (!hasGeneratedContent && inputMethod !== 'manual') ? (
+          ) : (!hasGeneratedContent && !isManualMode) ? (
+            <AIGenerationForm
+              onGenerate={handleGenerate}
+              isGenerating={isGenerating}
+              onManualSelect={() => {
+                setIsManualMode(true);
+                setHasGeneratedContent(false);
+              }}
+            />
+          ) : isManualMode ? (
             <>
-          {/* Input Method Selection */}
-          <BlockStack gap="400">
-            <Text variant="headingSm" as="h3">Choose Input Method</Text>
-            <ButtonGroup variant="segmented">
-              <Button
-                pressed={inputMethod === 'context'}
-                onClick={() => setInputMethod('context')}
-                icon={ImageIcon}
-              >
-                Generate from text
-              </Button>
-              <Button
-                pressed={inputMethod === 'url'}
-                onClick={() => setInputMethod('url')}
-                icon={LinkIcon}
-              >
-                Generate from URL
-              </Button>
-              <Button
-                pressed={inputMethod === 'manual'}
-                onClick={() => {
-                  setInputMethod('manual');
-                  // Reset hasGeneratedContent when switching to manual
-                  setHasGeneratedContent(false);
-                }}
-                icon={EditIcon}
-              >
-                Write manually
-              </Button>
-            </ButtonGroup>
-          </BlockStack>
-
-          {/* SEO Keywords */}
-          {inputMethod !== 'manual' && (
-            <BlockStack gap="400">
               <Divider />
-              <Text variant="headingSm" as="h3">SEO Keywords</Text>
-            <FormLayout>
-              <FormLayout.Group>
-                <TextField
-                  label="Primary Keyword"
-                  value={keywords.primary}
-                  onChange={(value) => setKeywords(prev => ({ ...prev, primary: value }))}
-                  helpText="Most important keyword for SEO"
-                  autoComplete="off"
-                />
-                <TextField
-                  label="Secondary Keyword"
-                  value={keywords.secondary}
-                  onChange={(value) => setKeywords(prev => ({ ...prev, secondary: value }))}
-                  helpText="Supporting keyword (optional)"
-                  autoComplete="off"
-                />
-              </FormLayout.Group>
-            </FormLayout>
-            </BlockStack>
-          )}
-
-          {/* Conditional Input Fields */}
-          {inputMethod === 'url' && (
-            <BlockStack gap="400">
-              <Divider />
-              <TextField
-                label="Product URL"
-                value={productUrl}
-                onChange={setProductUrl}
-                placeholder="https://example.com/product-page"
-                helpText="Enter the URL of the product from manufacturer or supplier"
-                autoComplete="off"
+              <DescriptionEditor
+                description={formData.description}
+                seoTitle={formData.seoTitle}
+                seoDescription={formData.seoDescription}
+                onChange={onChange}
+                tinymceApiKey={tinymceApiKey}
               />
-              {productUrl && !isValidUrl(productUrl) && (
-                <InlineError 
-                  message="Please enter a valid URL starting with http:// or https://" 
-                  fieldID="productUrl" 
-                />
-              )}
-            </BlockStack>
-          )}
-
-          {inputMethod === 'context' && (
-            <BlockStack gap="400">
-              <Divider />
-              <TextField
-                label={
-                  <InlineStack gap="100" align="start">
-                    <Text as="span">Enter your existing product description and additional details</Text>
-                    <Tooltip content="Paste your existing description plus any technical specs, materials, sizing information, or special features. The AI will reorganize and enhance this content to create a compelling, SEO-optimized product description.">
-                      <Icon source={InfoIcon} tone="subdued" />
-                    </Tooltip>
-                  </InlineStack>
-                }
-                value={additionalContext}
-                onChange={setAdditionalContext}
-                multiline={4}
-                helpText="Include unique features, materials, benefits, or anything that should be highlighted in the description"
-                autoComplete="off"
-              />
-            </BlockStack>
-          )}
-
-          {/* Generate Button */}
-          {inputMethod !== 'manual' && (
-            <BlockStack gap="400">
-              <Divider />
-              <Box>
-                <Button
-                variant="primary"
-                onClick={handleGenerate}
-                loading={isGenerating}
-                disabled={
-                  isGenerating ||
-                  (inputMethod === 'url' && (!productUrl || !isValidUrl(productUrl)))
-                }
-              >
-                Generate Description
-              </Button>
-              </Box>
-            </BlockStack>
-          )}
-          
-          </>
-          ) : inputMethod === 'manual' ? (
-            <>
-              {/* Manual Input Mode */}
-              <Divider />
-              <Banner tone="info">
-                <Text as="p">You've chosen to write the description manually. Use the editors below to craft your product description and SEO content.</Text>
-              </Banner>
-              
-              {/* Description Editor */}
-              <BlockStack gap="400">
-                <Text variant="headingSm" as="h3">Product Description</Text>
-                <WYSIWYGEditor
-                  id="product-description"
-                  value={formData.description}
-                  onChange={(content) => onChange({ description: content })}
-                  height={400}
-                  placeholder="Enter your compelling product description here..."
-                  variant="full"
-                  apiKey={tinymceApiKey}
-                />
-              </BlockStack>
-
-              {/* SEO Title Editor */}
-              <BlockStack gap="400">
-                <TextField
-                  label="SEO Title"
-                  value={formData.seoTitle}
-                  onChange={(value) => onChange({ seoTitle: value })}
-                  placeholder="Enter SEO optimized title..."
-                  helpText="Maximum 60 characters for optimal search engine display"
-                  autoComplete="off"
-                  maxLength={60}
-                />
-                <Text variant="bodySm" as="p" tone={formData.seoTitle.length > 60 ? 'critical' : 'subdued'}>
-                  {formData.seoTitle.length}/60 characters
-                </Text>
-              </BlockStack>
-
-              {/* SEO Description Editor */}
-              <BlockStack gap="400">
-                <TextField
-                  label="SEO Meta Description"
-                  value={formData.seoDescription}
-                  onChange={(value) => onChange({ seoDescription: value })}
-                  placeholder="Enter SEO meta description..."
-                  helpText="Maximum 155 characters for optimal search engine display"
-                  autoComplete="off"
-                  maxLength={155}
-                  multiline={2}
-                />
-                <Text variant="bodySm" as="p" tone={formData.seoDescription.length > 155 ? 'critical' : 'subdued'}>
-                  {formData.seoDescription.length}/155 characters
-                </Text>
-              </BlockStack>
             </>
           ) : (
             <>
-              {/* Phase 3: Clean Results View */}
               <Divider />
-              
-              {/* Description Editor */}
-              <BlockStack gap="400">
-                <Text variant="headingSm" as="h3">Product Description</Text>
-                <WYSIWYGEditor
-                  id="product-description"
-                  value={formData.description}
-                  onChange={(content) => onChange({ description: content })}
-                  height={400}
-                  placeholder="Enter your compelling product description here..."
-                  variant="full"
-                  apiKey={tinymceApiKey}
-                />
-              </BlockStack>
-
-              {/* SEO Title Editor */}
-              <BlockStack gap="400">
-                <TextField
-                  label="SEO Title"
-                  value={formData.seoTitle}
-                  onChange={(value) => onChange({ seoTitle: value })}
-                  placeholder="Enter SEO optimized title..."
-                  helpText="Maximum 60 characters for optimal search engine display"
-                  autoComplete="off"
-                  maxLength={60}
-                />
-                <Text variant="bodySm" as="p" tone={formData.seoTitle.length > 60 ? 'critical' : 'subdued'}>
-                  {formData.seoTitle.length}/60 characters
-                </Text>
-              </BlockStack>
-
-              {/* SEO Description Editor */}
-              <BlockStack gap="400">
-                <TextField
-                  label="SEO Meta Description"
-                  value={formData.seoDescription}
-                  onChange={(value) => onChange({ seoDescription: value })}
-                  placeholder="Enter SEO meta description..."
-                  helpText="Maximum 155 characters for optimal search engine display"
-                  autoComplete="off"
-                  maxLength={155}
-                  multiline={2}
-                />
-                <Text variant="bodySm" as="p" tone={formData.seoDescription.length > 155 ? 'critical' : 'subdued'}>
-                  {formData.seoDescription.length}/155 characters
-                </Text>
-              </BlockStack>
+              <DescriptionEditor
+                description={formData.description}
+                seoTitle={formData.seoTitle}
+                seoDescription={formData.seoDescription}
+                onChange={onChange}
+                tinymceApiKey={tinymceApiKey}
+              />
             </>
           )}
 
