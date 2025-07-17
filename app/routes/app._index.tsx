@@ -13,7 +13,6 @@ import {
   Button,
   Box,
   List,
-  TitleBar,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 
@@ -122,12 +121,7 @@ export default function Index() {
   const generateProduct = () => fetcher.submit({}, { method: "POST" });
 
   return (
-    <Page>
-      <TitleBar title="Remix app template">
-        <button variant="primary" onClick={generateProduct}>
-          Generate a product
-        </button>
-      </TitleBar>
+    <Page title="Remix app template">
       <BlockStack gap="500">
         <Layout>
           <Layout.Section>
