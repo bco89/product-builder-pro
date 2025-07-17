@@ -84,13 +84,13 @@ export class ProductScraperService {
     logger.info('ProductScraperService constructor called');
     
     const apiKey = process.env.FIRECRAWL_API_KEY;
-    logger.info('FIRECRAWL_API_KEY environment variable exists:', !!apiKey);
+    logger.info('FIRECRAWL_API_KEY environment variable exists:', { exists: !!apiKey });
     
     if (apiKey) {
       try {
         // Ensure API key has proper prefix
         const formattedApiKey = apiKey.startsWith('fc-') ? apiKey : `fc-${apiKey}`;
-        logger.info('Initializing FirecrawlApp with API key (prefix check):', formattedApiKey.substring(0, 6) + '...');
+        logger.info('Initializing FirecrawlApp with API key (prefix check):', { keyPrefix: formattedApiKey.substring(0, 6) + '...' });
         
         this.firecrawl = new FirecrawlApp({ apiKey: formattedApiKey });
         logger.info('FirecrawlApp initialized successfully');
