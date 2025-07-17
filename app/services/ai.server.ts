@@ -993,14 +993,17 @@ Every sentence should serve multiple purposes - inform newcomers, differentiate 
   private formatScrapedDataForPrompt(scrapedData: any): string {
     if (!scrapedData) return '';
     
-    // Check if we have raw JSON data from Firecrawl extract endpoint
+    // PRIORITY 1: Check if we have raw JSON data from Firecrawl extract endpoint
+    // This is the cleanest, most structured data - use it exclusively when available
     if (scrapedData.extractedJson && scrapedData.extractionMethod === 'extract') {
-      // Return the raw JSON data directly for better structure and completeness
+      logger.info('Using clean extracted JSON from Firecrawl extract endpoint');
+      // Return ONLY the JSON data - no raw content, no fallbacks
       return JSON.stringify(scrapedData.extractedJson, null, 2);
     }
     
-    // Check if we have enhanced description data (new format)
-    if (scrapedData.descriptionData) {
+    // PRIORITY 2: Check if we have enhanced description data (structured format)
+    // Only use this if we DON'T have extractedJson
+    if (scrapedData.descriptionData && !scrapedData.extractedJson) {
       const data = scrapedData.descriptionData;
       let formatted = '## 📊 PRODUCT DATA\n';
       

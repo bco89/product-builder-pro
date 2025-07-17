@@ -297,7 +297,7 @@ export interface ExtractionResult {
   metadata?: Record<string, any>;
   error?: string;
   note?: string;
-  extractionMethod?: 'llm' | 'structured_data' | 'pattern' | 'fallback';
+  extractionMethod?: 'extract' | 'llm' | 'structured_data' | 'pattern' | 'fallback';
   extractedJson?: any; // Raw JSON data from Firecrawl extract endpoint
 }
 
@@ -397,10 +397,10 @@ export async function extractProductDescriptionData(
       return {
         success: true,
         data: cleanExtractedData(extractedData),
-        rawContent: undefined, // Extract endpoint doesn't return raw content
+        rawContent: undefined, // NEVER include raw content when we have clean JSON
         metadata: {},
-        extractionMethod: 'llm',
-        extractedJson: extractedData // Pass through raw JSON data
+        extractionMethod: 'extract', // Correct method name
+        extractedJson: extractedData // Pass through raw JSON data - this is all we need!
       };
     } else {
       // Implement intelligent fallback strategies
@@ -1172,7 +1172,9 @@ export async function extractForDescriptionGeneration(
     return {
       success: true,
       data: extractionResult.data,
-      rawContent: extractionResult.rawContent,
+      // IMPORTANT: When we have extractedJson, we DON'T need rawContent
+      // This prevents sending massive amounts of unnecessary data to the LLM
+      rawContent: extractionResult.extractedJson ? undefined : extractionResult.rawContent,
       metadata: extractionResult.metadata,
       note: extractionResult.note,
       extractedJson: extractionResult.extractedJson,

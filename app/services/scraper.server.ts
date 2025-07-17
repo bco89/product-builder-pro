@@ -237,36 +237,11 @@ export class ProductScraperService {
             description: data.description,
             features: data.keyFeatures || [],
             specifications: data.specifications || {},
-            descriptionData: {
-              productTitle: data.productName,
-              brandVendor: data.brand,
-              productCategory: data.category,
-              keyFeatures: data.keyFeatures || [],
-              benefits: [], // Extract endpoint doesn't separate benefits
-              detailedDescription: data.description || '',
-              materials: data.materials || [],
-              construction: {
-                details: []
-              },
-              specifications: {
-                dimensions: data.dimensions || {},
-                performance: {},
-                technical: Object.entries(data.specifications || {}).map(([k, v]) => `${k}: ${v}`)
-              },
-              variants: data.variants?.map(v => ({
-                optionName: v.type,
-                availableValues: v.options || [],
-              })) || [],
-              sizeChart: {
-                available: data.sizingInfo?.sizeChartAvailable || false,
-                fitNotes: data.sizingInfo?.fitNotes
-              },
-              useCases: data.useCases || [],
-              careInstructions: [],
-              technologies: [],
-              awards: []
-            },
-            // Pass through the raw extract data
+            // When we have extractedJson, we DON'T need descriptionData or rawContent
+            // The AI will use the clean JSON directly
+            descriptionData: undefined, // Don't duplicate data
+            rawContent: undefined, // Explicitly exclude raw content
+            // Pass through the raw extract data - this is all we need!
             extractedJson: extractResult.data,
             extractionMethod: 'extract',
             extractionTime
@@ -351,17 +326,17 @@ export class ProductScraperService {
           
           // Return enhanced data structure
           const enhancedData: ScrapedProductData = {
-            title: extractionResult.data.productTitle,
-            description: extractionResult.data.detailedDescription,
-            features: extractionResult.data.keyFeatures,
-            specifications: {
-              ...extractionResult.data.specifications.dimensions,
-              ...Object.entries(extractionResult.data.specifications.performance)
-                .filter(([_, value]) => value)
-                .reduce((acc, [key, value]) => ({ ...acc, [key]: value as string }), {})
-            },
-            rawContent: extractionResult.rawContent?.markdown,
-            descriptionData: extractionResult.data,
+            title: extractionResult.data.productName,
+            description: extractionResult.data.fullDescription,
+            // Convert features from objects to strings if needed
+            features: extractionResult.data.features?.map(f => 
+              typeof f === 'string' ? f : `${f.feature} - ${f.benefit}`
+            ) || [],
+            specifications: extractionResult.data.technicalSpecs || {},
+            // When we have extractedJson, exclude raw content and descriptionData
+            rawContent: (extractionResult as any).extractedJson ? undefined : extractionResult.rawContent?.markdown,
+            // Only include descriptionData if we DON'T have extractedJson
+            descriptionData: (extractionResult as any).extractedJson ? undefined : undefined,
             // Pass through the raw extracted JSON if available
             extractedJson: (extractionResult as any).extractedJson,
             extractionMethod: (extractionResult as any).extractionMethod || 'extract'

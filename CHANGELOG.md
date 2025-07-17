@@ -2,6 +2,22 @@
 
 ## 2025.01.17
 
+### Fixed Firecrawl Extract Data Processing
+
+- **Resolved Issue with Raw Content in AI Prompts**:
+  - Fixed critical issue where entire raw webpage content was being passed to LLM along with clean extracted JSON
+  - Updated `formatScrapedDataForPrompt` in `ai.server.ts` to exclusively use clean JSON from Firecrawl extract endpoint
+  - Modified `extractProductInfo` in `scraper.server.ts` to exclude `rawContent` and `descriptionData` when `extractedJson` is available
+  - Updated `extractForDescriptionGeneration` to prevent raw content from being included with extracted JSON
+  - Fixed extraction method label from 'llm' to 'extract' for proper identification
+  
+- **Benefits of the Fix**:
+  - Significantly reduced token usage by sending only relevant product data
+  - Eliminated irrelevant content (navigation, footers, UI elements) from AI prompts
+  - Improved AI description quality by providing focused, structured data
+  - Lower API costs due to smaller, more efficient prompts
+  - Better performance with faster response times
+
 ### Fixed AI Description Truncation & Enhanced Token Limits
 
 - **Fixed Product Description Truncation Issue**:
