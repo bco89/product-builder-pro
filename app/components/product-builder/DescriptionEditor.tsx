@@ -51,8 +51,8 @@ const WYSIWYGEditor = ({
   
   // Configure plugins based on variant
   const plugins = variant === 'simple' 
-    ? ['link', 'paste', 'wordcount']
-    : ['link', 'lists', 'paste', 'wordcount'];
+    ? ['link', 'paste']
+    : ['link', 'lists', 'paste'];
 
   return (
     <Box borderColor="border" borderWidth="025" borderRadius="200">
@@ -71,14 +71,8 @@ const WYSIWYGEditor = ({
           paste_as_text: variant === 'simple',
           branding: false,
           resize: false,
-          statusbar: true,
+          statusbar: false,
           elementpath: false,
-          wordcount: {
-            countHTML: false,
-            countCharacters: true,
-            showWordCount: false,
-            showCharCount: true,
-          },
           // Restrict formatting for SEO fields
           ...(variant === 'simple' && {
             formats: {
@@ -135,9 +129,6 @@ export default function DescriptionEditor({
           autoComplete="off"
           maxLength={60}
         />
-        <Text variant="bodySm" as="p" tone={seoTitle.length > 60 ? 'critical' : 'subdued'}>
-          {seoTitle.length}/60 characters
-        </Text>
       </BlockStack>
 
       {/* SEO Description Editor */}
@@ -152,9 +143,6 @@ export default function DescriptionEditor({
           maxLength={155}
           multiline={2}
         />
-        <Text variant="bodySm" as="p" tone={seoDescription.length > 155 ? 'critical' : 'subdued'}>
-          {seoDescription.length}/155 characters
-        </Text>
       </BlockStack>
     </BlockStack>
   );

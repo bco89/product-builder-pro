@@ -478,16 +478,6 @@ export default function ImproveDescriptions() {
                     tinymceApiKey={tinymceApiKey}
                     descriptionHeight={300}
                   />
-                  
-                  {/* Regenerate Button */}
-                  <Box>
-                    <Button 
-                      onClick={() => setShowGenerationForm(true)}
-                      icon={MagicIcon}
-                    >
-                      Regenerate with AI
-                    </Button>
-                  </Box>
                 </>
               )}
             </BlockStack>
