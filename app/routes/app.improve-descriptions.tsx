@@ -18,8 +18,11 @@ import {
   Box,
   Banner,
   Spinner,
+  ButtonGroup,
+  Divider,
+  InlineError,
 } from '@shopify/polaris';
-import { EditIcon, MagicIcon } from '@shopify/polaris-icons';
+import { EditIcon, MagicIcon, LinkIcon } from '@shopify/polaris-icons';
 import { authenticate } from '../shopify.server';
 import { json } from '@remix-run/node';
 import { useLoaderData, useSubmit, useNavigation } from '@remix-run/react';
@@ -49,6 +52,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return json({ shop: admin.rest.session.shop });
 };
 
+// Helper function to validate URLs
+const isValidUrl = (url: string): boolean => {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
 export default function ImproveDescriptions() {
   const { shop } = useLoaderData<typeof loader>();
   const queryClient = useQueryClient();
@@ -57,6 +70,8 @@ export default function ImproveDescriptions() {
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [toastMessage, setToastMessage] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [inputMethod, setInputMethod] = useState<'existing' | 'url'>('existing');
+  const [productUrl, setProductUrl] = useState('');
 
   // Fetch products
   const { data: productsData, isLoading } = useQuery({
@@ -77,17 +92,25 @@ export default function ImproveDescriptions() {
   // Generate improved description
   const generateDescription = useMutation({
     mutationFn: async (product: Product) => {
+      const payload: any = {
+        productTitle: product.title,
+        productType: product.productType,
+        vendor: product.vendor,
+        keywords: [product.title.split(' ')[0], product.productType],
+      };
+
+      if (inputMethod === 'url' && productUrl) {
+        payload.method = 'url';
+        payload.productUrl = productUrl;
+      } else {
+        payload.method = 'manual';
+        payload.existingDescription = product.description;
+      }
+
       const response = await fetch('/api/shopify/generate-description', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          method: 'manual',
-          productTitle: product.title,
-          productType: product.productType,
-          vendor: product.vendor,
-          keywords: [product.title.split(' ')[0], product.productType],
-          existingDescription: product.description,
-        }),
+        body: JSON.stringify(payload),
       });
       
       if (!response.ok) throw new Error('Failed to generate description');
@@ -149,6 +172,8 @@ export default function ImproveDescriptions() {
   const handleImproveClick = (product: Product) => {
     setSelectedProduct(product);
     setModalOpen(true);
+    setInputMethod('existing');
+    setProductUrl('');
   };
 
   const rows = products.map((product: Product) => [
@@ -256,6 +281,8 @@ export default function ImproveDescriptions() {
         onClose={() => {
           setModalOpen(false);
           setSelectedProduct(null);
+          setInputMethod('existing');
+          setProductUrl('');
         }}
         title={`Improve: ${selectedProduct?.title || ''}`}
         primaryAction={{
@@ -269,6 +296,8 @@ export default function ImproveDescriptions() {
             onAction: () => {
               setModalOpen(false);
               setSelectedProduct(null);
+              setInputMethod('existing');
+              setProductUrl('');
             },
           },
         ]}
@@ -277,17 +306,63 @@ export default function ImproveDescriptions() {
         <Modal.Section>
           {selectedProduct && (
             <BlockStack gap="400">
-              <Banner tone="info">
-                <Text as="p">
-                  Click "Generate with AI" to create an improved description, or edit manually below.
-                </Text>
-              </Banner>
+              <Text variant="headingSm" as="h3">Choose Input Method</Text>
+              <ButtonGroup variant="segmented">
+                <Button
+                  pressed={inputMethod === 'existing'}
+                  onClick={() => setInputMethod('existing')}
+                  icon={EditIcon}
+                >
+                  Use existing description
+                </Button>
+                <Button
+                  pressed={inputMethod === 'url'}
+                  onClick={() => setInputMethod('url')}
+                  icon={LinkIcon}
+                >
+                  Import from URL
+                </Button>
+              </ButtonGroup>
 
+              {inputMethod === 'existing' && (
+                <>
+                  <Divider />
+                  <Banner tone="info">
+                    <Text as="p">
+                      Click "Generate with AI" to improve the existing product description using AI.
+                    </Text>
+                  </Banner>
+                </>
+              )}
+
+              {inputMethod === 'url' && (
+                <>
+                  <Divider />
+                  <TextField
+                    label="Product URL"
+                    value={productUrl}
+                    onChange={setProductUrl}
+                    placeholder="https://example.com/product-page"
+                    helpText="Enter the URL of the product from manufacturer or supplier website"
+                    autoComplete="off"
+                  />
+                  {productUrl && !isValidUrl(productUrl) && (
+                    <InlineError 
+                      message="Please enter a valid URL starting with http:// or https://" 
+                      fieldID="productUrl" 
+                    />
+                  )}
+                </>
+              )}
+
+              <Divider />
+              
               <Button
                 variant="primary"
                 icon={MagicIcon}
                 onClick={() => generateDescription.mutate(selectedProduct)}
                 loading={generateDescription.isPending}
+                disabled={inputMethod === 'url' && (!productUrl || !isValidUrl(productUrl))}
                 fullWidth
               >
                 Generate with AI

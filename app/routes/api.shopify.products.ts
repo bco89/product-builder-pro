@@ -12,11 +12,23 @@ interface ProductOption {
 }
 
 interface ProductNode {
+  id?: string;
+  title?: string;
+  description?: string;
+  handle?: string;
   vendor: string;
   productType: string;
   category: ProductCategory | null;
   options: ProductOption[];
   tags: string[];
+  featuredImage?: {
+    url: string;
+    altText?: string;
+  };
+  seo?: {
+    title?: string;
+    description?: string;
+  };
 }
 
 interface ProductEdge {
@@ -166,8 +178,55 @@ export const loader = async ({ request }: { request: Request }) => {
           }`;
         break;
 
+      case 'list':
       default:
-        return json({ error: 'Invalid query type' }, { status: 400 });
+        // Fetch all products for the improve descriptions page
+        const searchQuery = url.searchParams.get('query') || '';
+        const filters = url.searchParams.get('filters') || '';
+        
+        let queryString = '';
+        if (searchQuery) {
+          queryString = searchQuery;
+        }
+        
+        // Add filter conditions
+        if (filters) {
+          const filterArray = filters.split(',');
+          if (filterArray.includes('has_description')) {
+            queryString += queryString ? ' AND ' : '';
+            queryString += 'description:*';
+          }
+          if (filterArray.includes('no_description')) {
+            queryString += queryString ? ' AND ' : '';
+            queryString += 'NOT description:*';
+          }
+        }
+        
+        graphqlQuery = `#graphql
+          query getProducts($query: String) {
+            products(first: 100, query: $query) {
+              edges {
+                node {
+                  id
+                  title
+                  description
+                  handle
+                  productType
+                  vendor
+                  featuredImage {
+                    url
+                    altText
+                  }
+                  seo {
+                    title
+                    description
+                  }
+                }
+              }
+            }
+          }`;
+        variables = queryString ? { query: queryString } : {};
+        break;
     }
 
     const response = await admin.graphql(graphqlQuery, { variables });
@@ -275,6 +334,12 @@ export const loader = async ({ request }: { request: Request }) => {
         const uniqueAllTags = [...new Set(allTagsFromAllProducts)].sort();
 
         return json({ tags: uniqueAllTags });
+
+      case 'list':
+      default:
+        // Return the full product list for the improve descriptions page
+        const products = data.data.products.edges.map(edge => edge.node);
+        return json({ products });
     }
 
   } catch (error) {

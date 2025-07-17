@@ -17,7 +17,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     const response = await admin.graphql(
       `#graphql
-      mutation productUpdate($product: ProductInput!) {
+      mutation productUpdate($product: ProductUpdateInput!) {
         productUpdate(product: $product) {
           product {
             id
