@@ -254,7 +254,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
         <BlockStack gap="500">
           <InlineStack gap="400" align="space-between">
             <Text variant="headingMd" as="h2">AI-Powered Description Generation</Text>
-            {inputMethod !== 'manual' && (
+            {!isManualMode && (
               <InlineStack gap="200" align="center">
                 {isLoadingSettings ? (
                   <>
