@@ -51,6 +51,12 @@ interface StepVendorTypeProps {
   productId?: string | null;
 }
 
+interface ProductTypesDataResponse {
+  suggestedProductTypes?: string[];
+  allProductTypes?: string[];
+  fromCache?: boolean;
+}
+
 export default function StepVendorType({ formData, onChange, onNext, onBack, productId }: StepVendorTypeProps) {
   // State for search inputs
   const [vendorInputValue, setVendorInputValue] = useState(formData.vendor || '');
@@ -82,7 +88,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
 
 
   // Fetch product types for selected vendor with suggested and all types
-  const { data: productTypesData, isLoading: productTypesLoading, error: productTypesError } = useQuery({
+  const { data: productTypesData, isLoading: productTypesLoading, error: productTypesError } = useQuery<ProductTypesDataResponse>({
     queryKey: ['productTypesByVendor', formData.vendor],
     enabled: !!formData.vendor,
     queryFn: async () => {
@@ -174,7 +180,8 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
     }
     
     if (value === '') {
-      setFilteredVendors(vendorsData);
+      // Sort vendors alphabetically when showing all
+      setFilteredVendors([...vendorsData].sort((a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base' })));
       return;
     }
 
@@ -182,7 +189,8 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
     const resultVendors = vendorsData.filter((vendor: string) =>
       vendor.match(filterRegex)
     );
-    setFilteredVendors(resultVendors);
+    // Sort filtered results alphabetically
+    setFilteredVendors(resultVendors.sort((a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base' })));
   }, [vendorsData]);
 
   // Handle vendor selection
@@ -364,7 +372,8 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
   // Initialize filtered data when source data loads
   useMemo(() => {
     if (vendorsData && filteredVendors.length === 0 && vendorInputValue === '') {
-      setFilteredVendors(vendorsData);
+      // Sort vendors alphabetically on initial load
+      setFilteredVendors([...vendorsData].sort((a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base' })));
     }
   }, [vendorsData, filteredVendors.length, vendorInputValue]);
 
@@ -463,15 +472,19 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
                 }
               >
                 {vendorOptionsMarkup ? (
-                  <Listbox onSelect={updateVendorSelection}>
-                    {vendorOptionsMarkup}
-                  </Listbox>
+                  <div style={{ paddingBottom: '8px' }}>
+                    <Listbox onSelect={updateVendorSelection}>
+                      {vendorOptionsMarkup}
+                    </Listbox>
+                  </div>
                 ) : vendorInputValue !== '' ? (
-                  <Listbox>
-                    <Listbox.Option value="" disabled>
-                      No vendors found matching "{vendorInputValue}"
-                    </Listbox.Option>
-                  </Listbox>
+                  <div style={{ paddingBottom: '8px' }}>
+                    <Listbox>
+                      <Listbox.Option value="" disabled>
+                        No vendors found matching "{vendorInputValue}"
+                      </Listbox.Option>
+                    </Listbox>
+                  </div>
                 ) : null}
               </Combobox>
             )}
@@ -560,7 +573,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
         </BlockStack>
 
         <ButtonGroup>
-          <Button onClick={onBack}>Back</Button>
+          <Button onClick={onBack} disabled>Back</Button>
           <Button 
             variant="primary"
             onClick={handleSubmit} 

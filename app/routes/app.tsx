@@ -1,4 +1,4 @@
-import { Outlet, useLoaderData, useRouteError, useSearchParams, useLocation } from "@remix-run/react";
+import { Outlet, useLoaderData, useRouteError, useSearchParams, useLocation, useNavigate } from "@remix-run/react";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -27,8 +27,9 @@ export default function App() {
   const { apiKey, host } = useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
   const location = useLocation();
+  const navigate = useNavigate();
 
-  // Effect to update navigation links with query parameters
+  // Effect to update navigation links with query parameters and handle client-side navigation
   useEffect(() => {
     const navMenu = document.querySelector('ui-nav-menu');
     if (!navMenu) return;
@@ -41,15 +42,38 @@ export default function App() {
     if (searchParams.has('host')) requiredParams.set('host', searchParams.get('host')!);
     if (searchParams.has('embedded')) requiredParams.set('embedded', searchParams.get('embedded')!);
 
+    // Store click handlers for cleanup
+    const clickHandlers = new Map();
+
     links.forEach(link => {
       const href = link.getAttribute('href');
       if (href && href.startsWith('/app')) {
         // Update href to include query parameters
         const separator = href.includes('?') ? '&' : '?';
-        link.setAttribute('href', `${href}${separator}${requiredParams.toString()}`);
+        const fullHref = `${href}${separator}${requiredParams.toString()}`;
+        link.setAttribute('href', fullHref);
+        
+        // Create click handler for client-side navigation
+        const clickHandler = (e) => {
+          e.preventDefault();
+          navigate(fullHref);
+        };
+        
+        // Store handler reference for cleanup
+        clickHandlers.set(link, clickHandler);
+        
+        // Add click event listener
+        link.addEventListener('click', clickHandler);
       }
     });
-  }, [searchParams, location.pathname]); // Re-run when params or path changes
+
+    // Cleanup function to remove event listeners
+    return () => {
+      clickHandlers.forEach((handler, link) => {
+        link.removeEventListener('click', handler);
+      });
+    };
+  }, [searchParams, location.pathname, navigate]); // Re-run when params, path, or navigate changes
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -691,9 +691,9 @@ export default function ProductBuilder() {
                   ) : (
                     <>
                       <li>Select vendor and product type</li>
-                      <li>Add product details</li>
+                      <li>Add product details and pricing</li>
+                      <li>Generate AI-powered description</li>
                       <li>Add tags for organization</li>
-                      <li>Set pricing information</li>
                       <li>Choose variant configuration</li>
                       {hasVariants === false && (
                         <>
