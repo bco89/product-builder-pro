@@ -9,7 +9,6 @@ import type { LoaderFunctionArgs, HeadersFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useEffect, useMemo } from "react";
 import { useAppBridge } from "@shopify/app-bridge-react";
-import { Redirect } from "@shopify/app-bridge/actions";
 
 const queryClient = new QueryClient();
 
@@ -40,19 +39,13 @@ function AppContent() {
     return params.toString();
   }, [searchParams]);
 
-  // Subscribe to App Bridge redirect actions for client-side routing
+  // Handle navigation with query parameters
   useEffect(() => {
-    const unsubscribe = app.subscribe(Redirect.Action.APP, (redirectData: any) => {
-      console.log(`App Bridge navigation to: ${redirectData.path}`);
-      // Add query params to the path
-      const separator = redirectData.path.includes('?') ? '&' : '?';
-      const fullPath = `${redirectData.path}${separator}${queryString}`;
-      navigate(fullPath);
-    });
-
-    return () => {
-      unsubscribe();
-    };
+    // For Shopify embedded apps, navigation is handled by the App Bridge provider
+    // and the ui-nav-menu component. We don't need to subscribe to navigation events
+    // as the AppProvider handles this internally.
+    
+    // The ui-nav-menu links will be updated with query parameters below
   }, [app, navigate, queryString]);
 
   // Effect to update navigation links with query parameters
