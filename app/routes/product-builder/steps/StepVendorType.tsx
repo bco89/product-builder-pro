@@ -503,19 +503,15 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
                 }
               >
                 {vendorOptionsMarkup ? (
-                  <div style={{ paddingBottom: '8px' }}>
-                    <Listbox onSelect={updateVendorSelection}>
-                      {vendorOptionsMarkup}
-                    </Listbox>
-                  </div>
+                  <Listbox onSelect={updateVendorSelection}>
+                    {vendorOptionsMarkup}
+                  </Listbox>
                 ) : vendorInputValue !== '' ? (
-                  <div style={{ paddingBottom: '8px' }}>
-                    <Listbox>
-                      <Listbox.Option value="" disabled>
-                        No vendors found matching "{vendorInputValue}"
-                      </Listbox.Option>
-                    </Listbox>
-                  </div>
+                  <Listbox>
+                    <Listbox.Option value="" disabled>
+                      No vendors found matching "{vendorInputValue}"
+                    </Listbox.Option>
+                  </Listbox>
                 ) : null}
               </Combobox>
             )}
