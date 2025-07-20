@@ -222,8 +222,8 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
     
     // Combine suggested and all product types for filtering
     const allTypes = [
-      ...(productTypesData.suggestedProductTypes || []).map((type: string) => ({ productType: type })),
-      ...(productTypesData.allProductTypes || []).map((type: string) => ({ productType: type }))
+      ...(productTypesData.suggestedProductTypes || []).map((type: string) => ({ productType: type, category: null })),
+      ...(productTypesData.allProductTypes || []).map((type: string) => ({ productType: type, category: null }))
     ];
     
     // Remove duplicates
@@ -381,8 +381,8 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
     if (productTypesData && filteredProductTypes.length === 0 && productTypeInputValue === '') {
       // Combine suggested and all product types for initial display
       const allTypes = [
-        ...(productTypesData.suggestedProductTypes || []).map((type: string) => ({ productType: type })),
-        ...(productTypesData.allProductTypes || []).map((type: string) => ({ productType: type }))
+        ...(productTypesData.suggestedProductTypes || []).map((type: string) => ({ productType: type, category: null })),
+        ...(productTypesData.allProductTypes || []).map((type: string) => ({ productType: type, category: null }))
       ];
       
       // Remove duplicates
@@ -427,6 +427,37 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
           [role="option"][aria-disabled="true"] {
             font-weight: bold !important;
             color: var(--p-color-text) !important;
+          }
+          
+          /* Limit Combobox dropdown height and add bottom spacing */
+          .Polaris-Popover__Content {
+            max-height: 400px !important;
+            overflow-y: auto !important;
+            margin-bottom: 20px !important;
+          }
+          
+          /* Ensure the popover doesn't extend to viewport bottom */
+          .Polaris-PositionedOverlay {
+            max-height: calc(100vh - 40px) !important;
+          }
+          
+          /* Add scrollbar styling for better UX */
+          .Polaris-Popover__Content::-webkit-scrollbar {
+            width: 8px;
+          }
+          
+          .Polaris-Popover__Content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+          }
+          
+          .Polaris-Popover__Content::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+          }
+          
+          .Polaris-Popover__Content::-webkit-scrollbar-thumb:hover {
+            background: #555;
           }
         `}
       </style>
@@ -525,7 +556,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
               <LoadingProgress
                 variant="data-fetch"
                 messages={
-                  productTypesData?.fromCache ? [
+                  productTypesData && productTypesData.fromCache ? [
                     `📊 Refreshing ${formData.vendor} product types...`,
                     "✨ Updating suggestions...",
                     "🎯 Almost ready..."
@@ -552,7 +583,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
                     placeholder="Search product types or type to create new..."
                     autoComplete="off"
                     disabled={!!productTypesError}
-                    helpText={`${getProductTypeHelpText()}${productTypesData?.fromCache ? ' (Recently cached data)' : ''}`}
+                    helpText={`${getProductTypeHelpText()}${productTypesData && productTypesData.fromCache ? ' (Recently cached data)' : ''}`}
                   />
                 }
                 emptyState={
