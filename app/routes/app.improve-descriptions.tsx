@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Page,
   Layout,
@@ -8,7 +8,9 @@ import {
   BlockStack,
   InlineStack,
   Text,
-  Filters,
+  IndexTable,
+  IndexFilters,
+  useIndexResourceState,
   ChoiceList,
   Toast,
   Modal,
@@ -17,6 +19,9 @@ import {
   Tooltip,
   Icon,
   Banner,
+  Thumbnail,
+  Pagination,
+  EmptySearchResult,
 } from '@shopify/polaris';
 import { MagicIcon, AlertCircleIcon, InfoIcon, ImageIcon } from '@shopify/polaris-icons';
 import { authenticate } from '../shopify.server';
@@ -65,6 +70,8 @@ export default function ImproveDescriptions() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
+  const [selectedProductTypes, setSelectedProductTypes] = useState<string[]>([]);
   const [toastMessage, setToastMessage] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [showGenerationForm, setShowGenerationForm] = useState(false);
@@ -76,11 +83,13 @@ export default function ImproveDescriptions() {
 
   // Fetch products
   const { data: productsData, isLoading } = useQuery({
-    queryKey: ['products', searchValue, selectedFilters, currentPage],
+    queryKey: ['products', searchValue, selectedFilters, selectedVendors, selectedProductTypes, currentPage],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (searchValue) params.append('query', searchValue);
       if (selectedFilters.length > 0) params.append('filters', selectedFilters.join(','));
+      if (selectedVendors.length > 0) params.append('vendors', selectedVendors.join(','));
+      if (selectedProductTypes.length > 0) params.append('productTypes', selectedProductTypes.join(','));
       params.append('page', currentPage.toString());
       params.append('limit', itemsPerPage.toString());
       
@@ -95,6 +104,29 @@ export default function ImproveDescriptions() {
   const totalPages = Math.ceil(totalCount / itemsPerPage);
   const hasNextPage = currentPage < totalPages;
   const hasPreviousPage = currentPage > 1;
+
+  // Index table selection state
+  const { selectedResources, allResourcesSelected, handleSelectionChange } = useIndexResourceState(products);
+
+  // Fetch vendors for filter
+  const { data: vendorsData } = useQuery({
+    queryKey: ['vendors'],
+    queryFn: async () => {
+      const response = await fetch('/api/shopify/products?type=vendors');
+      if (!response.ok) throw new Error('Failed to fetch vendors');
+      return response.json();
+    }
+  });
+
+  // Fetch product types for filter
+  const { data: productTypesData } = useQuery({
+    queryKey: ['productTypes-all'],
+    queryFn: async () => {
+      const response = await fetch('/api/shopify/products?type=productTypes&vendor=all');
+      if (!response.ok) throw new Error('Failed to fetch product types');
+      return response.json();
+    }
+  });
 
   // Fetch shop settings
   const { data: shopSettings, isLoading: isLoadingSettings, error: settingsError } = useQuery({
@@ -229,31 +261,16 @@ export default function ImproveDescriptions() {
     setCurrentPage(1); // Reset to first page on filter change
   }, []);
 
-  // Handle pagination events from s-table
-  useEffect(() => {
-    const handlePreviousPage = () => {
-      if (hasPreviousPage) {
-        setCurrentPage(prev => prev - 1);
-      }
-    };
+  const handleVendorsChange = useCallback((value: string[]) => {
+    setSelectedVendors(value);
+    setCurrentPage(1);
+  }, []);
 
-    const handleNextPage = () => {
-      if (hasNextPage) {
-        setCurrentPage(prev => prev + 1);
-      }
-    };
+  const handleProductTypesChange = useCallback((value: string[]) => {
+    setSelectedProductTypes(value);
+    setCurrentPage(1);
+  }, []);
 
-    const table = document.querySelector('s-table');
-    if (table) {
-      table.addEventListener('previouspage', handlePreviousPage);
-      table.addEventListener('nextpage', handleNextPage);
-
-      return () => {
-        table.removeEventListener('previouspage', handlePreviousPage);
-        table.removeEventListener('nextpage', handleNextPage);
-      };
-    }
-  }, [hasNextPage, hasPreviousPage]);
 
   const handleImproveClick = (product: Product) => {
     setSelectedProduct(product);
@@ -281,6 +298,68 @@ export default function ImproveDescriptions() {
     });
   };
 
+  // Clear all filters
+  const handleClearAll = useCallback(() => {
+    setSearchValue('');
+    setSelectedFilters([]);
+    setSelectedVendors([]);
+    setSelectedProductTypes([]);
+  }, []);
+
+  // Create IndexTable rows
+  const rowMarkup = products.map((product, index) => (
+    <IndexTable.Row
+      id={product.id}
+      key={product.id}
+      selected={selectedResources.includes(product.id)}
+      position={index}
+    >
+      <IndexTable.Cell>
+        <InlineStack gap="300" align="center">
+          {product.featuredImage ? (
+            <Thumbnail
+              source={product.featuredImage.url}
+              alt={product.featuredImage.altText || product.title}
+              size="small"
+            />
+          ) : (
+            <Box 
+              width="50px" 
+              minHeight="50px" 
+              background="bg-fill-secondary"
+              borderRadius="200"
+              borderWidth="025"
+              borderColor="border"
+            >
+              <InlineStack align="center" blockAlign="center" gap="0">
+                <Icon source={ImageIcon} tone="subdued" />
+              </InlineStack>
+            </Box>
+          )}
+          <Text variant="bodyMd" fontWeight="semibold">{product.title}</Text>
+        </InlineStack>
+      </IndexTable.Cell>
+      <IndexTable.Cell>{product.productType || '-'}</IndexTable.Cell>
+      <IndexTable.Cell>{product.vendor || '-'}</IndexTable.Cell>
+      <IndexTable.Cell>
+        {product.description ? (
+          <Badge tone="success">Has description</Badge>
+        ) : (
+          <Badge tone="warning">No description</Badge>
+        )}
+      </IndexTable.Cell>
+      <IndexTable.Cell>
+        <Button
+          icon={MagicIcon}
+          onClick={() => handleImproveClick(product)}
+          size="slim"
+        >
+          Improve
+        </Button>
+      </IndexTable.Cell>
+    </IndexTable.Row>
+  ));
+
 
   return (
     <Page
@@ -291,8 +370,16 @@ export default function ImproveDescriptions() {
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
-              <Filters
+              <IndexFilters
                 queryValue={searchValue}
+                queryPlaceholder="Search products..."
+                onQueryChange={handleSearchChange}
+                onQueryClear={() => setSearchValue('')}
+                cancelAction={{
+                  onAction: handleClearAll,
+                  disabled: false,
+                  loading: false,
+                }}
                 filters={[
                   {
                     key: 'status',
@@ -311,13 +398,46 @@ export default function ImproveDescriptions() {
                       />
                     ),
                   },
+                  {
+                    key: 'vendor',
+                    label: 'Vendor',
+                    filter: (
+                      <ChoiceList
+                        title="Vendor"
+                        titleHidden
+                        choices={vendorsData?.vendors?.map((vendor: string) => ({
+                          label: vendor,
+                          value: vendor,
+                        })) || []}
+                        selected={selectedVendors}
+                        onChange={handleVendorsChange}
+                        allowMultiple
+                      />
+                    ),
+                  },
+                  {
+                    key: 'productType',
+                    label: 'Product Type',
+                    filter: (
+                      <ChoiceList
+                        title="Product Type"
+                        titleHidden
+                        choices={productTypesData?.productTypes?.map((type: any) => ({
+                          label: type.productType,
+                          value: type.productType,
+                        })) || []}
+                        selected={selectedProductTypes}
+                        onChange={handleProductTypesChange}
+                        allowMultiple
+                      />
+                    ),
+                  },
                 ]}
-                onQueryChange={handleSearchChange}
-                onQueryClear={() => setSearchValue('')}
-                onClearAll={() => {
-                  setSearchValue('');
-                  setSelectedFilters([]);
-                }}
+                onClearAll={handleClearAll}
+                tabs={[]}
+                selected={0}
+                onSelect={() => {}}
+                canCreateNewView={false}
               />
 
               {isLoading ? (
@@ -327,91 +447,49 @@ export default function ImproveDescriptions() {
                     <Text as="p" tone="subdued">Loading products...</Text>
                   </BlockStack>
                 </Box>
+              ) : products.length === 0 ? (
+                <EmptySearchResult
+                  title="No products found"
+                  description="Try changing your filters or search term"
+                  withIllustration
+                />
               ) : (
-                <>
-                  <s-table 
-                    fullwidth
-                    paginate={totalCount > itemsPerPage}
-                    hasPreviousPage={hasPreviousPage}
-                    hasNextPage={hasNextPage}
-                  >
-                    <s-table-header-row>
-                      <s-table-header listSlot="primary">Product</s-table-header>
-                      <s-table-header>Type</s-table-header>
-                      <s-table-header>Vendor</s-table-header>
-                      <s-table-header listSlot="secondary">Description</s-table-header>
-                      <s-table-header>Action</s-table-header>
-                    </s-table-header-row>
-                    <s-table-body>
-                      {products.map((product: Product) => (
-                        <s-table-row key={product.id}>
-                          <s-table-cell>
-                            <s-stack direction="inline" gap="small" alignItems="center">
-                              {product.featuredImage ? (
-                                <s-clickable
-                                  onClick={() => handleImproveClick(product)}
-                                  accessibilityLabel={`${product.title} thumbnail`}
-                                  border="base"
-                                  borderRadius="base"
-                                  overflow="hidden"
-                                  inlineSize="40px"
-                                  blockSize="40px"
-                                >
-                                  <s-image
-                                    objectFit="cover"
-                                    src={product.featuredImage.url}
-                                    alt={product.featuredImage.altText || product.title}
-                                  />
-                                </s-clickable>
-                              ) : (
-                                <s-box
-                                  border="base"
-                                  borderRadius="base"
-                                  inlineSize="40px"
-                                  blockSize="40px"
-                                  background="subdued"
-                                  display="flex"
-                                  alignItems="center"
-                                  justifyContent="center"
-                                >
-                                  <Icon source={ImageIcon} tone="subdued" />
-                                </s-box>
-                              )}
-                              <s-text fontWeight="semibold">{product.title}</s-text>
-                            </s-stack>
-                          </s-table-cell>
-                          <s-table-cell>{product.productType || '-'}</s-table-cell>
-                          <s-table-cell>{product.vendor || '-'}</s-table-cell>
-                          <s-table-cell>
-                            {product.description ? (
-                              <Badge tone="success">Has description</Badge>
-                            ) : (
-                              <Badge tone="warning">No description</Badge>
-                            )}
-                          </s-table-cell>
-                          <s-table-cell>
-                            <Button
-                              icon={MagicIcon}
-                              onClick={() => handleImproveClick(product)}
-                              size="slim"
-                            >
-                              Improve
-                            </Button>
-                          </s-table-cell>
-                        </s-table-row>
-                      ))}
-                    </s-table-body>
-                  </s-table>
-                  
-                  {/* Show page info when there are results */}
-                  {products.length > 0 && totalCount > itemsPerPage && (
-                    <Box padding="400">
-                      <Text as="p" variant="bodySm" tone="subdued" alignment="center">
+                <IndexTable
+                  resourceName={{ singular: 'product', plural: 'products' }}
+                  itemCount={products.length}
+                  selectedItemsCount={
+                    allResourcesSelected ? 'All' : selectedResources.length
+                  }
+                  onSelectionChange={handleSelectionChange}
+                  headings={[
+                    { title: 'Product' },
+                    { title: 'Type' },
+                    { title: 'Vendor' },
+                    { title: 'Description' },
+                    { title: 'Action', alignment: 'end' as const },
+                  ]}
+                >
+                  {rowMarkup}
+                </IndexTable>
+              )}
+              
+              {/* Pagination */}
+              {products.length > 0 && totalCount > itemsPerPage && (
+                <Box padding="400">
+                  <InlineStack align="center" blockAlign="center">
+                    <Pagination
+                      hasPrevious={hasPreviousPage}
+                      onPrevious={() => setCurrentPage(prev => prev - 1)}
+                      hasNext={hasNextPage}
+                      onNext={() => setCurrentPage(prev => prev + 1)}
+                    />
+                    <Box paddingInlineStart="400">
+                      <Text as="p" variant="bodySm" tone="subdued">
                         Page {currentPage} of {totalPages} ({totalCount} total products)
                       </Text>
                     </Box>
-                  )}
-                </>
+                  </InlineStack>
+                </Box>
               )}
             </BlockStack>
           </Card>

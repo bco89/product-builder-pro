@@ -186,6 +186,8 @@ export const loader = async ({ request }: { request: Request }) => {
         // Fetch all products for the improve descriptions page
         const searchQuery = url.searchParams.get('query') || '';
         const filters = url.searchParams.get('filters') || '';
+        const vendors = url.searchParams.get('vendors') || '';
+        const productTypes = url.searchParams.get('productTypes') || '';
         page = parseInt(url.searchParams.get('page') || '1');
         limit = parseInt(url.searchParams.get('limit') || '20');
         
@@ -204,6 +206,30 @@ export const loader = async ({ request }: { request: Request }) => {
           if (filterArray.includes('no_description')) {
             queryString += queryString ? ' AND ' : '';
             queryString += 'NOT description:*';
+          }
+        }
+        
+        // Add vendor filters
+        if (vendors) {
+          const vendorArray = vendors.split(',');
+          if (vendorArray.length === 1) {
+            queryString += queryString ? ' AND ' : '';
+            queryString += `vendor:"${vendorArray[0]}"`;
+          } else if (vendorArray.length > 1) {
+            queryString += queryString ? ' AND ' : '';
+            queryString += `(${vendorArray.map(v => `vendor:"${v}"`).join(' OR ')})`;
+          }
+        }
+        
+        // Add product type filters
+        if (productTypes) {
+          const typeArray = productTypes.split(',');
+          if (typeArray.length === 1) {
+            queryString += queryString ? ' AND ' : '';
+            queryString += `product_type:"${typeArray[0]}"`;
+          } else if (typeArray.length > 1) {
+            queryString += queryString ? ' AND ' : '';
+            queryString += `(${typeArray.map(t => `product_type:"${t}"`).join(' OR ')})`;
           }
         }
         
