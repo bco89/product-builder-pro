@@ -55,6 +55,10 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
   const [currentStage, setCurrentStage] = useState(1);
   const [stageProgress, setStageProgress] = useState(0);
   const [stageMessage, setStageMessage] = useState('');
+  const [extractedFeatures, setExtractedFeatures] = useState<string[]>([]);
+  const [partialDescription, setPartialDescription] = useState('');
+  const [partialSeoTitle, setPartialSeoTitle] = useState('');
+  const [partialSeoDescription, setPartialSeoDescription] = useState('');
   
   // Check if any content exists
   const hasExistingContent = formData.description || formData.seoTitle || formData.seoDescription;
@@ -89,6 +93,10 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
     setCurrentStage(1);
     setStageProgress(0);
     setStageMessage('Analyzing product details');
+    setExtractedFeatures([]);
+    setPartialDescription('');
+    setPartialSeoTitle('');
+    setPartialSeoDescription('');
 
     try {
       console.log('Creating payload with formData:', formData);
@@ -218,11 +226,27 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
                   return;
                 }
                 
-                // Update progress
+                // Update progress and real-time data
                 if (data.stage) {
                   setCurrentStage(data.stage);
                   setStageProgress(data.progress);
                   setStageMessage(data.message);
+                  
+                  // Update extracted features
+                  if (data.extractedFeatures) {
+                    setExtractedFeatures(data.extractedFeatures);
+                  }
+                  
+                  // Update partial results
+                  if (data.partialDescription) {
+                    setPartialDescription(data.partialDescription);
+                  }
+                  if (data.partialSeoTitle) {
+                    setPartialSeoTitle(data.partialSeoTitle);
+                  }
+                  if (data.partialSeoDescription) {
+                    setPartialSeoDescription(data.partialSeoDescription);
+                  }
                 }
               } catch (parseError) {
                 console.error('Failed to parse SSE data:', parseError);
@@ -300,8 +324,13 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
               stageProgress={stageProgress}
               stageMessage={stageMessage}
               showSkeleton={true}
+              showExtractedData={true}
               title="Generating AI Description"
               estimatedTime={60}
+              extractedFeatures={extractedFeatures}
+              partialDescription={partialDescription}
+              partialSeoTitle={partialSeoTitle}
+              partialSeoDescription={partialSeoDescription}
             />
           ) : (!hasGeneratedContent && !isManualMode) ? (
             <AIGenerationForm

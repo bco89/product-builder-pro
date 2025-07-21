@@ -33,26 +33,57 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       try {
         let scrapedData = null;
 
-        // Stage 1: Analyzing product details (0-100%)
+        // Stage 1: Analyzing product details
         sendEvent({ stage: 1, progress: 0, message: "Analyzing product details" });
-        await new Promise(resolve => setTimeout(resolve, 100));
-        sendEvent({ stage: 1, progress: 50, message: "Analyzing product details" });
-        await new Promise(resolve => setTimeout(resolve, 100));
-        sendEvent({ stage: 1, progress: 100, message: "Analyzing product details" });
+        
+        // Extract initial product features from provided data
+        const extractedFeatures: string[] = [];
+        if (data.productType) extractedFeatures.push(data.productType);
+        if (data.vendor) extractedFeatures.push(`Brand: ${data.vendor}`);
+        if (data.category) extractedFeatures.push(`Category: ${data.category}`);
+        if (data.hasImages) extractedFeatures.push(`${data.hasImages} product images`);
+        
+        sendEvent({ 
+          stage: 1, 
+          progress: 100, 
+          message: "Product analysis complete",
+          extractedFeatures 
+        });
 
-        // Stage 2: URL scraping or context review (0-100%)
+        // Stage 2: URL scraping or context review
         if (data.method === 'url' && data.productUrl) {
-          sendEvent({ stage: 2, progress: 0, message: "Gathering additional product info from URL" });
+          sendEvent({ stage: 2, progress: 0, message: "Connecting to product URL" });
           
           try {
             const scraper = new ProductScraperService();
             
-            // Progress updates during scraping
-            sendEvent({ stage: 2, progress: 20, message: "Gathering additional product info from URL" });
+            sendEvent({ stage: 2, progress: 20, message: "Extracting product information from URL" });
             
             scrapedData = await scraper.extractProductInfo(data.productUrl, session.shop);
             
-            sendEvent({ stage: 2, progress: 100, message: "Gathering additional product info from URL" });
+            // Extract additional features from scraped data
+            if (scrapedData) {
+              if (scrapedData.title && scrapedData.title !== data.productTitle) {
+                extractedFeatures.push(`Original title: ${scrapedData.title}`);
+              }
+              if (scrapedData.price) {
+                extractedFeatures.push(`Price: ${scrapedData.price}`);
+              }
+              if (scrapedData.features && Array.isArray(scrapedData.features)) {
+                extractedFeatures.push(...scrapedData.features.slice(0, 5));
+              }
+              if (scrapedData.specifications) {
+                const specCount = Object.keys(scrapedData.specifications).length;
+                extractedFeatures.push(`${specCount} specifications found`);
+              }
+            }
+            
+            sendEvent({ 
+              stage: 2, 
+              progress: 100, 
+              message: `Successfully extracted data from ${new URL(data.productUrl).hostname}`,
+              extractedFeatures 
+            });
             
             logger.info('URL extraction successful using extract endpoint', { 
               shop: session.shop, 
@@ -86,34 +117,87 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           }
         } else {
           // Manual or context method
-          sendEvent({ stage: 2, progress: 0, message: "Reviewing provided product info" });
-          await new Promise(resolve => setTimeout(resolve, 300));
-          sendEvent({ stage: 2, progress: 50, message: "Reviewing provided product info" });
-          await new Promise(resolve => setTimeout(resolve, 300));
-          sendEvent({ stage: 2, progress: 100, message: "Reviewing provided product info" });
+          sendEvent({ stage: 2, progress: 0, message: "Processing product information" });
+          
+          // Add context-based features
+          if (data.additionalContext) {
+            extractedFeatures.push("Custom context provided");
+            const contextWords = data.additionalContext.split(' ').length;
+            extractedFeatures.push(`${contextWords} words of context`);
+          }
+          
+          if (data.keywords && data.keywords.length > 0) {
+            data.keywords.forEach((keyword: string) => {
+              if (keyword) extractedFeatures.push(`Keyword: ${keyword}`);
+            });
+          }
+          
+          sendEvent({ 
+            stage: 2, 
+            progress: 100, 
+            message: "Product information processed",
+            extractedFeatures 
+          });
         }
 
-        // Stage 3: Structuring the product info (0-100%)
-        sendEvent({ stage: 3, progress: 0, message: "Structuring the product info for best results" });
+        // Stage 3: Preparing AI generation
+        sendEvent({ stage: 3, progress: 0, message: "Preparing AI generation parameters" });
         
-        // Image analysis removed - not being used in the process
-        sendEvent({ stage: 3, progress: 50, message: "Structuring the product info for best results" });
-
         // Get shop settings
         const shopSettings = await prisma.shopSettings.findUnique({
           where: { shop: session.shop }
         });
         
-        sendEvent({ stage: 3, progress: 100, message: "Structuring the product info for best results" });
+        if (shopSettings) {
+          if (shopSettings.businessType) {
+            extractedFeatures.push(`Perspective: ${shopSettings.businessType === 'manufacturer' ? 'Product Creator' : 'Retailer'}`);
+          }
+          if (shopSettings.targetCustomerOverride) {
+            extractedFeatures.push("Custom target audience defined");
+          }
+        }
+        
+        sendEvent({ 
+          stage: 3, 
+          progress: 100, 
+          message: "AI generation ready",
+          extractedFeatures 
+        });
 
-        // Stage 4: AI Generation (0-100%)
-        sendEvent({ stage: 4, progress: 0, message: "Product description being generated" });
+        // Stage 4: AI Generation
+        sendEvent({ 
+          stage: 4, 
+          progress: 0, 
+          message: "Starting AI generation",
+          extractedFeatures 
+        });
         
         const ai = new AIService();
         
-        // Create progress callback for AI service
-        const aiProgressCallback = (progress: number) => {
-          sendEvent({ stage: 4, progress, message: "Product description being generated" });
+        // Create progress callback for AI service with partial results
+        let partialDescription = '';
+        let partialSeoTitle = '';
+        let partialSeoDescription = '';
+        
+        const aiProgressCallback = (progress: number, partialResults?: any) => {
+          if (partialResults) {
+            if (partialResults.description) partialDescription = partialResults.description;
+            if (partialResults.seoTitle) partialSeoTitle = partialResults.seoTitle;
+            if (partialResults.seoDescription) partialSeoDescription = partialResults.seoDescription;
+          }
+          
+          sendEvent({ 
+            stage: 4, 
+            progress, 
+            message: progress < 30 ? "Generating product description..." : 
+                     progress < 60 ? "Creating SEO-optimized title..." : 
+                     progress < 90 ? "Writing meta description..." : 
+                     "Finalizing content...",
+            extractedFeatures,
+            partialDescription,
+            partialSeoTitle,
+            partialSeoDescription
+          });
         };
         
         const result = await ai.generateProductDescription({
@@ -124,14 +208,40 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           progressCallback: aiProgressCallback
         });
 
-        sendEvent({ stage: 4, progress: 100, message: "Product description being generated" });
+        sendEvent({ 
+          stage: 4, 
+          progress: 100, 
+          message: "AI generation complete",
+          extractedFeatures,
+          partialDescription: result.description,
+          partialSeoTitle: result.seoTitle,
+          partialSeoDescription: result.seoDescription
+        });
 
-        // Stage 5: Formatting (0-100%)
-        sendEvent({ stage: 5, progress: 0, message: "Formatting product description for readability and best SEO results" });
-        await new Promise(resolve => setTimeout(resolve, 200));
-        sendEvent({ stage: 5, progress: 50, message: "Formatting product description for readability and best SEO results" });
-        await new Promise(resolve => setTimeout(resolve, 200));
-        sendEvent({ stage: 5, progress: 100, message: "Formatting product description for readability and best SEO results" });
+        // Stage 5: Final optimization
+        sendEvent({ 
+          stage: 5, 
+          progress: 0, 
+          message: "Optimizing content for best results",
+          extractedFeatures,
+          partialDescription: result.description,
+          partialSeoTitle: result.seoTitle,
+          partialSeoDescription: result.seoDescription
+        });
+        
+        // Quick final checks
+        const wordCount = result.description.split(' ').length;
+        extractedFeatures.push(`${wordCount} words generated`);
+        
+        sendEvent({ 
+          stage: 5, 
+          progress: 100, 
+          message: "Content optimization complete",
+          extractedFeatures,
+          partialDescription: result.description,
+          partialSeoTitle: result.seoTitle,
+          partialSeoDescription: result.seoDescription
+        });
 
         // Send completion event with results
         sendEvent({ 

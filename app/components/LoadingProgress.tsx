@@ -10,6 +10,7 @@ import {
   Text,
   Icon,
   Box,
+  Badge,
 } from '@shopify/polaris';
 import {
   MagicIcon,
@@ -31,6 +32,12 @@ interface LoadingProgressProps {
   currentStage?: number; // 1-5
   stageProgress?: number; // 0-100 for current stage
   stageMessage?: string; // Custom message for current stage
+  // Real-time data display props
+  extractedFeatures?: string[]; // Product features found
+  partialDescription?: string; // Description being generated
+  partialSeoTitle?: string; // SEO title being generated
+  partialSeoDescription?: string; // SEO description being generated
+  showExtractedData?: boolean; // Show extracted data as it arrives
 }
 
 const defaultMessages = {
@@ -64,7 +71,12 @@ export default function LoadingProgress({
   title,
   currentStage,
   stageProgress,
-  stageMessage
+  stageMessage,
+  extractedFeatures,
+  partialDescription,
+  partialSeoTitle,
+  partialSeoDescription,
+  showExtractedData = false
 }: LoadingProgressProps) {
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const [simulatedProgress, setSimulatedProgress] = useState(0);
@@ -146,17 +158,42 @@ export default function LoadingProgress({
             
             {estimatedTime && (
               <Text as="p" variant="bodySm" tone="subdued">
-                Estimated time: {estimatedTime} seconds
+                Estimated time remaining: {Math.max(1, Math.ceil(estimatedTime * (1 - displayProgress / 100)))} seconds
               </Text>
             )}
           </BlockStack>
+          
+          {showExtractedData && extractedFeatures && extractedFeatures.length > 0 && (
+            <Box borderColor="border" borderWidth="025" borderRadius="200" padding="400" background="bg-surface-secondary">
+              <BlockStack gap="300">
+                <Text variant="bodySm" as="p" fontWeight="semibold">
+                  Discovered Product Features ({extractedFeatures.length})
+                </Text>
+                <InlineStack gap="200" wrap>
+                  {extractedFeatures.map((feature, index) => (
+                    <Badge key={index} tone="info">{feature}</Badge>
+                  ))}
+                </InlineStack>
+              </BlockStack>
+            </Box>
+          )}
           
           {showSkeleton && (
             <BlockStack gap="400">
               <Box borderColor="border" borderWidth="025" borderRadius="200" padding="400">
                 <BlockStack gap="400">
-                  <SkeletonDisplayText size="medium" />
-                  <SkeletonBodyText lines={3} />
+                  {partialDescription ? (
+                    <>
+                      <Text variant="headingMd" as="h4">Product Description</Text>
+                      <Text as="p" variant="bodyMd">{partialDescription}</Text>
+                      {!partialDescription.includes('.') && <SkeletonBodyText lines={2} />}
+                    </>
+                  ) : (
+                    <>
+                      <SkeletonDisplayText size="medium" />
+                      <SkeletonBodyText lines={3} />
+                    </>
+                  )}
                 </BlockStack>
               </Box>
               
@@ -166,7 +203,11 @@ export default function LoadingProgress({
                     SEO Title Preview
                   </Text>
                   <Box paddingBlockStart="200">
-                    <SkeletonDisplayText size="small" />
+                    {partialSeoTitle ? (
+                      <Text as="p" variant="bodyMd">{partialSeoTitle}</Text>
+                    ) : (
+                      <SkeletonDisplayText size="small" />
+                    )}
                   </Box>
                 </Box>
                 
@@ -175,7 +216,11 @@ export default function LoadingProgress({
                     SEO Description Preview
                   </Text>
                   <Box paddingBlockStart="200">
-                    <SkeletonBodyText lines={2} />
+                    {partialSeoDescription ? (
+                      <Text as="p" variant="bodySm">{partialSeoDescription}</Text>
+                    ) : (
+                      <SkeletonBodyText lines={2} />
+                    )}
                   </Box>
                 </Box>
               </BlockStack>

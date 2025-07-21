@@ -24,7 +24,7 @@ export interface AIGenerationParams {
     price: string;
     compareAtPrice?: string;
   };
-  progressCallback?: (progress: number) => void;
+  progressCallback?: (progress: number, partialResults?: any) => void;
 }
 
 export interface AIGenerationResult {
@@ -233,9 +233,9 @@ ${params.tags?.length ? `Tags: ${params.tags.join(', ')}` : ''}
     });
     
     // Progress callback helper
-    const updateProgress = (progress: number) => {
+    const updateProgress = (progress: number, partialResults?: any) => {
       if (params.progressCallback) {
-        params.progressCallback(progress);
+        params.progressCallback(progress, partialResults);
       }
     };
     
@@ -316,7 +316,7 @@ ${params.tags?.length ? `Tags: ${params.tags.join(', ')}` : ''}
       let response: string;
       
       // Update progress before API call
-      updateProgress(20);
+      updateProgress(20, { description: 'Preparing to generate content...', seoTitle: '', seoDescription: '' });
       
       if (this.provider === 'anthropic' && this.anthropic) {
         // Use Claude 3.5 Sonnet as specified
@@ -328,7 +328,7 @@ ${params.tags?.length ? `Tags: ${params.tags.join(', ')}` : ''}
           temperature: 0.7,
         });
         response = completion.content?.[0]?.type === 'text' && completion.content?.[0]?.text || '';
-        updateProgress(60); // Progress after Anthropic API call
+        updateProgress(60, { description: 'Content generated, processing...', seoTitle: '', seoDescription: '' }); // Progress after Anthropic API call
       } else if (this.provider === 'openai' && this.openai) {
         const completion = await this.openai.chat.completions.create({
           model: 'gpt-4',
@@ -340,7 +340,7 @@ ${params.tags?.length ? `Tags: ${params.tags.join(', ')}` : ''}
           max_tokens: 8000,  // Increased to prevent truncation of comprehensive descriptions
         });
         response = completion.choices[0].message?.content || '';
-        updateProgress(60); // Progress after OpenAI API call
+        updateProgress(60, { description: 'Content generated, processing...', seoTitle: '', seoDescription: '' }); // Progress after OpenAI API call
       } else {
         throw new Error('AI provider not properly initialized');
       }
@@ -360,6 +360,13 @@ ${params.tags?.length ? `Tags: ${params.tags.join(', ')}` : ''}
       updateProgress(80); // Progress after logging
 
       let result = this.parseAIResponse(response);
+      
+      // Send partial results after initial generation
+      updateProgress(85, {
+        description: result.description,
+        seoTitle: result.seoTitle,
+        seoDescription: result.seoDescription
+      });
       
       // Phase 2: Quality evaluation
       const primaryKeyword = params.keywords?.[0] || '';
