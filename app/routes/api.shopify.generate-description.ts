@@ -2,7 +2,6 @@ import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
 import { AIService } from "../services/ai.server";
 import { ProductScraperService, ProductScraperError } from "../services/scraper.server";
-import { ImageAnalysisService } from "../services/image-analysis.server";
 import { prisma } from "../db.server";
 import { logger } from "../services/logger.server";
 import type { ActionFunctionArgs } from "@remix-run/node";
@@ -13,7 +12,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   try {
     let scrapedData = null;
-    let imageAnalysis = null;
 
     // Scrape URL if provided
     if (data.method === 'url' && data.productUrl) {
@@ -83,17 +81,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     }
 
-    // Analyze images if available
-    if (data.hasImages) {
-      try {
-        const analyzer = new ImageAnalysisService();
-        // In a real implementation, we'd pass actual image files/URLs
-        imageAnalysis = await analyzer.analyzeProductImages([]);
-      } catch (error) {
-        logger.warn('Image analysis failed, continuing without it', { error });
-        // Continue without image analysis
-      }
-    }
+    // Image analysis removed - not being used in the process
 
     // Get shop settings
     const shopSettings = await prisma.shopSettings.findUnique({
@@ -107,14 +95,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       ...data,
       shopSettings,
       scrapedData,
-      imageAnalysis,
     });
 
     logger.info('Description generation successful', { 
       shop: session.shop,
       method: data.method,
       hasScrapedData: !!scrapedData,
-      hasImageAnalysis: !!imageAnalysis
+      hasImageAnalysis: false
     });
 
     return json(result);

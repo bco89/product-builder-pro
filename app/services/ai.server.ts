@@ -18,7 +18,6 @@ export interface AIGenerationParams {
   vendor: string;
   keywords: string[];
   additionalContext?: string;
-  imageAnalysis?: string;
   shopSettings?: any;
   scrapedData?: any;
   pricing?: {
@@ -49,7 +48,6 @@ export interface ProductCategorizationParams {
   productDescription?: string;
   vendor?: string;
   tags?: string[];
-  imageAnalysis?: string;
 }
 
 export interface ProductCategorizationResult {
@@ -151,7 +149,7 @@ Title: ${params.productTitle}
 ${params.productDescription ? `Description: ${params.productDescription}` : ''}
 ${params.vendor ? `Vendor: ${params.vendor}` : ''}
 ${params.tags?.length ? `Tags: ${params.tags.join(', ')}` : ''}
-${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
+`;
 
     try {
       let response: string;
@@ -258,7 +256,6 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
         productDescription: params.additionalContext,
         vendor: params.vendor,
         tags: params.keywords,
-        imageAnalysis: params.imageAnalysis
       });
       
       // Use categorized type if confidence is high enough
@@ -357,8 +354,8 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
       let result = this.parseAIResponse(response);
       
       // Phase 2: Quality evaluation
-      const primaryKeyword = params.keywords[0];
-      const secondaryKeywords = params.keywords.slice(1);
+      const primaryKeyword = params.keywords?.[0] || '';
+      const secondaryKeywords = params.keywords?.slice(1) || [];
       const metrics = await this.evaluateDescription(
         result.description,
         primaryKeyword,
@@ -386,8 +383,8 @@ Current description:
 ${result.description}
 
 Requirements to maintain:
-- H2 with primary keyword "${primaryKeyword}" as first line
-- Primary keyword used 3-5 times
+${primaryKeyword ? `- H2 with primary keyword "${primaryKeyword}" as first line
+- Primary keyword used 3-5 times` : '- Clear and engaging H2 as first line'}
 - Secondary keywords used 2-3 times each
 - All existing content and structure
 - All technical specifications
@@ -491,7 +488,7 @@ Return as JSON with these exact keys:
     logger.info('AI Generation Parameters', {
       productTitle: params.productTitle,
       productType: params.productType,
-      primaryKeyword: params.keywords[0],
+      primaryKeyword: params.keywords?.[0] || '',
       hasScrapedData: !!params.scrapedData,
       hasEnhancedData: !!params.scrapedData?.descriptionData,
       extractionMethod: params.scrapedData?.extractionMethod,
@@ -513,15 +510,14 @@ PRODUCT INFORMATION:
 - Category: ${params.category}
 - Vendor: ${params.vendor}
 - Price: ${params.pricing?.price ? `$${params.pricing.price}` : 'Not specified'}
-- Primary Keyword: ${params.keywords[0]}
-- Secondary Keywords: ${params.keywords.slice(1).join(', ')}
+- Primary Keyword: ${params.keywords?.[0] || 'None'}
+- Secondary Keywords: ${params.keywords?.slice(1).join(', ') || 'None'}
 ${params.additionalContext ? `- Additional Details: ${params.additionalContext}` : ''}
 ${formattedScrapedData ? (
   isJsonData ? 
   `\n## EXTRACTED PRODUCT DATA (JSON):\n\`\`\`json\n${formattedScrapedData}\n\`\`\`\n` :
   `\n${formattedScrapedData}`
 ) : ''}
-${params.imageAnalysis ? `- Visual Analysis: ${params.imageAnalysis}` : ''}
 
 IMPORTANT CONTEXT:
 - Address customers at ANY stage of their ${params.productType} buying journey
@@ -613,8 +609,8 @@ CRITICAL HTML RULES:
   }
 
   private getContentPrinciples(config: ProductTypeConfig, params: AIGenerationParams): string {
-    const primaryKeyword = params.keywords[0];
-    const secondaryKeywords = params.keywords.slice(1);
+    const primaryKeyword = params.keywords?.[0] || '';
+    const secondaryKeywords = params.keywords?.slice(1) || [];
     const productTerm = this.extractProductTerm(params);
     
     return `
@@ -722,7 +718,7 @@ Every sentence should serve multiple purposes - inform newcomers, differentiate 
 
   private extractProductTerm(params: AIGenerationParams): string {
     const title = params.productTitle.toLowerCase();
-    const primaryKeyword = params.keywords[0]?.toLowerCase() || '';
+    const primaryKeyword = params.keywords?.[0]?.toLowerCase() || '';
     
     // First, check if the primary keyword is a specific product term
     // This often gives us compound terms like "electric scooter" or "performance sweatshirt"

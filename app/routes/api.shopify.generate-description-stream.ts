@@ -2,7 +2,6 @@ import { type LoaderFunctionArgs } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
 import { AIService } from "../services/ai.server";
 import { ProductScraperService, ProductScraperError } from "../services/scraper.server";
-import { ImageAnalysisService } from "../services/image-analysis.server";
 import { prisma } from "../db.server";
 import { logger } from "../services/logger.server";
 
@@ -35,7 +34,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
       try {
         let scrapedData = null;
-        let imageAnalysis = null;
 
         // Stage 1: Analyzing product details (0-100%)
         sendEvent({ stage: 1, progress: 0, message: "Analyzing product details" });
@@ -100,17 +98,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         // Stage 3: Structuring the product info (0-100%)
         sendEvent({ stage: 3, progress: 0, message: "Structuring the product info for best results" });
         
-        // Analyze images if available
-        if (data.hasImages) {
-          try {
-            sendEvent({ stage: 3, progress: 30, message: "Structuring the product info for best results" });
-            const analyzer = new ImageAnalysisService();
-            imageAnalysis = await analyzer.analyzeProductImages([]);
-            sendEvent({ stage: 3, progress: 60, message: "Structuring the product info for best results" });
-          } catch (error) {
-            logger.warn('Image analysis failed, continuing without it', { error });
-          }
-        }
+        // Image analysis removed - not being used in the process
+        sendEvent({ stage: 3, progress: 50, message: "Structuring the product info for best results" });
 
         // Get shop settings
         const shopSettings = await prisma.shopSettings.findUnique({
@@ -134,7 +123,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           ...data,
           shopSettings,
           scrapedData,
-          imageAnalysis,
           progressCallback: aiProgressCallback
         });
 
@@ -161,7 +149,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           shop: session.shop,
           method: data.method,
           hasScrapedData: !!scrapedData,
-          hasImageAnalysis: !!imageAnalysis
+          hasImageAnalysis: false
         });
 
       } catch (error) {
