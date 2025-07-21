@@ -404,6 +404,9 @@ ${params.tags?.length ? `Tags: ${params.tags.join(', ')}` : ''}
         seoDescription: result.seoDescription
       });
       
+      // Premium feature: Quality evaluation and auto-improvement
+      // Commented out for MVP - reduces generation time by ~40 seconds
+      /*
       // Phase 2: Quality evaluation
       const primaryKeyword = params.keywords?.[0] || '';
       const secondaryKeywords = params.keywords?.slice(1) || [];
@@ -482,6 +485,7 @@ Return as JSON with these exact keys:
           logger.warn('Failed to auto-improve description:', { error: error instanceof Error ? error.message : String(error) });
         }
       }
+      */
       
       // Phase 4: Brand voice alignment
       if (params.shopSettings) {
@@ -490,8 +494,8 @@ Return as JSON with these exact keys:
         result.description = formatProductDescription(alignedDescription);
       }
       
-      // Add quality metrics to result
-      result.qualityMetrics = metrics;
+      // Add quality metrics to result (disabled for MVP)
+      // result.qualityMetrics = metrics;
       
       updateProgress(90); // Progress before final formatting
       
@@ -502,8 +506,8 @@ Return as JSON with these exact keys:
         seoDescriptionLength: result.seoDescription.length,
         hasDescription: !!result.description,
         hasSeoTitle: !!result.seoTitle,
-        hasSeoDescription: !!result.seoDescription,
-        qualityScore: metrics.overallScore
+        hasSeoDescription: !!result.seoDescription
+        // qualityScore: metrics.overallScore // Disabled for MVP
       });
       
       logger.info('=== AI DESCRIPTION GENERATION COMPLETE ===\n');
