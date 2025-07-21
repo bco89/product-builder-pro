@@ -22,6 +22,8 @@ import {
   Thumbnail,
   Pagination,
   EmptySearchResult,
+  LegacyFilters,
+  TextField,
 } from '@shopify/polaris';
 import { MagicIcon, AlertCircleIcon, InfoIcon, ImageIcon } from '@shopify/polaris-icons';
 import { authenticate } from '../shopify.server';
@@ -363,8 +365,8 @@ export default function ImproveDescriptions() {
       position={index}
     >
       <IndexTable.Cell>
-        <InlineStack gap="300" align="center" blockAlign="center">
-          <div style={{ width: '50px', height: '50px', flexShrink: 0 }}>
+        <InlineStack gap="200" align="start" blockAlign="center">
+          <div style={{ width: '36px', height: '36px', flexShrink: 0 }}>
             {product.featuredImage ? (
               <Thumbnail
                 source={product.featuredImage.url}
@@ -373,20 +375,22 @@ export default function ImproveDescriptions() {
               />
             ) : (
               <div style={{
-                width: '50px',
-                height: '50px',
+                width: '36px',
+                height: '36px',
                 backgroundColor: 'var(--p-color-bg-surface-secondary)',
-                borderRadius: 'var(--p-border-radius-200)',
+                borderRadius: 'var(--p-border-radius-100)',
                 border: '1px solid var(--p-color-border-secondary)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                <Icon source={ImageIcon} tone="subdued" />
+                <div style={{ width: '16px', height: '16px' }}>
+                  <Icon source={ImageIcon} tone="subdued" />
+                </div>
               </div>
             )}
           </div>
-          <Text variant="bodyMd" fontWeight="semibold">{product.title}</Text>
+          <Text variant="bodyMd" fontWeight="medium">{product.title}</Text>
         </InlineStack>
       </IndexTable.Cell>
       <IndexTable.Cell>{product.productType || '-'}</IndexTable.Cell>
@@ -420,15 +424,13 @@ export default function ImproveDescriptions() {
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
-              <IndexFilters
+              <LegacyFilters
                 queryValue={searchValue}
-                queryPlaceholder="Search all products"
+                queryPlaceholder="Search by product title"
                 onQueryChange={handleSearchChange}
-                onQueryClear={() => setSearchValue('')}
-                cancelAction={{
-                  onAction: handleClearAll,
-                  disabled: false,
-                  loading: false,
+                onQueryClear={() => {
+                  setSearchValue('');
+                  setCurrentPage(1);
                 }}
                 filters={[
                   {
@@ -488,16 +490,7 @@ export default function ImproveDescriptions() {
                 ]}
                 onClearAll={handleClearAll}
                 appliedFilters={appliedFilters}
-                tabs={[{
-                  id: 'all-products',
-                  content: 'All products',
-                  accessibilityLabel: 'All products',
-                  panelID: 'all-products-panel',
-                }]}
-                selected={0}
-                onSelect={() => {}}
-                canCreateNewView={false}
-                mode="filtering"
+                helpText
               />
 
               {isLoading ? (
@@ -522,10 +515,10 @@ export default function ImproveDescriptions() {
                   }
                   onSelectionChange={handleSelectionChange}
                   headings={[
-                    { title: 'Product' },
-                    { title: 'Type' },
-                    { title: 'Vendor' },
-                    { title: 'Description' },
+                    { title: 'Product', alignment: 'start' as const },
+                    { title: 'Type', alignment: 'start' as const },
+                    { title: 'Vendor', alignment: 'start' as const },
+                    { title: 'Description', alignment: 'start' as const },
                     { title: 'Action', alignment: 'end' as const },
                   ]}
                 >
