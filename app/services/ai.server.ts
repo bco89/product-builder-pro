@@ -25,6 +25,7 @@ export interface AIGenerationParams {
     price: string;
     compareAtPrice?: string;
   };
+  progressCallback?: (progress: number) => void;
 }
 
 export interface AIGenerationResult {
@@ -225,6 +226,13 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
       hasEnhancedDescriptionData: !!params.scrapedData?.descriptionData
     });
     
+    // Progress callback helper
+    const updateProgress = (progress: number) => {
+      if (params.progressCallback) {
+        params.progressCallback(progress);
+      }
+    };
+    
     // Get the list of supported product types (must match product-type-customers.ts)
     const supportedProductTypes = [
       'Apparel', 'Electronics', 'Beauty', 'Home & Garden', 
@@ -302,6 +310,9 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
     try {
       let response: string;
       
+      // Update progress before API call
+      updateProgress(20);
+      
       if (this.provider === 'anthropic' && this.anthropic) {
         // Use Claude 3.5 Sonnet as specified
         const completion = await this.anthropic.messages.create({
@@ -312,6 +323,7 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
           temperature: 0.7,
         });
         response = completion.content[0].type === 'text' ? completion.content[0].text : '';
+        updateProgress(60); // Progress after Anthropic API call
       } else if (this.provider === 'openai' && this.openai) {
         const completion = await this.openai.chat.completions.create({
           model: 'gpt-4',
@@ -323,10 +335,13 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
           max_tokens: 8000,  // Increased to prevent truncation of comprehensive descriptions
         });
         response = completion.choices[0].message?.content || '';
+        updateProgress(60); // Progress after OpenAI API call
       } else {
         throw new Error('AI provider not properly initialized');
       }
 
+      updateProgress(70); // Progress before logging
+      
       // Log the generation
       await prisma.aIGenerationLog.create({
         data: {
@@ -336,6 +351,8 @@ ${params.imageAnalysis ? `Visual: ${params.imageAnalysis}` : ''}`;
           response,
         }
       });
+      
+      updateProgress(80); // Progress after logging
 
       let result = this.parseAIResponse(response);
       
@@ -428,6 +445,8 @@ Return as JSON with these exact keys:
       // Add quality metrics to result
       result.qualityMetrics = metrics;
       
+      updateProgress(90); // Progress before final formatting
+      
       logger.info('\n--- AI GENERATION RESULT ---');
       logger.info('Generated content summary', {
         descriptionLength: result.description.length,
@@ -440,6 +459,8 @@ Return as JSON with these exact keys:
       });
       
       logger.info('=== AI DESCRIPTION GENERATION COMPLETE ===\n');
+      
+      updateProgress(100); // Complete
       
       return result;
     } catch (error) {

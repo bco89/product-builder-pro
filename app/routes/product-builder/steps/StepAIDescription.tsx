@@ -20,6 +20,13 @@ import LoadingProgress from '../../../components/LoadingProgress';
 import AIGenerationForm from '../../../components/product-builder/AIGenerationForm';
 import DescriptionEditor from '../../../components/product-builder/DescriptionEditor';
 
+// EventSource type declaration
+declare global {
+  interface Window {
+    EventSource: typeof EventSource;
+  }
+}
+
 
 interface StepAIDescriptionProps {
   formData: {
@@ -45,6 +52,9 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
   const [showKeywordToast, setShowKeywordToast] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [isManualMode, setIsManualMode] = useState(false);
+  const [currentStage, setCurrentStage] = useState(1);
+  const [stageProgress, setStageProgress] = useState(0);
+  const [stageMessage, setStageMessage] = useState('');
   
   // Check if any content exists
   const hasExistingContent = formData.description || formData.seoTitle || formData.seoDescription;
@@ -74,10 +84,9 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
 
     setIsGenerating(true);
     setError(null);
-
-    // Create AbortController for request timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout
+    setCurrentStage(1);
+    setStageProgress(0);
+    setStageMessage('Analyzing product details');
 
     try {
       const payload = {
@@ -104,131 +113,62 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
         },
       };
 
-      // Show progress for URL scraping
-      if (params.method === 'url') {
-        setGenerationProgress(10);
-      } else {
-        setGenerationProgress(20);
-      }
-
-      const response = await fetch('/api/shopify/generate-description', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      // Clear timeout since request completed
-      clearTimeout(timeoutId);
+      // Create EventSource for SSE
+      const eventSource = new EventSource(`/api/shopify/generate-description-stream?data=${encodeURIComponent(JSON.stringify(payload))}`);
       
-      // Update progress after fetch
-      setGenerationProgress(50);
-
-      // Validate response before parsing JSON
-      if (!response.ok) {
-        let errorData;
-        try {
-          // Check if response has content and is JSON
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const text = await response.text();
-            if (text.trim()) {
-              errorData = JSON.parse(text);
-            } else {
-              throw new Error('Empty response from server');
-            }
-          } else {
-            // Non-JSON response, likely an error page
-            const text = await response.text();
-            throw new Error(`Server returned ${response.status}: ${text.substring(0, 200)}`);
-          }
-        } catch (parseError) {
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        
+        if (data.error) {
           setError({
-            message: `Server error (${response.status}). Please try again.`,
-            details: parseError instanceof Error ? parseError.message : 'Unable to parse server response',
-            code: 'PARSE_ERROR'
+            message: data.message || 'Failed to generate description',
+            details: data.details,
+            code: data.code
           });
+          eventSource.close();
+          setIsGenerating(false);
           return;
         }
-
-        // Handle specific error types from properly parsed JSON
-        setError({
-          message: errorData.error || 'Failed to generate description',
-          details: errorData.details,
-          code: errorData.code
-        });
-        return;
-      }
-
-      // Parse successful response
-      let result;
-      try {
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          throw new Error('Server did not return JSON data');
+        
+        if (data.completed) {
+          onChange({
+            description: data.result.description || '',
+            seoTitle: data.result.seoTitle || '',
+            seoDescription: data.result.seoDescription || '',
+          });
+          setHasGeneratedContent(true);
+          eventSource.close();
+          setIsGenerating(false);
+          return;
         }
-
-        const text = await response.text();
-        if (!text.trim()) {
-          throw new Error('Server returned empty response');
+        
+        // Update progress
+        if (data.stage) {
+          setCurrentStage(data.stage);
+          setStageProgress(data.progress);
+          setStageMessage(data.message);
         }
-
-        result = JSON.parse(text);
-      } catch (parseError) {
-        setError({
-          message: 'Invalid response from server. Please try again.',
-          details: parseError instanceof Error ? parseError.message : 'Unable to parse server response',
-          code: 'PARSE_ERROR'
-        });
-        return;
-      }
-
-      // Validate result structure
-      if (!result || typeof result !== 'object') {
-        setError({
-          message: 'Invalid data received from server. Please try again.',
-          details: 'Server response was not in the expected format',
-          code: 'INVALID_RESPONSE'
-        });
-        return;
-      }
+      };
       
-      // Update progress before setting results
-      setGenerationProgress(90);
-      
-      onChange({
-        description: result.description || '',
-        seoTitle: result.seoTitle || '',
-        seoDescription: result.seoDescription || '',
-      });
+      eventSource.onerror = (error) => {
+        console.error('EventSource error:', error);
+        setError({
+          message: 'Connection lost. Please try again.',
+          details: 'The connection to the server was interrupted',
+          code: 'CONNECTION_ERROR'
+        });
+        eventSource.close();
+        setIsGenerating(false);
+      };
 
-      setHasGeneratedContent(true);
-      setGenerationProgress(100);
+      // Error handling is done in the EventSource handlers above
     } catch (err) {
-      clearTimeout(timeoutId);
-      
-      if (err instanceof Error && err.name === 'AbortError') {
-        setError({
-          message: 'Request timed out. Please try again.',
-          details: 'The request took too long to complete',
-          code: 'TIMEOUT'
-        });
-      } else if (err instanceof TypeError && err.message.includes('fetch')) {
-        setError({
-          message: 'Network error. Please check your connection and try again.',
-          details: 'Unable to connect to the server',
-          code: 'NETWORK_ERROR'
-        });
-      } else {
-        setError({
-          message: 'An unexpected error occurred. Please try again.',
-          details: err instanceof Error ? err.message : 'Unknown error occurred',
-          code: 'UNKNOWN_ERROR'
-        });
-      }
-    } finally {
+      setError({
+        message: 'An unexpected error occurred. Please try again.',
+        details: err instanceof Error ? err.message : 'Unknown error occurred',
+        code: 'UNKNOWN_ERROR'
+      });
       setIsGenerating(false);
-      setGenerationProgress(0);
     }
   };
 
@@ -282,18 +222,13 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
           {/* Show loading state when generating, otherwise show form */}
           {isGenerating ? (
             <LoadingProgress
-              variant="ai-generation"
-              progress={generationProgress}
-              messages={[
-                "🔍 Analyzing your product information...",
-                "🎨 Creating engaging content...",
-                "✍️ Writing compelling copy...",
-                "🎯 Optimizing for search engines...",
-                "✅ Adding final touches..."
-              ]}
+              variant="stage-based"
+              currentStage={currentStage}
+              stageProgress={stageProgress}
+              stageMessage={stageMessage}
               showSkeleton={true}
               title="Generating AI Description"
-              estimatedTime={20}
+              estimatedTime={60}
             />
           ) : (!hasGeneratedContent && !isManualMode) ? (
             <AIGenerationForm

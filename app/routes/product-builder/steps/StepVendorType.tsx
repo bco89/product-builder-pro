@@ -551,7 +551,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
               <LoadingProgress
                 variant="data-fetch"
                 messages={
-                  productTypesData && productTypesData.fromCache ? [
+                  productTypesData?.fromCache ? [
                     `📊 Refreshing ${formData.vendor} product types...`,
                     "✨ Updating suggestions...",
                     "🎯 Almost ready..."
