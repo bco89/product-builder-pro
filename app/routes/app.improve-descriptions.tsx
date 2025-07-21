@@ -24,8 +24,11 @@ import {
   EmptySearchResult,
   LegacyFilters,
   TextField,
+  Popover,
+  ActionList,
+  Tag,
 } from '@shopify/polaris';
-import { MagicIcon, AlertCircleIcon, InfoIcon, ImageIcon } from '@shopify/polaris-icons';
+import { MagicIcon, AlertCircleIcon, InfoIcon, ImageIcon, SearchIcon } from '@shopify/polaris-icons';
 import { authenticate } from '../shopify.server';
 import { json } from '@remix-run/node';
 import { useLoaderData } from '@remix-run/react';
@@ -82,6 +85,12 @@ export default function ImproveDescriptions() {
   const [showKeywordToast, setShowKeywordToast] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+  
+  // Popover states for filters
+  const [vendorPopoverActive, setVendorPopoverActive] = useState(false);
+  const [typePopoverActive, setTypePopoverActive] = useState(false);
+  const [statusPopoverActive, setStatusPopoverActive] = useState(false);
+  const [addFilterPopoverActive, setAddFilterPopoverActive] = useState(false);
 
   // Fetch products
   const { data: productsData, isLoading } = useQuery({
@@ -261,16 +270,19 @@ export default function ImproveDescriptions() {
   const handleFiltersChange = useCallback((value: string[]) => {
     setSelectedFilters(value);
     setCurrentPage(1); // Reset to first page on filter change
+    setStatusPopoverActive(false);
   }, []);
 
   const handleVendorsChange = useCallback((value: string[]) => {
     setSelectedVendors(value);
     setCurrentPage(1);
+    setVendorPopoverActive(false);
   }, []);
 
   const handleProductTypesChange = useCallback((value: string[]) => {
     setSelectedProductTypes(value);
     setCurrentPage(1);
+    setTypePopoverActive(false);
   }, []);
 
 
@@ -365,33 +377,50 @@ export default function ImproveDescriptions() {
       position={index}
     >
       <IndexTable.Cell>
-        <InlineStack gap="200" align="start" blockAlign="center">
-          <div style={{ width: '36px', height: '36px', flexShrink: 0 }}>
-            {product.featuredImage ? (
-              <Thumbnail
-                source={product.featuredImage.url}
-                alt={product.featuredImage.altText || product.title}
-                size="small"
-              />
-            ) : (
-              <div style={{
-                width: '36px',
-                height: '36px',
-                backgroundColor: 'var(--p-color-bg-surface-secondary)',
-                borderRadius: 'var(--p-border-radius-100)',
-                border: '1px solid var(--p-color-border-secondary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <div style={{ width: '16px', height: '16px' }}>
-                  <Icon source={ImageIcon} tone="subdued" />
-                </div>
+        <div style={{ width: '36px', height: '36px' }}>
+          {product.featuredImage ? (
+            <Thumbnail
+              source={product.featuredImage.url}
+              alt={product.featuredImage.altText || product.title}
+              size="small"
+            />
+          ) : (
+            <div style={{
+              width: '36px',
+              height: '36px',
+              backgroundColor: 'var(--p-color-bg-surface-secondary)',
+              borderRadius: 'var(--p-border-radius-100)',
+              border: '1px solid var(--p-color-border-secondary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <div style={{ width: '16px', height: '16px' }}>
+                <Icon source={ImageIcon} tone="subdued" />
               </div>
-            )}
+            </div>
+          )}
+        </div>
+      </IndexTable.Cell>
+      <IndexTable.Cell>
+        <Text 
+          variant="bodyMd" 
+          fontWeight="medium"
+          as="span"
+          truncate
+        >
+          <div style={{
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            lineHeight: '1.2rem',
+            maxHeight: '2.4rem'
+          }}>
+            {product.title}
           </div>
-          <Text variant="bodyMd" fontWeight="medium">{product.title}</Text>
-        </InlineStack>
+        </Text>
       </IndexTable.Cell>
       <IndexTable.Cell>{product.productType || '-'}</IndexTable.Cell>
       <IndexTable.Cell>{product.vendor || '-'}</IndexTable.Cell>
@@ -423,75 +452,140 @@ export default function ImproveDescriptions() {
       <Layout>
         <Layout.Section>
           <Card>
-            <BlockStack gap="400">
-              <LegacyFilters
-                queryValue={searchValue}
-                queryPlaceholder="Search by product title"
-                onQueryChange={handleSearchChange}
-                onQueryClear={() => {
+            <BlockStack gap="300">
+              {/* Search Bar */}
+              <TextField
+                label=""
+                placeholder="Search by product title"
+                value={searchValue}
+                onChange={(value) => {
+                  handleSearchChange(value);
+                }}
+                clearButton
+                onClearButtonClick={() => {
                   setSearchValue('');
                   setCurrentPage(1);
                 }}
-                filters={[
-                  {
-                    key: 'vendor',
-                    label: 'Vendors',
-                    filter: (
-                      <ChoiceList
-                        title="Vendors"
-                        titleHidden
-                        choices={vendorsData?.vendors?.map((vendor: string) => ({
-                          label: vendor,
-                          value: vendor,
-                        })) || []}
-                        selected={selectedVendors}
-                        onChange={handleVendorsChange}
-                        allowMultiple
-                      />
-                    ),
-                    shortcut: true,
-                  },
-                  {
-                    key: 'productType',
-                    label: 'Product Type',
-                    filter: (
-                      <ChoiceList
-                        title="Product Type"
-                        titleHidden
-                        choices={productTypesData?.productTypes?.map((type: any) => ({
-                          label: type.productType,
-                          value: type.productType,
-                        })) || []}
-                        selected={selectedProductTypes}
-                        onChange={handleProductTypesChange}
-                        allowMultiple
-                      />
-                    ),
-                    shortcut: true,
-                  },
-                  {
-                    key: 'status',
-                    label: 'Statuses',
-                    filter: (
-                      <ChoiceList
-                        title="Description Status"
-                        titleHidden
-                        choices={[
-                          { label: 'Has description', value: 'has_description' },
-                          { label: 'No description', value: 'no_description' },
-                        ]}
-                        selected={selectedFilters}
-                        onChange={handleFiltersChange}
-                        allowMultiple
-                      />
-                    ),
-                    shortcut: true,
-                  },
-                ]}
-                onClearAll={handleClearAll}
-                appliedFilters={appliedFilters}
-                helpText
+                autoComplete="off"
+                connectedLeft={
+                  <Icon source={SearchIcon} tone="subdued" />
+                }
               />
+
+              {/* Filter Buttons */}
+              <InlineStack gap="200">
+                {/* Vendors Filter */}
+                <Popover
+                  active={vendorPopoverActive}
+                  activator={
+                    <Button
+                      onClick={() => setVendorPopoverActive(!vendorPopoverActive)}
+                      disclosure={vendorPopoverActive ? 'up' : 'down'}
+                    >
+                      Vendors
+                    </Button>
+                  }
+                  onClose={() => setVendorPopoverActive(false)}
+                  preferredAlignment="left"
+                >
+                  <Box padding="400" minWidth="200px">
+                    <ChoiceList
+                      title="Select vendors"
+                      titleHidden
+                      choices={vendorsData?.vendors?.map((vendor: string) => ({
+                        label: vendor,
+                        value: vendor,
+                      })) || []}
+                      selected={selectedVendors}
+                      onChange={handleVendorsChange}
+                      allowMultiple
+                    />
+                  </Box>
+                </Popover>
+
+                {/* Product Type Filter */}
+                <Popover
+                  active={typePopoverActive}
+                  activator={
+                    <Button
+                      onClick={() => setTypePopoverActive(!typePopoverActive)}
+                      disclosure={typePopoverActive ? 'up' : 'down'}
+                    >
+                      Product Type
+                    </Button>
+                  }
+                  onClose={() => setTypePopoverActive(false)}
+                  preferredAlignment="left"
+                >
+                  <Box padding="400" minWidth="200px">
+                    <ChoiceList
+                      title="Select product types"
+                      titleHidden
+                      choices={productTypesData?.productTypes?.map((type: any) => ({
+                        label: type.productType,
+                        value: type.productType,
+                      })) || []}
+                      selected={selectedProductTypes}
+                      onChange={handleProductTypesChange}
+                      allowMultiple
+                    />
+                  </Box>
+                </Popover>
+
+                {/* Status Filter */}
+                <Popover
+                  active={statusPopoverActive}
+                  activator={
+                    <Button
+                      onClick={() => setStatusPopoverActive(!statusPopoverActive)}
+                      disclosure={statusPopoverActive ? 'up' : 'down'}
+                    >
+                      Statuses
+                    </Button>
+                  }
+                  onClose={() => setStatusPopoverActive(false)}
+                  preferredAlignment="left"
+                >
+                  <Box padding="400" minWidth="200px">
+                    <ChoiceList
+                      title="Select status"
+                      titleHidden
+                      choices={[
+                        { label: 'Has description', value: 'has_description' },
+                        { label: 'No description', value: 'no_description' },
+                      ]}
+                      selected={selectedFilters}
+                      onChange={handleFiltersChange}
+                      allowMultiple
+                    />
+                  </Box>
+                </Popover>
+
+                {/* Add Filter Button */}
+                <Button
+                  onClick={() => {}}
+                  icon={<span>+</span>}
+                  plain
+                >
+                  Add filter
+                </Button>
+              </InlineStack>
+
+              {/* Applied Filters */}
+              {appliedFilters.length > 0 && (
+                <InlineStack gap="200">
+                  {appliedFilters.map((filter) => (
+                    <Tag key={filter.key} onRemove={filter.onRemove}>
+                      {filter.label}
+                    </Tag>
+                  ))}
+                  {appliedFilters.length > 0 && (
+                    <Button plain onClick={handleClearAll}>
+                      Clear all
+                    </Button>
+                  )}
+                </InlineStack>
+              )}
 
               {isLoading ? (
                 <Box padding="600">
@@ -515,11 +609,12 @@ export default function ImproveDescriptions() {
                   }
                   onSelectionChange={handleSelectionChange}
                   headings={[
+                    { title: '', alignment: 'start' as const },
                     { title: 'Product', alignment: 'start' as const },
                     { title: 'Type', alignment: 'start' as const },
                     { title: 'Vendor', alignment: 'start' as const },
                     { title: 'Description', alignment: 'start' as const },
-                    { title: 'Action', alignment: 'end' as const },
+                    { title: 'Action', alignment: 'start' as const },
                   ]}
                 >
                   {rowMarkup}
