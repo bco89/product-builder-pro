@@ -54,15 +54,26 @@ export default function AIGenerationForm({
   const [keywords, setKeywords] = useState({ primary: '', secondary: '' });
 
   const handleGenerate = () => {
-    onGenerate({
-      method: inputMethod,
-      productUrl: inputMethod === 'url' ? productUrl : undefined,
-      additionalContext: inputMethod === 'context' ? additionalContext : undefined,
-      keywords: {
-        primary: keywords?.primary || '',
-        secondary: keywords?.secondary || ''
-      },
+    console.log('AIGenerationForm handleGenerate called with:', {
+      inputMethod,
+      productUrl,
+      additionalContext,
+      keywords
     });
+    
+    try {
+      onGenerate({
+        method: inputMethod,
+        productUrl: inputMethod === 'url' ? productUrl : undefined,
+        additionalContext: inputMethod === 'context' ? additionalContext : undefined,
+        keywords: {
+          primary: keywords?.primary || '',
+          secondary: keywords?.secondary || ''
+        },
+      });
+    } catch (error) {
+      console.error('Error in handleGenerate:', error);
+    }
   };
 
   const handleMethodChange = (method: 'manual' | 'url' | 'context') => {

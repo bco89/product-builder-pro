@@ -77,6 +77,8 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
     additionalContext?: string;
     keywords: { primary: string; secondary: string };
   }) => {
+    console.log('StepAIDescription handleGenerate called with params:', params);
+    
     // Show toast if no keywords provided
     if (!params.keywords?.primary && !params.keywords?.secondary) {
       setShowKeywordToast(true);
@@ -89,6 +91,9 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
     setStageMessage('Analyzing product details');
 
     try {
+      console.log('Creating payload with formData:', formData);
+      console.log('shopSettings:', shopSettings);
+      
       const payload = {
         method: params.method,
         productTitle: formData.title,
@@ -98,7 +103,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
         keywords: [params.keywords?.primary || '', params.keywords?.secondary || ''].filter(Boolean),
         productUrl: params.productUrl,
         additionalContext: params.additionalContext,
-        hasImages: formData.images.length > 0,
+        hasImages: (formData.images || []).length > 0,
         shopSettings: {
           businessType: 'retailer',
           storeName: '',
@@ -112,9 +117,57 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
           ...(shopSettings || {})
         },
       };
+      
+      console.log('Payload created:', payload);
 
+      // Check if EventSource is available
+      if (typeof EventSource === 'undefined') {
+        console.error('EventSource is not supported in this environment');
+        // Fallback to regular fetch
+        const response = await fetch('/api/shopify/generate-description', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          setError({
+            message: errorData.error || 'Failed to generate description',
+            details: errorData.details,
+            code: errorData.code
+          });
+          setIsGenerating(false);
+          return;
+        }
+        
+        const result = await response.json();
+        onChange({
+          description: result.description || '',
+          seoTitle: result.seoTitle || '',
+          seoDescription: result.seoDescription || '',
+        });
+        setHasGeneratedContent(true);
+        setIsGenerating(false);
+        return;
+      }
+      
       // Create EventSource for SSE
-      const eventSource = new EventSource(`/api/shopify/generate-description-stream?data=${encodeURIComponent(JSON.stringify(payload))}`);
+      let eventSource;
+      try {
+        const url = `/api/shopify/generate-description-stream?data=${encodeURIComponent(JSON.stringify(payload))}`;
+        console.log('Creating EventSource with URL:', url);
+        eventSource = new EventSource(url);
+      } catch (error) {
+        console.error('Failed to create EventSource:', error);
+        setError({
+          message: 'Failed to connect to server',
+          details: 'Unable to establish connection for real-time updates',
+          code: 'CONNECTION_ERROR'
+        });
+        setIsGenerating(false);
+        return;
+      }
       
       eventSource.onmessage = (event) => {
         try {

@@ -162,7 +162,7 @@ ${params.tags?.length ? `Tags: ${params.tags.join(', ')}` : ''}
           max_tokens: 150, // Small limit for categorization
           temperature: 0.3, // Lower temperature for consistency
         });
-        response = completion.content[0].type === 'text' ? completion.content[0].text : '';
+        response = completion.content?.[0]?.type === 'text' ? completion.content[0].text : '';
       } else if (this.provider === 'openai' && this.openai) {
         const completion = await this.openai.chat.completions.create({
           model: 'gpt-4',
@@ -319,7 +319,7 @@ ${params.tags?.length ? `Tags: ${params.tags.join(', ')}` : ''}
           max_tokens: 8000,  // Increased to prevent truncation of comprehensive descriptions
           temperature: 0.7,
         });
-        response = completion.content[0].type === 'text' ? completion.content[0].text : '';
+        response = completion.content?.[0]?.type === 'text' ? completion.content[0].text : '';
         updateProgress(60); // Progress after Anthropic API call
       } else if (this.provider === 'openai' && this.openai) {
         const completion = await this.openai.chat.completions.create({
@@ -930,6 +930,16 @@ Every sentence should serve multiple purposes - inform newcomers, differentiate 
   }
 
   private parseAIResponse(response: string): AIGenerationResult {
+    // Handle null/undefined response
+    if (!response) {
+      logger.error('parseAIResponse received null/undefined response');
+      return {
+        description: '',
+        seoTitle: '',
+        seoDescription: ''
+      };
+    }
+    
     try {
       // Try to parse as JSON first
       const parsed = JSON.parse(response);
@@ -941,10 +951,10 @@ Every sentence should serve multiple purposes - inform newcomers, differentiate 
     } catch (error) {
       // Fallback parsing if not valid JSON
       logger.error('Failed to parse AI response as JSON:', error);
-      logger.error('Raw AI response for debugging:', response.substring(0, 500) + '...');
+      logger.error('Raw AI response for debugging:', response?.substring(0, 500) + '...' || 'No response');
       
       // Try to extract the JSON object first
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      const jsonMatch = response?.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
           // Attempt to parse the extracted JSON
@@ -961,9 +971,9 @@ Every sentence should serve multiple purposes - inform newcomers, differentiate 
       
       // Enhanced regex patterns that handle escaped characters
       // This pattern matches quoted strings including escaped quotes and backslashes
-      const descriptionMatch = response.match(/"description":\s*"((?:[^"\\]|\\.)*)"/);
-      const seoTitleMatch = response.match(/"seoTitle":\s*"((?:[^"\\]|\\.)*)"/);
-      const seoDescriptionMatch = response.match(/"seoDescription":\s*"((?:[^"\\]|\\.)*)"/);
+      const descriptionMatch = response?.match(/"description":\s*"((?:[^"\\]|\\.)*)"/);
+      const seoTitleMatch = response?.match(/"seoTitle":\s*"((?:[^"\\]|\\.)*)"/);
+      const seoDescriptionMatch = response?.match(/"seoDescription":\s*"((?:[^"\\]|\\.)*)"/);
       
       // Function to unescape JSON string content
       const unescapeJson = (str: string): string => {
@@ -1124,7 +1134,7 @@ Return JSON with scores and specific improvement suggestions:
           max_tokens: 2000,  // Increased for detailed evaluation feedback
           temperature: 0.3,
         });
-        response = completion.content[0].type === 'text' ? completion.content[0].text : '';
+        response = completion.content?.[0]?.type === 'text' ? completion.content[0].text : '';
       } else if (this.provider === 'openai' && this.openai) {
         const completion = await this.openai.chat.completions.create({
           model: 'gpt-4',
@@ -1200,7 +1210,7 @@ Return only the adjusted description.`;
           max_tokens: 4000,  // Increased for comprehensive voice alignment
           temperature: 0.5,
         });
-        response = completion.content[0].type === 'text' ? completion.content[0].text : '';
+        response = completion.content?.[0]?.type === 'text' ? completion.content[0].text : '';
       } else if (this.provider === 'openai' && this.openai) {
         const completion = await this.openai.chat.completions.create({
           model: 'gpt-4',
