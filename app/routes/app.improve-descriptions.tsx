@@ -10,7 +10,6 @@ import {
   Text,
   IndexTable,
   IndexFilters,
-  useIndexResourceState,
   ChoiceList,
   Toast,
   Modal,
@@ -90,7 +89,6 @@ export default function ImproveDescriptions() {
   const [vendorPopoverActive, setVendorPopoverActive] = useState(false);
   const [typePopoverActive, setTypePopoverActive] = useState(false);
   const [statusPopoverActive, setStatusPopoverActive] = useState(false);
-  const [addFilterPopoverActive, setAddFilterPopoverActive] = useState(false);
 
   // Fetch products
   const { data: productsData, isLoading } = useQuery({
@@ -116,8 +114,6 @@ export default function ImproveDescriptions() {
   const hasNextPage = currentPage < totalPages;
   const hasPreviousPage = currentPage > 1;
 
-  // Index table selection state
-  const { selectedResources, allResourcesSelected, handleSelectionChange } = useIndexResourceState(products);
 
   // Fetch vendors for filter
   const { data: vendorsData } = useQuery({
@@ -373,7 +369,6 @@ export default function ImproveDescriptions() {
     <IndexTable.Row
       id={product.id}
       key={product.id}
-      selected={selectedResources.includes(product.id)}
       position={index}
     >
       <IndexTable.Cell>
@@ -467,9 +462,7 @@ export default function ImproveDescriptions() {
                   setCurrentPage(1);
                 }}
                 autoComplete="off"
-                connectedLeft={
-                  <Icon source={SearchIcon} tone="subdued" />
-                }
+                prefix={<Icon source={SearchIcon} tone="subdued" />}
               />
 
               {/* Filter Buttons */}
@@ -561,14 +554,6 @@ export default function ImproveDescriptions() {
                   </Box>
                 </Popover>
 
-                {/* Add Filter Button */}
-                <Button
-                  onClick={() => {}}
-                  icon={<span>+</span>}
-                  plain
-                >
-                  Add filter
-                </Button>
               </InlineStack>
 
               {/* Applied Filters */}
@@ -604,10 +589,7 @@ export default function ImproveDescriptions() {
                 <IndexTable
                   resourceName={{ singular: 'product', plural: 'products' }}
                   itemCount={products.length}
-                  selectedItemsCount={
-                    allResourcesSelected ? 'All' : selectedResources.length
-                  }
-                  onSelectionChange={handleSelectionChange}
+                  selectable={false}
                   headings={[
                     { title: '', alignment: 'start' as const },
                     { title: 'Product', alignment: 'start' as const },
