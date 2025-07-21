@@ -1,18 +1,16 @@
-import { type LoaderFunctionArgs } from "@remix-run/node";
+import { type ActionFunctionArgs } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
 import { AIService } from "../services/ai.server";
 import { ProductScraperService, ProductScraperError } from "../services/scraper.server";
 import { prisma } from "../db.server";
 import { logger } from "../services/logger.server";
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     const { session } = await authenticateAdmin(request);
     
-    // Get parameters from URL
-    const url = new URL(request.url);
-    const params = Object.fromEntries(url.searchParams);
-    const data = JSON.parse(params.data || '{}');
+    // Get parameters from request body
+    const data = await request.json();
 
   // Set up SSE headers
   const headers = new Headers({

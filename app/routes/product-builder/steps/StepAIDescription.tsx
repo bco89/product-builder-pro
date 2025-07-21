@@ -120,10 +120,9 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
       
       console.log('Payload created:', payload);
 
-      // Check if EventSource is available
-      if (typeof EventSource === 'undefined') {
-        console.error('EventSource is not supported in this environment');
-        // Fallback to regular fetch
+      // Helper function for fallback to regular POST
+      const fallbackToRegularPost = async () => {
+        console.log('Falling back to regular POST request');
         const response = await fetch('/api/shopify/generate-description', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -149,83 +148,93 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
         });
         setHasGeneratedContent(true);
         setIsGenerating(false);
-        return;
-      }
-      
-      // Create EventSource for SSE
-      let eventSource;
-      try {
-        const url = `/api/shopify/generate-description-stream?data=${encodeURIComponent(JSON.stringify(payload))}`;
-        console.log('Creating EventSource with URL:', url);
-        eventSource = new EventSource(url);
-      } catch (error) {
-        console.error('Failed to create EventSource:', error);
-        setError({
-          message: 'Failed to connect to server',
-          details: 'Unable to establish connection for real-time updates',
-          code: 'CONNECTION_ERROR'
-        });
-        setIsGenerating(false);
-        return;
-      }
-      
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          
-          if (data.error) {
-            setError({
-              message: data.message || 'Failed to generate description',
-              details: data.details,
-              code: data.code
-            });
-            eventSource.close();
-            setIsGenerating(false);
-            return;
-          }
-          
-          if (data.completed) {
-            onChange({
-              description: data.result.description || '',
-              seoTitle: data.result.seoTitle || '',
-              seoDescription: data.result.seoDescription || '',
-            });
-            setHasGeneratedContent(true);
-            eventSource.close();
-            setIsGenerating(false);
-            return;
-          }
-          
-          // Update progress
-          if (data.stage) {
-            setCurrentStage(data.stage);
-            setStageProgress(data.progress);
-            setStageMessage(data.message);
-          }
-        } catch (parseError) {
-          console.error('Failed to parse SSE data:', parseError, 'Raw data:', event.data);
-          setError({
-            message: 'Failed to process server response',
-            details: 'Invalid data received from server',
-            code: 'PARSE_ERROR'
-          });
-          eventSource.close();
-          setIsGenerating(false);
-        }
-      };
-      
-      eventSource.onerror = (error) => {
-        console.error('EventSource error:', error);
-        setError({
-          message: 'Connection lost. Please try again.',
-          details: 'The connection to the server was interrupted',
-          code: 'CONNECTION_ERROR'
-        });
-        eventSource.close();
-        setIsGenerating(false);
       };
 
-      // Error handling is done in the EventSource handlers above
+      // Check if EventSource is available
+      if (typeof EventSource === 'undefined') {
+        console.error('EventSource is not supported in this environment');
+        await fallbackToRegularPost();
+        return;
+      }
+      
+      // Try to use SSE with POST request
+      let eventSource;
+      try {
+        // First, initiate the SSE connection with a POST request
+        const response = await fetch('/api/shopify/generate-description-stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          console.error('SSE endpoint returned error, falling back to regular POST');
+          await fallbackToRegularPost();
+          return;
+        }
+
+        // Note: Since EventSource doesn't support POST directly, we'll use the response
+        // as a regular streaming response instead of EventSource
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+
+        if (!reader) {
+          console.error('No response body reader available');
+          await fallbackToRegularPost();
+          return;
+        }
+
+        // Process the stream
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                
+                if (data.error) {
+                  setError({
+                    message: data.message || 'Failed to generate description',
+                    details: data.details,
+                    code: data.code
+                  });
+                  setIsGenerating(false);
+                  return;
+                }
+                
+                if (data.completed) {
+                  onChange({
+                    description: data.result.description || '',
+                    seoTitle: data.result.seoTitle || '',
+                    seoDescription: data.result.seoDescription || '',
+                  });
+                  setHasGeneratedContent(true);
+                  setIsGenerating(false);
+                  return;
+                }
+                
+                // Update progress
+                if (data.stage) {
+                  setCurrentStage(data.stage);
+                  setStageProgress(data.progress);
+                  setStageMessage(data.message);
+                }
+              } catch (parseError) {
+                console.error('Failed to parse SSE data:', parseError);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('SSE connection failed, falling back to regular POST:', error);
+        await fallbackToRegularPost();
+        return;
+      }
     } catch (err) {
       setError({
         message: 'An unexpected error occurred. Please try again.',
