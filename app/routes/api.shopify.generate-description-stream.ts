@@ -7,12 +7,13 @@ import { prisma } from "../db.server";
 import { logger } from "../services/logger.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticateAdmin(request);
-  
-  // Get parameters from URL
-  const url = new URL(request.url);
-  const params = Object.fromEntries(url.searchParams);
-  const data = JSON.parse(params.data || '{}');
+  try {
+    const { session } = await authenticateAdmin(request);
+    
+    // Get parameters from URL
+    const url = new URL(request.url);
+    const params = Object.fromEntries(url.searchParams);
+    const data = JSON.parse(params.data || '{}');
 
   // Set up SSE headers
   const headers = new Headers({
@@ -71,12 +72,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 errorCode: error.code 
               });
               
-              // Send error event
+              // Send error event with safe property access
+              const errorDetails = typeof error.details === 'object' && error.details 
+                ? (error.details.message || error.details.error || JSON.stringify(error.details))
+                : error.message || 'Unable to extract product information from the URL';
+                
               sendEvent({ 
                 error: true, 
-                message: error.message,
-                code: error.code,
-                details: error.details 
+                message: error.message || 'Failed to scrape URL',
+                code: error.code || 'SCRAPING_ERROR',
+                details: errorDetails
               });
               controller.close();
               return;
@@ -176,4 +181,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 
   return new Response(stream, { headers });
+  } catch (error) {
+    logger.error('SSE endpoint error:', error);
+    return new Response('Internal Server Error', { status: 500 });
+  }
 };

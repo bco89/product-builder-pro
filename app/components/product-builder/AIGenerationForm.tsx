@@ -58,7 +58,10 @@ export default function AIGenerationForm({
       method: inputMethod,
       productUrl: inputMethod === 'url' ? productUrl : undefined,
       additionalContext: inputMethod === 'context' ? additionalContext : undefined,
-      keywords,
+      keywords: {
+        primary: keywords?.primary || '',
+        secondary: keywords?.secondary || ''
+      },
     });
   };
 

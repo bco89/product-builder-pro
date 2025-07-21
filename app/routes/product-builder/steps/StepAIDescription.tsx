@@ -78,7 +78,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
     keywords: { primary: string; secondary: string };
   }) => {
     // Show toast if no keywords provided
-    if (!params.keywords.primary && !params.keywords.secondary) {
+    if (!params.keywords?.primary && !params.keywords?.secondary) {
       setShowKeywordToast(true);
     }
 
@@ -95,7 +95,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
         productType: formData.productType,
         category: formData.category?.name || '',
         vendor: formData.vendor,
-        keywords: [params.keywords.primary, params.keywords.secondary].filter(Boolean),
+        keywords: [params.keywords?.primary || '', params.keywords?.secondary || ''].filter(Boolean),
         productUrl: params.productUrl,
         additionalContext: params.additionalContext,
         hasImages: formData.images.length > 0,
@@ -109,7 +109,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
           targetCustomerOverride: '',
           additionalCustomerInsights: '',
           excludedCustomerSegments: '',
-          ...shopSettings
+          ...(shopSettings || {})
         },
       };
 
@@ -117,36 +117,47 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
       const eventSource = new EventSource(`/api/shopify/generate-description-stream?data=${encodeURIComponent(JSON.stringify(payload))}`);
       
       eventSource.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        
-        if (data.error) {
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.error) {
+            setError({
+              message: data.message || 'Failed to generate description',
+              details: data.details,
+              code: data.code
+            });
+            eventSource.close();
+            setIsGenerating(false);
+            return;
+          }
+          
+          if (data.completed) {
+            onChange({
+              description: data.result.description || '',
+              seoTitle: data.result.seoTitle || '',
+              seoDescription: data.result.seoDescription || '',
+            });
+            setHasGeneratedContent(true);
+            eventSource.close();
+            setIsGenerating(false);
+            return;
+          }
+          
+          // Update progress
+          if (data.stage) {
+            setCurrentStage(data.stage);
+            setStageProgress(data.progress);
+            setStageMessage(data.message);
+          }
+        } catch (parseError) {
+          console.error('Failed to parse SSE data:', parseError, 'Raw data:', event.data);
           setError({
-            message: data.message || 'Failed to generate description',
-            details: data.details,
-            code: data.code
+            message: 'Failed to process server response',
+            details: 'Invalid data received from server',
+            code: 'PARSE_ERROR'
           });
           eventSource.close();
           setIsGenerating(false);
-          return;
-        }
-        
-        if (data.completed) {
-          onChange({
-            description: data.result.description || '',
-            seoTitle: data.result.seoTitle || '',
-            seoDescription: data.result.seoDescription || '',
-          });
-          setHasGeneratedContent(true);
-          eventSource.close();
-          setIsGenerating(false);
-          return;
-        }
-        
-        // Update progress
-        if (data.stage) {
-          setCurrentStage(data.stage);
-          setStageProgress(data.progress);
-          setStageMessage(data.message);
         }
       };
       
