@@ -57,9 +57,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           try {
             const scraper = new ProductScraperService();
             
-            sendEvent({ stage: 2, progress: 20, message: "Extracting product information from URL" });
+            // Simulate progress during long scraping operation
+            let scrapingProgress = 10;
+            const progressInterval = setInterval(() => {
+              if (scrapingProgress < 80) {
+                scrapingProgress += 5;
+                const messages = [
+                  "Connecting to website...",
+                  "Analyzing page structure...",
+                  "Extracting product details...",
+                  "Processing product information...",
+                  "Gathering specifications..."
+                ];
+                const messageIndex = Math.floor((scrapingProgress / 80) * messages.length);
+                sendEvent({ 
+                  stage: 2, 
+                  progress: scrapingProgress, 
+                  message: messages[Math.min(messageIndex, messages.length - 1)],
+                  extractedFeatures 
+                });
+              }
+            }, 2000); // Update every 2 seconds
             
-            scrapedData = await scraper.extractProductInfo(data.productUrl, session.shop);
+            try {
+              scrapedData = await scraper.extractProductInfo(data.productUrl, session.shop);
+            } finally {
+              clearInterval(progressInterval);
+            }
             
             // Extract additional features from scraped data
             if (scrapedData) {
@@ -260,14 +284,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           hasImageAnalysis: false
         });
 
-      } catch (error) {
+      } catch (error: any) {
         logger.error('Generation error:', error, { shop: session.shop });
         
-        // Send error event
+        // Check if it's an overload error
+        const isOverload = error?.status === 529 || 
+                          error?.message?.includes('overloaded') ||
+                          error?.error?.type === 'overloaded_error';
+        
+        // Send error event with appropriate message
         sendEvent({ 
           error: true, 
-          message: error instanceof Error ? error.message : 'An unexpected error occurred',
-          code: 'GENERATION_ERROR'
+          message: isOverload 
+            ? 'AI service is experiencing high demand. Please try again in a moment.'
+            : (error instanceof Error ? error.message : 'An unexpected error occurred'),
+          code: isOverload ? 'AI_OVERLOADED' : 'GENERATION_ERROR',
+          details: isOverload 
+            ? 'The AI service is temporarily at capacity due to high usage. This usually resolves within a few seconds.'
+            : undefined
         });
       } finally {
         // Close the stream

@@ -48,6 +48,7 @@ interface StepAIDescriptionProps {
 export default function StepAIDescription({ formData, onChange, onNext, onBack, tinymceApiKey }: StepAIDescriptionProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<{ message: string; details?: string; code?: string } | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [hasGeneratedContent, setHasGeneratedContent] = useState(false);
   const [showKeywordToast, setShowKeywordToast] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
@@ -367,8 +368,8 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
 
           {/* Error display */}
           {error && (
-            <Banner tone="critical">
-              <BlockStack gap="200">
+            <Banner tone={error.code === 'AI_OVERLOADED' ? 'warning' : 'critical'}>
+              <BlockStack gap="300">
                 <InlineStack gap="200" align="center">
                   <Icon source={AlertCircleIcon} />
                   <Text as="p" fontWeight="semibold">{error.message}</Text>
@@ -385,6 +386,27 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
                   <Text as="p" variant="bodySm">
                     Tip: Some websites are slow to load. Try waiting a moment and generating again.
                   </Text>
+                )}
+                {error.code === 'AI_OVERLOADED' && (
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm">
+                      The AI service automatically retries when overloaded. If this persists, you can try again manually.
+                    </Text>
+                    <Button
+                      onClick={() => {
+                        setError(null);
+                        setRetryCount(prev => prev + 1);
+                        // Re-trigger the last generation attempt
+                        const lastForm = document.querySelector('[data-ai-generation-form]') as any;
+                        if (lastForm?.triggerGeneration) {
+                          lastForm.triggerGeneration();
+                        }
+                      }}
+                      disabled={isGenerating}
+                    >
+                      Retry Generation
+                    </Button>
+                  </BlockStack>
                 )}
               </BlockStack>
             </Banner>

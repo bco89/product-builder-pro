@@ -80,6 +80,7 @@ export default function LoadingProgress({
 }: LoadingProgressProps) {
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const [simulatedProgress, setSimulatedProgress] = useState(0);
+  const [animatedProgress, setAnimatedProgress] = useState(0);
   
   const displayMessages = messages || defaultMessages[variant];
   const currentMessage = displayMessages?.[currentMessageIndex] || '';
@@ -109,8 +110,47 @@ export default function LoadingProgress({
     }
   }, [progress, variant]);
   
+  // Smooth animation for stage-based progress
+  useEffect(() => {
+    if (variant === 'stage-based' && stageProgress !== undefined) {
+      // If actual progress is available, animate towards it
+      const targetProgress = stageProgress;
+      
+      // If we're stuck at the same progress for too long, simulate gradual increase
+      if (animatedProgress < targetProgress) {
+        // Animate towards actual progress
+        const interval = setInterval(() => {
+          setAnimatedProgress(prev => {
+            const increment = (targetProgress - prev) * 0.1; // Smooth easing
+            const newProgress = prev + Math.max(0.5, increment); // Minimum increment
+            return newProgress >= targetProgress ? targetProgress : newProgress;
+          });
+        }, 100);
+        
+        return () => clearInterval(interval);
+      } else if (animatedProgress === targetProgress && targetProgress < 90) {
+        // If stuck at same value, slowly increment up to 90% of stage
+        const interval = setInterval(() => {
+          setAnimatedProgress(prev => {
+            if (prev >= 90) return prev;
+            return prev + 0.5; // Slow increment
+          });
+        }, 200);
+        
+        return () => clearInterval(interval);
+      }
+    }
+  }, [variant, stageProgress, animatedProgress]);
+  
+  // Reset animated progress when stage changes
+  useEffect(() => {
+    if (variant === 'stage-based' && currentStage) {
+      setAnimatedProgress(0);
+    }
+  }, [variant, currentStage]);
+  
   const displayProgress = variant === 'stage-based' 
-    ? stageProgress || 0 
+    ? animatedProgress 
     : (progress !== undefined ? progress : simulatedProgress);
   
   // Get icon based on progress (not used for stage-based variant)

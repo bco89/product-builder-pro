@@ -214,6 +214,39 @@ ${params.tags?.length ? `Tags: ${params.tags.join(', ')}` : ''}
     return Math.ceil(text.length / 4);
   }
 
+  private async retryWithBackoff<T>(
+    operation: () => Promise<T>,
+    maxRetries: number = 3,
+    initialDelay: number = 1000
+  ): Promise<T> {
+    let lastError: any;
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error: any) {
+        lastError = error;
+        
+        // Check if it's an overload error
+        const isOverload = error?.status === 529 || 
+                          error?.message?.includes('overloaded') ||
+                          error?.error?.type === 'overloaded_error';
+        
+        if (isOverload && attempt < maxRetries - 1) {
+          const delay = initialDelay * Math.pow(2, attempt); // Exponential backoff
+          logger.warn(`API overloaded, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        // If not overload or last attempt, throw
+        throw error;
+      }
+    }
+    
+    throw lastError;
+  }
+
   async generateProductDescription(params: AIGenerationParams): Promise<AIGenerationResult> {
     // Ensure keywords is always an array
     if (!params.keywords) {
@@ -320,12 +353,15 @@ ${params.tags?.length ? `Tags: ${params.tags.join(', ')}` : ''}
       
       if (this.provider === 'anthropic' && this.anthropic) {
         // Use Claude 3.5 Sonnet as specified
-        const completion = await this.anthropic.messages.create({
-          model: 'claude-3-5-sonnet-20241022',
-          messages: [{ role: 'user', content: userPrompt }],
-          system: systemPrompt,
-          max_tokens: 8000,  // Increased to prevent truncation of comprehensive descriptions
-          temperature: 0.7,
+        const completion = await this.retryWithBackoff(async () => {
+          updateProgress(30, { description: 'Connecting to AI service...', seoTitle: '', seoDescription: '' });
+          return await this.anthropic!.messages.create({
+            model: 'claude-3-5-sonnet-20241022',
+            messages: [{ role: 'user', content: userPrompt }],
+            system: systemPrompt,
+            max_tokens: 8000,  // Increased to prevent truncation of comprehensive descriptions
+            temperature: 0.7,
+          });
         });
         response = completion.content?.[0]?.type === 'text' && completion.content?.[0]?.text || '';
         updateProgress(60, { description: 'Content generated, processing...', seoTitle: '', seoDescription: '' }); // Progress after Anthropic API call
