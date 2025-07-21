@@ -72,25 +72,36 @@ export const loader = async ({ request }: { request: Request }) => {
         break;
 
       case 'productTypes':
-        if (!vendor) {
-          return json({ productTypes: [] });
-        }
-        graphqlQuery = `#graphql
-          query getProductTypesByVendor($query: String!) {
-            products(first: 250, query: $query) {
-              edges {
-                node {
-                  productType
+        if (!vendor || vendor === 'all') {
+          // Fetch all product types
+          graphqlQuery = `#graphql
+            query getAllProductTypes {
+              products(first: 250) {
+                edges {
+                  node {
+                    productType
+                  }
                 }
               }
-              pageInfo {
-                hasNextPage
-                endCursor
+            }`;
+        } else {
+          graphqlQuery = `#graphql
+            query getProductTypesByVendor($query: String!) {
+              products(first: 250, query: $query) {
+                edges {
+                  node {
+                    productType
+                  }
+                }
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
               }
-            }
-          }`;
-        // Fix the query syntax - use double quotes for exact matching
-        variables = { query: `vendor:"${vendor}"` };
+            }`;
+          // Fix the query syntax - use double quotes for exact matching
+          variables = { query: `vendor:"${vendor}"` };
+        }
         break;
 
       case 'categories':

@@ -304,7 +304,55 @@ export default function ImproveDescriptions() {
     setSelectedFilters([]);
     setSelectedVendors([]);
     setSelectedProductTypes([]);
+    setCurrentPage(1);
   }, []);
+
+  // Calculate if any filters are active
+  const hasActiveFilters = selectedVendors.length > 0 || 
+    selectedProductTypes.length > 0 || 
+    selectedFilters.length > 0 ||
+    searchValue !== '';
+
+  // Get applied filters for display
+  const appliedFilters: any[] = [];
+  if (selectedVendors.length > 0) {
+    const vendorLabel = selectedVendors.length === 1 
+      ? `Vendor: ${selectedVendors[0]}`
+      : `Vendors: ${selectedVendors.length} selected`;
+    appliedFilters.push({
+      key: 'vendors',
+      label: vendorLabel,
+      onRemove: () => {
+        setSelectedVendors([]);
+        setCurrentPage(1);
+      },
+    });
+  }
+  if (selectedProductTypes.length > 0) {
+    const typeLabel = selectedProductTypes.length === 1 
+      ? `Type: ${selectedProductTypes[0]}`
+      : `Types: ${selectedProductTypes.length} selected`;
+    appliedFilters.push({
+      key: 'productTypes',
+      label: typeLabel,
+      onRemove: () => {
+        setSelectedProductTypes([]);
+        setCurrentPage(1);
+      },
+    });
+  }
+  if (selectedFilters.length > 0) {
+    selectedFilters.forEach(filter => {
+      appliedFilters.push({
+        key: filter,
+        label: filter === 'has_description' ? 'Has description' : 'No description',
+        onRemove: () => {
+          setSelectedFilters(selectedFilters.filter(f => f !== filter));
+          setCurrentPage(1);
+        },
+      });
+    });
+  }
 
   // Create IndexTable rows
   const rowMarkup = products.map((product, index) => (
@@ -315,27 +363,29 @@ export default function ImproveDescriptions() {
       position={index}
     >
       <IndexTable.Cell>
-        <InlineStack gap="300" align="center">
-          {product.featuredImage ? (
-            <Thumbnail
-              source={product.featuredImage.url}
-              alt={product.featuredImage.altText || product.title}
-              size="small"
-            />
-          ) : (
-            <Box 
-              width="50px" 
-              minHeight="50px" 
-              background="bg-fill-secondary"
-              borderRadius="200"
-              borderWidth="025"
-              borderColor="border"
-            >
-              <InlineStack align="center" blockAlign="center" gap="0">
+        <InlineStack gap="300" align="center" blockAlign="center">
+          <div style={{ width: '50px', height: '50px', flexShrink: 0 }}>
+            {product.featuredImage ? (
+              <Thumbnail
+                source={product.featuredImage.url}
+                alt={product.featuredImage.altText || product.title}
+                size="small"
+              />
+            ) : (
+              <div style={{
+                width: '50px',
+                height: '50px',
+                backgroundColor: 'var(--p-color-bg-surface-secondary)',
+                borderRadius: 'var(--p-border-radius-200)',
+                border: '1px solid var(--p-color-border-secondary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
                 <Icon source={ImageIcon} tone="subdued" />
-              </InlineStack>
-            </Box>
-          )}
+              </div>
+            )}
+          </div>
           <Text variant="bodyMd" fontWeight="semibold">{product.title}</Text>
         </InlineStack>
       </IndexTable.Cell>
@@ -372,7 +422,7 @@ export default function ImproveDescriptions() {
             <BlockStack gap="400">
               <IndexFilters
                 queryValue={searchValue}
-                queryPlaceholder="Search products..."
+                queryPlaceholder="Search all products"
                 onQueryChange={handleSearchChange}
                 onQueryClear={() => setSearchValue('')}
                 cancelAction={{
@@ -382,28 +432,11 @@ export default function ImproveDescriptions() {
                 }}
                 filters={[
                   {
-                    key: 'status',
-                    label: 'Description Status',
-                    filter: (
-                      <ChoiceList
-                        title="Description Status"
-                        titleHidden
-                        choices={[
-                          { label: 'Has description', value: 'has_description' },
-                          { label: 'No description', value: 'no_description' },
-                        ]}
-                        selected={selectedFilters}
-                        onChange={handleFiltersChange}
-                        allowMultiple
-                      />
-                    ),
-                  },
-                  {
                     key: 'vendor',
-                    label: 'Vendor',
+                    label: 'Vendors',
                     filter: (
                       <ChoiceList
-                        title="Vendor"
+                        title="Vendors"
                         titleHidden
                         choices={vendorsData?.vendors?.map((vendor: string) => ({
                           label: vendor,
@@ -414,6 +447,7 @@ export default function ImproveDescriptions() {
                         allowMultiple
                       />
                     ),
+                    shortcut: true,
                   },
                   {
                     key: 'productType',
@@ -431,13 +465,39 @@ export default function ImproveDescriptions() {
                         allowMultiple
                       />
                     ),
+                    shortcut: true,
+                  },
+                  {
+                    key: 'status',
+                    label: 'Statuses',
+                    filter: (
+                      <ChoiceList
+                        title="Description Status"
+                        titleHidden
+                        choices={[
+                          { label: 'Has description', value: 'has_description' },
+                          { label: 'No description', value: 'no_description' },
+                        ]}
+                        selected={selectedFilters}
+                        onChange={handleFiltersChange}
+                        allowMultiple
+                      />
+                    ),
+                    shortcut: true,
                   },
                 ]}
                 onClearAll={handleClearAll}
-                tabs={[]}
+                appliedFilters={appliedFilters}
+                tabs={[{
+                  id: 'all-products',
+                  content: 'All products',
+                  accessibilityLabel: 'All products',
+                  panelID: 'all-products-panel',
+                }]}
                 selected={0}
                 onSelect={() => {}}
                 canCreateNewView={false}
+                mode="filtering"
               />
 
               {isLoading ? (
