@@ -162,7 +162,7 @@ ${params.tags?.length ? `Tags: ${params.tags.join(', ')}` : ''}
           max_tokens: 150, // Small limit for categorization
           temperature: 0.3, // Lower temperature for consistency
         });
-        response = completion.content?.[0]?.type === 'text' ? completion.content[0].text : '';
+        response = completion.content?.[0]?.type === 'text' && completion.content?.[0]?.text || '';
       } else if (this.provider === 'openai' && this.openai) {
         const completion = await this.openai.chat.completions.create({
           model: 'gpt-4',
@@ -319,7 +319,7 @@ ${params.tags?.length ? `Tags: ${params.tags.join(', ')}` : ''}
           max_tokens: 8000,  // Increased to prevent truncation of comprehensive descriptions
           temperature: 0.7,
         });
-        response = completion.content?.[0]?.type === 'text' ? completion.content[0].text : '';
+        response = completion.content?.[0]?.type === 'text' && completion.content?.[0]?.text || '';
         updateProgress(60); // Progress after Anthropic API call
       } else if (this.provider === 'openai' && this.openai) {
         const completion = await this.openai.chat.completions.create({
@@ -1134,7 +1134,7 @@ Return JSON with scores and specific improvement suggestions:
           max_tokens: 2000,  // Increased for detailed evaluation feedback
           temperature: 0.3,
         });
-        response = completion.content?.[0]?.type === 'text' ? completion.content[0].text : '';
+        response = completion.content?.[0]?.type === 'text' && completion.content?.[0]?.text || '';
       } else if (this.provider === 'openai' && this.openai) {
         const completion = await this.openai.chat.completions.create({
           model: 'gpt-4',
@@ -1210,7 +1210,7 @@ Return only the adjusted description.`;
           max_tokens: 4000,  // Increased for comprehensive voice alignment
           temperature: 0.5,
         });
-        response = completion.content?.[0]?.type === 'text' ? completion.content[0].text : '';
+        response = completion.content?.[0]?.type === 'text' && completion.content?.[0]?.text || '';
       } else if (this.provider === 'openai' && this.openai) {
         const completion = await this.openai.chat.completions.create({
           model: 'gpt-4',

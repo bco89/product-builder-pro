@@ -66,10 +66,7 @@ export default function AIGenerationForm({
         method: inputMethod,
         productUrl: inputMethod === 'url' ? productUrl : undefined,
         additionalContext: inputMethod === 'context' ? additionalContext : undefined,
-        keywords: {
-          primary: keywords?.primary || '',
-          secondary: keywords?.secondary || ''
-        },
+        keywords,
       });
     } catch (error) {
       console.error('Error in handleGenerate:', error);
