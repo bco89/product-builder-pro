@@ -20,7 +20,7 @@ import {
 } from '@shopify/polaris-icons';
 
 interface LoadingProgressProps {
-  variant: 'ai-generation' | 'data-fetch' | 'simple' | 'stage-based';
+  variant: 'ai-generation' | 'data-fetch' | 'stage-based';
   progress?: number; // 0-100
   messages?: string[]; // Rotating messages
   showSkeleton?: boolean; // Show skeleton preview
@@ -47,11 +47,6 @@ const defaultMessages = {
     "✨ Organizing results for you...",
     "🎁 Preparing your selections..."
   ],
-  'simple': [
-    "Loading...",
-    "Just a moment...",
-    "Almost there..."
-  ],
   'stage-based': [
     "Processing your request...",
     "Working on it...",
@@ -77,9 +72,9 @@ export default function LoadingProgress({
   const displayMessages = messages || defaultMessages[variant];
   const currentMessage = displayMessages?.[currentMessageIndex] || '';
   
-  // Rotate messages every 2 seconds (only for non-stage-based variants)
+  // Rotate messages every 2 seconds (only for ai-generation variant)
   useEffect(() => {
-    if (variant !== 'stage-based' && displayMessages && displayMessages.length > 0) {
+    if (variant === 'ai-generation' && displayMessages && displayMessages.length > 0) {
       const interval = setInterval(() => {
         setCurrentMessageIndex((prev) => (prev + 1) % displayMessages.length);
       }, 2000);
@@ -115,23 +110,12 @@ export default function LoadingProgress({
     return CheckIcon;
   };
   
-  if (variant === 'simple') {
-    return (
-      <InlineStack gap="300" align="center">
-        <Spinner accessibilityLabel="Loading" size="small" />
-        <Text as="p" variant="bodyMd" tone="subdued">
-          {currentMessage}
-        </Text>
-      </InlineStack>
-    );
-  }
-  
   if (variant === 'data-fetch') {
     return (
       <InlineStack gap="300" align="center">
         <Spinner accessibilityLabel="Loading data" size="small" />
         <Text as="p" variant="bodyMd" tone="subdued">
-          {currentMessage}
+          {displayMessages?.[0] || currentMessage}
           {currentCount !== undefined && ` (${currentCount} found)`}
         </Text>
       </InlineStack>

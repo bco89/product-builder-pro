@@ -474,19 +474,16 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
           </Banner>
         )}
 
-        {/* Enhanced Vendor Selection with Combobox */}
-        <BlockStack gap="200">
-          <div style={{ height: vendorsLoading ? '44px' : 'auto' }}>
-            {vendorsLoading ? (
-              <LoadingProgress
-                variant="data-fetch"
-                messages={[
-                  "🔍 Discovering available vendors...",
-                  "📦 Loading vendor catalog...",
-                  "✨ Preparing vendor list..."
-                ]}
-              />
-            ) : (
+        {vendorsLoading ? (
+          <LoadingProgress
+            variant="data-fetch"
+            messages={["Loading your product vendors..."]}
+          />
+        ) : (
+          <>
+            {/* Enhanced Vendor Selection with Combobox */}
+            <BlockStack gap="200">
+              <div style={{ height: 'auto' }}>
               <Combobox
                 activator={
                   <Combobox.TextField
@@ -513,13 +510,12 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
                   </Listbox>
                 ) : null}
               </Combobox>
-            )}
-          </div>
+              </div>
 
-          {vendorsError && (
-            <InlineError message="Unable to load vendors" fieldID="vendor" />
-          )}
-        </BlockStack>
+              {vendorsError && (
+                <InlineError message="Unable to load vendors" fieldID="vendor" />
+              )}
+            </BlockStack>
 
         {/* Enhanced Product Type Selection with Autocomplete */}
         <BlockStack gap="200">
@@ -550,18 +546,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
             ) : productTypesLoading ? (
               <LoadingProgress
                 variant="data-fetch"
-                messages={
-                  productTypesData?.fromCache ? [
-                    `📊 Refreshing ${formData.vendor} product types...`,
-                    "✨ Updating suggestions...",
-                    "🎯 Almost ready..."
-                  ] : [
-                    `🔍 Discovering ${formData.vendor} product types...`,
-                    "📦 Analyzing product catalog...",
-                    "🎨 Creating personalized suggestions...",
-                    "✅ Organizing results for you..."
-                  ]
-                }
+                messages={[`Loading product types for ${formData.vendor}...`]}
                 currentCount={filteredProductTypes.length}
               />
             ) : (
@@ -598,16 +583,18 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
           )}
         </BlockStack>
 
-        <ButtonGroup>
-          <Button onClick={onBack} disabled>Back</Button>
-          <Button 
-            variant="primary"
-            onClick={handleSubmit} 
-            disabled={!formData.vendor || !formData.productType || vendorsLoading || productTypesLoading}
-          >
-            Next
-          </Button>
-        </ButtonGroup>
+            <ButtonGroup>
+              <Button onClick={onBack} disabled>Back</Button>
+              <Button 
+                variant="primary"
+                onClick={handleSubmit} 
+                disabled={!formData.vendor || !formData.productType || vendorsLoading || productTypesLoading}
+              >
+                Next
+              </Button>
+            </ButtonGroup>
+          </>
+        )}
       </FormLayout>
 
       {/* New Entry Confirmation Modal */}
