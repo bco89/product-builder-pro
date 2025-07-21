@@ -164,7 +164,7 @@ export default function ImproveDescriptions() {
         productTitle: params.product.title,
         productType: params.product.productType,
         vendor: params.product.vendor,
-        keywords: [params.keywords.primary, params.keywords.secondary].filter(Boolean),
+        keywords: [params.keywords?.primary || '', params.keywords?.secondary || ''].filter(Boolean),
         productUrl: params.productUrl,
         additionalContext: params.additionalContext,
         existingDescription: params.method === 'context' ? params.product.description : undefined,
@@ -298,7 +298,7 @@ export default function ImproveDescriptions() {
     if (!selectedProduct) return;
     
     // Show toast if no keywords provided
-    if (!params.keywords.primary && !params.keywords.secondary) {
+    if (!params.keywords?.primary && !params.keywords?.secondary) {
       setShowKeywordToast(true);
     }
     

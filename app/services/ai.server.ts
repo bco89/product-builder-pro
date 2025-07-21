@@ -215,6 +215,14 @@ ${params.tags?.length ? `Tags: ${params.tags.join(', ')}` : ''}
   }
 
   async generateProductDescription(params: AIGenerationParams): Promise<AIGenerationResult> {
+    // Ensure keywords is always an array
+    if (!params.keywords) {
+      params.keywords = [];
+    } else if (!Array.isArray(params.keywords)) {
+      // If keywords is not an array for some reason, convert it
+      params.keywords = [];
+    }
+    
     logger.info('\n=== AI DESCRIPTION GENERATION START ===');
     logger.info('Initial parameters', {
       shop: params.shop,
