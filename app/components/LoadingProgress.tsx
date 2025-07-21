@@ -51,6 +51,11 @@ const defaultMessages = {
     "Loading...",
     "Just a moment...",
     "Almost there..."
+  ],
+  'stage-based': [
+    "Processing your request...",
+    "Working on it...",
+    "Almost there..."
   ]
 };
 
@@ -70,22 +75,22 @@ export default function LoadingProgress({
   const [simulatedProgress, setSimulatedProgress] = useState(0);
   
   const displayMessages = messages || defaultMessages[variant];
-  const currentMessage = displayMessages[currentMessageIndex];
+  const currentMessage = displayMessages?.[currentMessageIndex] || '';
   
   // Rotate messages every 2 seconds (only for non-stage-based variants)
   useEffect(() => {
-    if (variant !== 'stage-based') {
+    if (variant !== 'stage-based' && displayMessages && displayMessages.length > 0) {
       const interval = setInterval(() => {
         setCurrentMessageIndex((prev) => (prev + 1) % displayMessages.length);
       }, 2000);
       
       return () => clearInterval(interval);
     }
-  }, [displayMessages.length, variant]);
+  }, [displayMessages, variant]);
   
   // Simulate progress if not provided (only for non-stage-based variants)
   useEffect(() => {
-    if (progress === undefined && variant === 'ai-generation' && variant !== 'stage-based') {
+    if (progress === undefined && variant === 'ai-generation') {
       const interval = setInterval(() => {
         setSimulatedProgress((prev) => {
           if (prev >= 90) return prev; // Stop at 90% until real completion
