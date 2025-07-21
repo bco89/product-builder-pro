@@ -429,11 +429,10 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
             color: var(--p-color-text) !important;
           }
           
-          /* Limit Combobox dropdown height and add bottom spacing */
+          /* Limit Combobox dropdown height */
           .Polaris-Popover__Content {
             max-height: 400px !important;
             overflow-y: auto !important;
-            margin-bottom: 20px !important;
           }
           
           /* Ensure the popover doesn't extend to viewport bottom */
