@@ -53,6 +53,9 @@ export const loader = async ({ request }: { request: Request }) => {
   try {
     let graphqlQuery = '';
     let variables = {};
+    let totalCount = 0;
+    let page = 1;
+    let limit = 20;
 
     switch (queryType) {
       case 'vendors':
@@ -183,6 +186,8 @@ export const loader = async ({ request }: { request: Request }) => {
         // Fetch all products for the improve descriptions page
         const searchQuery = url.searchParams.get('query') || '';
         const filters = url.searchParams.get('filters') || '';
+        page = parseInt(url.searchParams.get('page') || '1');
+        limit = parseInt(url.searchParams.get('limit') || '20');
         
         let queryString = '';
         if (searchQuery) {
@@ -202,9 +207,26 @@ export const loader = async ({ request }: { request: Request }) => {
           }
         }
         
+        // First get total count for pagination
+        const countQuery = `#graphql
+          query getProductCount($query: String) {
+            productsCount(query: $query) {
+              count
+            }
+          }`;
+        
+        const countResponse = await admin.graphql(countQuery, { 
+          variables: queryString ? { query: queryString } : {} 
+        });
+        const countData = await countResponse.json();
+        totalCount = countData.data?.productsCount?.count || 0;
+        
+        // Calculate cursor for pagination (simple offset-based approach)
+        const offset = (page - 1) * limit;
+        
         graphqlQuery = `#graphql
-          query getProducts($query: String) {
-            products(first: 100, query: $query) {
+          query getProducts($query: String, $first: Int!) {
+            products(first: $first, query: $query) {
               edges {
                 node {
                   id
@@ -223,9 +245,19 @@ export const loader = async ({ request }: { request: Request }) => {
                   }
                 }
               }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
             }
           }`;
-        variables = queryString ? { query: queryString } : {};
+        
+        // Fetch more than needed to handle offset
+        const fetchLimit = offset + limit + 1;
+        variables = { 
+          first: Math.min(fetchLimit, 250), // Shopify max is 250
+          ...(queryString ? { query: queryString } : {})
+        };
         break;
     }
 
@@ -337,9 +369,20 @@ export const loader = async ({ request }: { request: Request }) => {
 
       case 'list':
       default:
-        // Return the full product list for the improve descriptions page
-        const products = data.data.products.edges.map(edge => edge.node);
-        return json({ products });
+        // Return the paginated product list for the improve descriptions page
+        const allProducts = data.data.products.edges.map(edge => edge.node);
+        
+        // Apply offset-based pagination
+        const offset = (page - 1) * limit;
+        const paginatedProducts = allProducts.slice(offset, offset + limit);
+        
+        return json({ 
+          products: paginatedProducts,
+          totalCount,
+          page,
+          limit,
+          totalPages: Math.ceil(totalCount / limit)
+        });
     }
 
   } catch (error) {

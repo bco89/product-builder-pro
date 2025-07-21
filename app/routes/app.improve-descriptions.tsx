@@ -1,10 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Page,
   Layout,
   Card,
-  DataTable,
-  Thumbnail,
   Button,
   Badge,
   BlockStack,
@@ -20,7 +18,7 @@ import {
   Icon,
   Banner,
 } from '@shopify/polaris';
-import { MagicIcon, AlertCircleIcon, InfoIcon } from '@shopify/polaris-icons';
+import { MagicIcon, AlertCircleIcon, InfoIcon, ImageIcon } from '@shopify/polaris-icons';
 import { authenticate } from '../shopify.server';
 import { json } from '@remix-run/node';
 import { useLoaderData } from '@remix-run/react';
@@ -73,14 +71,18 @@ export default function ImproveDescriptions() {
   const [generationProgress, setGenerationProgress] = useState(0);
   const [error, setError] = useState<{ message: string; details?: string; code?: string } | null>(null);
   const [showKeywordToast, setShowKeywordToast] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
 
   // Fetch products
   const { data: productsData, isLoading } = useQuery({
-    queryKey: ['products', searchValue, selectedFilters],
+    queryKey: ['products', searchValue, selectedFilters, currentPage],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (searchValue) params.append('query', searchValue);
       if (selectedFilters.length > 0) params.append('filters', selectedFilters.join(','));
+      params.append('page', currentPage.toString());
+      params.append('limit', itemsPerPage.toString());
       
       const response = await fetch(`/api/shopify/products?${params}`);
       if (!response.ok) throw new Error('Failed to fetch products');
@@ -89,6 +91,10 @@ export default function ImproveDescriptions() {
   });
 
   const products = productsData?.products || [];
+  const totalCount = productsData?.totalCount || 0;
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
+  const hasNextPage = currentPage < totalPages;
+  const hasPreviousPage = currentPage > 1;
 
   // Fetch shop settings
   const { data: shopSettings, isLoading: isLoadingSettings, error: settingsError } = useQuery({
@@ -215,11 +221,39 @@ export default function ImproveDescriptions() {
 
   const handleSearchChange = useCallback((value: string) => {
     setSearchValue(value);
+    setCurrentPage(1); // Reset to first page on search
   }, []);
 
   const handleFiltersChange = useCallback((value: string[]) => {
     setSelectedFilters(value);
+    setCurrentPage(1); // Reset to first page on filter change
   }, []);
+
+  // Handle pagination events from s-table
+  useEffect(() => {
+    const handlePreviousPage = () => {
+      if (hasPreviousPage) {
+        setCurrentPage(prev => prev - 1);
+      }
+    };
+
+    const handleNextPage = () => {
+      if (hasNextPage) {
+        setCurrentPage(prev => prev + 1);
+      }
+    };
+
+    const table = document.querySelector('s-table');
+    if (table) {
+      table.addEventListener('previouspage', handlePreviousPage);
+      table.addEventListener('nextpage', handleNextPage);
+
+      return () => {
+        table.removeEventListener('previouspage', handlePreviousPage);
+        table.removeEventListener('nextpage', handleNextPage);
+      };
+    }
+  }, [hasNextPage, hasPreviousPage]);
 
   const handleImproveClick = (product: Product) => {
     setSelectedProduct(product);
@@ -247,34 +281,6 @@ export default function ImproveDescriptions() {
     });
   };
 
-  const rows = products.map((product: Product) => [
-    <Box maxWidth="60px">
-      {product.featuredImage ? (
-        <Thumbnail
-          source={product.featuredImage.url}
-          alt={product.featuredImage.altText || product.title}
-          size="small"
-        />
-      ) : (
-        <Thumbnail source="" alt="No image" size="small" />
-      )}
-    </Box>,
-    <Text variant="bodyMd" fontWeight="semibold">{product.title}</Text>,
-    product.productType || '-',
-    product.vendor || '-',
-    product.description ? (
-      <Badge tone="success">Has description</Badge>
-    ) : (
-      <Badge tone="warning">No description</Badge>
-    ),
-    <Button
-      icon={MagicIcon}
-      onClick={() => handleImproveClick(product)}
-      size="slim"
-    >
-      Improve
-    </Button>
-  ]);
 
   return (
     <Page
@@ -322,25 +328,90 @@ export default function ImproveDescriptions() {
                   </BlockStack>
                 </Box>
               ) : (
-                <DataTable
-                  columnContentTypes={[
-                    'text',
-                    'text',
-                    'text',
-                    'text',
-                    'text',
-                    'text',
-                  ]}
-                  headings={[
-                    'Image',
-                    'Product',
-                    'Type',
-                    'Vendor',
-                    'Description',
-                    'Action',
-                  ]}
-                  rows={rows}
-                />
+                <>
+                  <s-table 
+                    fullwidth
+                    paginate={totalCount > itemsPerPage}
+                    hasPreviousPage={hasPreviousPage}
+                    hasNextPage={hasNextPage}
+                  >
+                    <s-table-header-row>
+                      <s-table-header listSlot="primary">Product</s-table-header>
+                      <s-table-header>Type</s-table-header>
+                      <s-table-header>Vendor</s-table-header>
+                      <s-table-header listSlot="secondary">Description</s-table-header>
+                      <s-table-header>Action</s-table-header>
+                    </s-table-header-row>
+                    <s-table-body>
+                      {products.map((product: Product) => (
+                        <s-table-row key={product.id}>
+                          <s-table-cell>
+                            <s-stack direction="inline" gap="small" alignItems="center">
+                              {product.featuredImage ? (
+                                <s-clickable
+                                  onClick={() => handleImproveClick(product)}
+                                  accessibilityLabel={`${product.title} thumbnail`}
+                                  border="base"
+                                  borderRadius="base"
+                                  overflow="hidden"
+                                  inlineSize="40px"
+                                  blockSize="40px"
+                                >
+                                  <s-image
+                                    objectFit="cover"
+                                    src={product.featuredImage.url}
+                                    alt={product.featuredImage.altText || product.title}
+                                  />
+                                </s-clickable>
+                              ) : (
+                                <s-box
+                                  border="base"
+                                  borderRadius="base"
+                                  inlineSize="40px"
+                                  blockSize="40px"
+                                  background="subdued"
+                                  display="flex"
+                                  alignItems="center"
+                                  justifyContent="center"
+                                >
+                                  <Icon source={ImageIcon} tone="subdued" />
+                                </s-box>
+                              )}
+                              <s-text fontWeight="semibold">{product.title}</s-text>
+                            </s-stack>
+                          </s-table-cell>
+                          <s-table-cell>{product.productType || '-'}</s-table-cell>
+                          <s-table-cell>{product.vendor || '-'}</s-table-cell>
+                          <s-table-cell>
+                            {product.description ? (
+                              <Badge tone="success">Has description</Badge>
+                            ) : (
+                              <Badge tone="warning">No description</Badge>
+                            )}
+                          </s-table-cell>
+                          <s-table-cell>
+                            <Button
+                              icon={MagicIcon}
+                              onClick={() => handleImproveClick(product)}
+                              size="slim"
+                            >
+                              Improve
+                            </Button>
+                          </s-table-cell>
+                        </s-table-row>
+                      ))}
+                    </s-table-body>
+                  </s-table>
+                  
+                  {/* Show page info when there are results */}
+                  {products.length > 0 && totalCount > itemsPerPage && (
+                    <Box padding="400">
+                      <Text as="p" variant="bodySm" tone="subdued" alignment="center">
+                        Page {currentPage} of {totalPages} ({totalCount} total products)
+                      </Text>
+                    </Box>
+                  )}
+                </>
               )}
             </BlockStack>
           </Card>
