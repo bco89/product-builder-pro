@@ -23,9 +23,12 @@ interface ProductNode {
   category: ProductCategory | null;
   options: ProductOption[];
   tags: string[];
-  featuredImage?: {
-    url: string;
-    altText?: string;
+  featuredMedia?: {
+    __typename: string;
+    image?: {
+      url: string;
+      altText?: string;
+    };
   };
   seo?: {
     title?: string;
@@ -361,9 +364,13 @@ export const loader = async ({ request }: { request: Request }) => {
                   handle
                   productType
                   vendor
-                  featuredImage {
-                    url
-                    altText
+                  featuredMedia {
+                    ... on MediaImage {
+                      image {
+                        url
+                        altText
+                      }
+                    }
                   }
                   seo {
                     title
