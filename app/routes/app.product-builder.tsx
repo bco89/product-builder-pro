@@ -21,6 +21,7 @@ import { useLoaderData, useNavigate } from "@remix-run/react";
 import { authenticate } from '../shopify.server';
 import { useAppBridge } from '@shopify/app-bridge-react';
 import type { PricingData } from './product-builder/FormContext';
+import { ScopeCheck } from '../components/ScopeCheck';
 
 // Step Components
 import StepVendorType from './product-builder/steps/StepVendorType';
@@ -601,23 +602,24 @@ export default function ProductBuilder() {
   };
 
   return (
-    <Page
-      title={getPageTitle()}
-      subtitle={getPageSubtitle()}
-      compactTitle
-      primaryAction={showPrimaryAction() ? {
-        content: 'Create Product',
-        disabled: isSubmitting,
-        loading: isSubmitting,
-        onAction: handleSubmit,
-      } : undefined}
-      secondaryActions={[
-        {
-          content: 'Cancel',
-          onAction: handleBuildAnother,
-        }
-      ]}
-    >
+    <ScopeCheck>
+      <Page
+        title={getPageTitle()}
+        subtitle={getPageSubtitle()}
+        compactTitle
+        primaryAction={showPrimaryAction() ? {
+          content: 'Create Product',
+          disabled: isSubmitting,
+          loading: isSubmitting,
+          onAction: handleSubmit,
+        } : undefined}
+        secondaryActions={[
+          {
+            content: 'Cancel',
+            onAction: handleBuildAnother,
+          }
+        ]}
+      >
       <Layout>
         <Layout.Section>
           <BlockStack gap="600">
@@ -719,5 +721,6 @@ export default function ProductBuilder() {
       )}
       <Box paddingBlockEnd="800" />
     </Page>
+    </ScopeCheck>
   );
 } 
