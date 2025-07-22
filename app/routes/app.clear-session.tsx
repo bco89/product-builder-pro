@@ -1,7 +1,7 @@
 import { LoaderFunction, redirect } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { logger } from "../services/logger.server";
-import { prisma } from "../utils/db.server";
+import { prisma } from "../db.server";
 
 // This route clears the session to force re-authentication
 export const loader: LoaderFunction = async ({ request }) => {
