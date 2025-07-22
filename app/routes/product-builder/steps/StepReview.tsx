@@ -11,6 +11,7 @@ import {
   Badge,
 } from '@shopify/polaris';
 import { useCallback } from 'react';
+import { smartSort } from '../../../utils/smartSort';
 
 interface ReviewFormData {
   vendor: string;
@@ -57,7 +58,8 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
       );
     };
 
-    const optionValues = formData.options.map(option => option.values);
+    // Sort option values before generating combinations
+    const optionValues = formData.options.map(option => smartSort(option.values));
     const combinations = cartesian(...optionValues);
 
     return combinations.map((combination, index) => ({

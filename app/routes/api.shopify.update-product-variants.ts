@@ -1,6 +1,7 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { logger } from "../services/logger.server.ts";
+import { smartSort } from "../utils/smartSort";
 
 function generateVariantCombinations(options: any[]): string[][] {
   const cartesian = (...arrays: string[][]): string[][] => {
@@ -13,7 +14,8 @@ function generateVariantCombinations(options: any[]): string[][] {
     );
   };
 
-  const optionValues = options.map(option => option.values);
+  // Sort option values before generating combinations
+  const optionValues = options.map(option => smartSort(option.values));
   return cartesian(...optionValues);
 }
 
@@ -124,7 +126,7 @@ export const action = async ({ request }: { request: Request }) => {
     const optionsInput = options.map((option: any, index: number) => ({
       name: option.name,
       position: index + 1,
-      values: option.values.map((value: string) => ({ name: value }))
+      values: smartSort(option.values).map((value: string) => ({ name: value }))
     }));
 
     const optionsResponse = await admin.graphql(
