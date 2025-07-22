@@ -63,7 +63,7 @@ export async function checkScopes(admin: any): Promise<ScopeCheckResult> {
 
 export function buildOAuthUrl(shop: string, host: string): string {
   const clientId = process.env.SHOPIFY_API_KEY;
-  const redirectUri = `${process.env.SHOPIFY_APP_URL}/auth/callback`;
+  const redirectUri = `${process.env.SHOPIFY_APP_URL}/auth/oauth`;
   const scopes = REQUIRED_SCOPES.join(',');
   
   // Generate a random state for security

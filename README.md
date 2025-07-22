@@ -1,5 +1,11 @@
 # Product Builder Pro - Shopify App (Remix)
 
+## Scope Update Instructions
+
+To force re-authentication and update scopes:
+1. Navigate to `/app/clear-session` in your app
+2. This will clear the session and redirect to re-authenticate
+
 This is a template for building a [Shopify app](https://shopify.dev/docs/apps/getting-started) using the [Remix](https://remix.run) framework.
 
 Rather than cloning this repo, you can use your preferred package manager and the Shopify CLI with [these steps](https://shopify.dev/docs/apps/getting-started/create).
