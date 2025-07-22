@@ -9,7 +9,6 @@ import {
   InlineStack,
   Text,
   IndexTable,
-  IndexFilters,
   ChoiceList,
   Toast,
   Modal,
@@ -21,10 +20,8 @@ import {
   Thumbnail,
   Pagination,
   EmptySearchResult,
-  LegacyFilters,
   TextField,
   Popover,
-  ActionList,
   Tag,
 } from '@shopify/polaris';
 import { MagicIcon, AlertCircleIcon, InfoIcon, ImageIcon, SearchIcon } from '@shopify/polaris-icons';
@@ -79,11 +76,19 @@ export default function ImproveDescriptions() {
   const [toastMessage, setToastMessage] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [showGenerationForm, setShowGenerationForm] = useState(false);
-  const [generationProgress, setGenerationProgress] = useState(0);
   const [error, setError] = useState<{ message: string; details?: string; code?: string } | null>(null);
   const [showKeywordToast, setShowKeywordToast] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+  
+  // Stage-based progress states (from StepAIDescription)
+  const [currentStage, setCurrentStage] = useState(1);
+  const [stageProgress, setStageProgress] = useState(0);
+  const [stageMessage, setStageMessage] = useState('');
+  const [extractedFeatures, setExtractedFeatures] = useState<string[]>([]);
+  const [partialDescription, setPartialDescription] = useState('');
+  const [partialSeoTitle, setPartialSeoTitle] = useState('');
+  const [partialSeoDescription, setPartialSeoDescription] = useState('');
   
   // Popover states for filters
   const [vendorPopoverActive, setVendorPopoverActive] = useState(false);
@@ -147,27 +152,43 @@ export default function ImproveDescriptions() {
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  // Generate improved description
-  const generateDescription = useMutation({
-    mutationFn: async (params: {
-      product: Product;
-      method: 'manual' | 'url' | 'context';
-      productUrl?: string;
-      additionalContext?: string;
-      keywords: { primary: string; secondary: string };
-    }) => {
-      // Show progress
-      setGenerationProgress(10);
-      
+  // State for generation status
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // Generate description using SSE (adapted from StepAIDescription)
+  const handleGenerate = async (params: {
+    method: 'manual' | 'url' | 'context';
+    productUrl?: string;
+    additionalContext?: string;
+    keywords: { primary: string; secondary: string };
+  }) => {
+    if (!selectedProduct) return;
+    
+    // Show toast if no keywords provided
+    if (!params.keywords?.primary && !params.keywords?.secondary) {
+      setShowKeywordToast(true);
+    }
+
+    setIsGenerating(true);
+    setError(null);
+    setCurrentStage(1);
+    setStageProgress(0);
+    setStageMessage('Analyzing product details');
+    setExtractedFeatures([]);
+    setPartialDescription('');
+    setPartialSeoTitle('');
+    setPartialSeoDescription('');
+
+    try {
       const payload = {
         method: params.method,
-        productTitle: params.product.title,
-        productType: params.product.productType,
-        vendor: params.product.vendor,
+        productTitle: selectedProduct.title,
+        productType: selectedProduct.productType,
+        vendor: selectedProduct.vendor,
         keywords: [params.keywords?.primary || '', params.keywords?.secondary || ''].filter(Boolean),
         productUrl: params.productUrl,
         additionalContext: params.additionalContext,
-        existingDescription: params.method === 'context' ? params.product.description : undefined,
+        existingDescription: params.method === 'context' ? selectedProduct.description : undefined,
         hasImages: false,
         shopSettings: {
           businessType: 'retailer',
@@ -179,56 +200,156 @@ export default function ImproveDescriptions() {
           targetCustomerOverride: '',
           additionalCustomerInsights: '',
           excludedCustomerSegments: '',
-          ...shopSettings
+          ...(shopSettings || {})
         },
       };
 
-      // Update progress
-      setGenerationProgress(50);
-
-      const response = await fetch('/api/shopify/generate-description', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      
-      // Update progress
-      setGenerationProgress(90);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw errorData;
-      }
-      
-      const result = await response.json();
-      setGenerationProgress(100);
-      return result;
-    },
-    onSuccess: (data) => {
-      if (selectedProduct) {
-        setSelectedProduct({
-          ...selectedProduct,
-          description: data.description,
-          seo: {
-            title: data.seoTitle,
-            description: data.seoDescription,
-          }
+      // Helper function for fallback to regular POST
+      const fallbackToRegularPost = async () => {
+        const response = await fetch('/api/shopify/generate-description', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
         });
-        setShowGenerationForm(false);
-        setError(null);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          setError({
+            message: errorData.error || 'Failed to generate description',
+            details: errorData.details,
+            code: errorData.code
+          });
+          setIsGenerating(false);
+          return;
+        }
+        
+        const result = await response.json();
+        if (selectedProduct) {
+          setSelectedProduct({
+            ...selectedProduct,
+            description: result.description || '',
+            seo: {
+              title: result.seoTitle || '',
+              description: result.seoDescription || '',
+            }
+          });
+          setShowGenerationForm(false);
+          setError(null);
+        }
+        setIsGenerating(false);
+      };
+
+      // Check if EventSource is available
+      if (typeof EventSource === 'undefined') {
+        await fallbackToRegularPost();
+        return;
       }
-    },
-    onError: (err: any) => {
+      
+      // Try to use SSE with POST request
+      try {
+        // First, initiate the SSE connection with a POST request
+        const response = await fetch('/api/shopify/generate-description-stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          await fallbackToRegularPost();
+          return;
+        }
+
+        // Process the stream
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+
+        if (!reader) {
+          await fallbackToRegularPost();
+          return;
+        }
+
+        // Process the stream
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                
+                if (data.error) {
+                  setError({
+                    message: data.message || 'Failed to generate description',
+                    details: data.details,
+                    code: data.code
+                  });
+                  setIsGenerating(false);
+                  return;
+                }
+                
+                if (data.completed) {
+                  if (selectedProduct) {
+                    setSelectedProduct({
+                      ...selectedProduct,
+                      description: data.result.description || '',
+                      seo: {
+                        title: data.result.seoTitle || '',
+                        description: data.result.seoDescription || '',
+                      }
+                    });
+                    setShowGenerationForm(false);
+                    setError(null);
+                  }
+                  setIsGenerating(false);
+                  return;
+                }
+                
+                // Update progress and real-time data
+                if (data.stage) {
+                  setCurrentStage(data.stage);
+                  setStageProgress(data.progress);
+                  setStageMessage(data.message);
+                  
+                  // Update extracted features
+                  if (data.extractedFeatures) {
+                    setExtractedFeatures(data.extractedFeatures);
+                  }
+                  
+                  // Update partial results
+                  if (data.partialDescription) {
+                    setPartialDescription(data.partialDescription);
+                  }
+                  if (data.partialSeoTitle) {
+                    setPartialSeoTitle(data.partialSeoTitle);
+                  }
+                  if (data.partialSeoDescription) {
+                    setPartialSeoDescription(data.partialSeoDescription);
+                  }
+                }
+              } catch (parseError) {
+                console.error('Failed to parse SSE data:', parseError);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('SSE connection failed, falling back to regular POST:', error);
+        await fallbackToRegularPost();
+        return;
+      }
+    } catch (err) {
       setError({
-        message: err.error || 'Failed to generate description. Please try again.',
-        details: err.details,
-        code: err.code
+        message: 'An unexpected error occurred. Please try again.',
+        details: err instanceof Error ? err.message : 'Unknown error occurred',
+        code: 'UNKNOWN_ERROR'
       });
-    },
-    onSettled: () => {
-      setGenerationProgress(0);
+      setIsGenerating(false);
     }
-  });
+  };
 
   // Update product
   const updateProduct = useMutation({
@@ -289,25 +410,6 @@ export default function ImproveDescriptions() {
     setError(null);
   };
 
-  const handleGenerate = (params: {
-    method: 'manual' | 'url' | 'context';
-    productUrl?: string;
-    additionalContext?: string;
-    keywords: { primary: string; secondary: string };
-  }) => {
-    if (!selectedProduct) return;
-    
-    // Show toast if no keywords provided
-    if (!params.keywords?.primary && !params.keywords?.secondary) {
-      setShowKeywordToast(true);
-    }
-    
-    generateDescription.mutate({
-      product: selectedProduct,
-      ...params
-    });
-  };
-
   // Clear all filters
   const handleClearAll = useCallback(() => {
     setSearchValue('');
@@ -316,12 +418,6 @@ export default function ImproveDescriptions() {
     setSelectedProductTypes([]);
     setCurrentPage(1);
   }, []);
-
-  // Calculate if any filters are active
-  const hasActiveFilters = selectedVendors.length > 0 || 
-    selectedProductTypes.length > 0 || 
-    selectedFilters.length > 0 ||
-    searchValue !== '';
 
   // Get applied filters for display
   const appliedFilters: any[] = [];
@@ -633,7 +729,13 @@ export default function ImproveDescriptions() {
           setSelectedProduct(null);
           setShowGenerationForm(true);
           setError(null);
-          generateDescription.reset();
+          setIsGenerating(false);
+          setCurrentStage(1);
+          setStageProgress(0);
+          setExtractedFeatures([]);
+          setPartialDescription('');
+          setPartialSeoTitle('');
+          setPartialSeoDescription('');
         }}
         title={`Improve: ${selectedProduct?.title || ''}`}
         primaryAction={{
@@ -650,7 +752,13 @@ export default function ImproveDescriptions() {
               setSelectedProduct(null);
               setShowGenerationForm(true);
               setError(null);
-              generateDescription.reset();
+              setIsGenerating(false);
+              setCurrentStage(1);
+              setStageProgress(0);
+              setExtractedFeatures([]);
+              setPartialDescription('');
+              setPartialSeoTitle('');
+              setPartialSeoDescription('');
             },
           },
         ]}
@@ -686,35 +794,35 @@ export default function ImproveDescriptions() {
               </InlineStack>
               
               {/* Loading State */}
-              {generateDescription.isPending ? (
+              {isGenerating ? (
                 <LoadingProgress
-                  variant="ai-generation"
-                  progress={generationProgress}
-                  messages={[
-                    "🔍 Analyzing your product information...",
-                    "🎨 Creating engaging content...",
-                    "✍️ Writing compelling copy...",
-                    "🎯 Optimizing for search engines...",
-                    "✅ Adding final touches..."
-                  ]}
+                  variant="stage-based"
+                  currentStage={currentStage}
+                  stageProgress={stageProgress}
+                  stageMessage={stageMessage}
                   showSkeleton={true}
+                  showExtractedData={true}
                   title="Generating AI Description"
-                  estimatedTime={20}
+                  estimatedTime={60}
+                  extractedFeatures={extractedFeatures}
+                  partialDescription={partialDescription}
+                  partialSeoTitle={partialSeoTitle}
+                  partialSeoDescription={partialSeoDescription}
                 />
               ) : showGenerationForm ? (
                 <>
                   {/* Generation Form */}
                   <AIGenerationForm
                     onGenerate={handleGenerate}
-                    isGenerating={generateDescription.isPending}
+                    isGenerating={isGenerating}
                     showManualOption={false}
                     defaultMethod={selectedProduct.description ? 'context' : 'url'}
                   />
                   
                   {/* Error display */}
                   {error && (
-                    <Banner tone="critical">
-                      <BlockStack gap="200">
+                    <Banner tone={error.code === 'AI_OVERLOADED' ? 'warning' : 'critical'}>
+                      <BlockStack gap="300">
                         <InlineStack gap="200" align="center">
                           <Icon source={AlertCircleIcon} />
                           <Text as="p" fontWeight="semibold">{error.message}</Text>
@@ -731,6 +839,26 @@ export default function ImproveDescriptions() {
                           <Text as="p" variant="bodySm">
                             Tip: Some websites are slow to load. Try waiting a moment and generating again.
                           </Text>
+                        )}
+                        {error.code === 'AI_OVERLOADED' && (
+                          <BlockStack gap="200">
+                            <Text as="p" variant="bodySm">
+                              The AI service automatically retries when overloaded. If this persists, you can try again manually.
+                            </Text>
+                            <Button
+                              onClick={() => {
+                                setError(null);
+                                // Re-trigger the last generation attempt
+                                const lastForm = document.querySelector('[data-ai-generation-form]') as any;
+                                if (lastForm?.triggerGeneration) {
+                                  lastForm.triggerGeneration();
+                                }
+                              }}
+                              disabled={isGenerating}
+                            >
+                              Retry Generation
+                            </Button>
+                          </BlockStack>
                         )}
                       </BlockStack>
                     </Banner>
