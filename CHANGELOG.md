@@ -1,5 +1,43 @@
 # @shopify/shopify-app-template-remix
 
+## 2025.01.22
+
+### Simplified Settings Page & Enhanced User Experience
+
+- **Removed Store Location Field**: 
+  - Eliminated store location field as e-commerce stores sell globally
+  - Simplified form by removing unnecessary data collection
+  - Cleaned up all references in form state and database schema
+
+- **Enhanced Business Type Selection**:
+  - Improved UI with clearer labeling as "Description Voice"
+  - Added explicit explanations of how selection affects AI descriptions:
+    - Manufacturer/Creator: "Uses 'we/our' language (first-person voice)"
+    - Retailer/Reseller: "Uses neutral, third-person descriptions"
+  - Added example text to demonstrate the difference in voice
+  - More compact layout to reduce screen space usage
+
+- **Removed Customer Customization Section**:
+  - Completely removed optional customer customization fields:
+    - Target Customer Override
+    - Additional Customer Insights
+    - Excluded Customer Segments
+  - Simplified AI prompt generation by using built-in product type customer profiles
+  - Removed all references from AI service, reducing complexity
+
+- **Pre-populated Store Name**:
+  - Added GraphQL query to fetch shop name from Shopify API
+  - Store name now auto-populates from Shopify settings
+  - Users can still customize if their brand name differs
+  - Reduces friction in initial setup
+
+- **Database Schema Cleanup**:
+  - Removed `storeLocation`, `targetCustomerOverride`, `additionalCustomerInsights`, and `excludedCustomerSegments` fields
+  - Simplified ShopSettings model to focus on essential brand identity
+  - No backwards compatibility needed as no production stores are using the app
+
+These changes significantly simplify the settings page while maintaining all essential functionality for generating high-quality, brand-aligned product descriptions.
+
 ## 2025.01.17
 
 ### Fixed Firecrawl Extract API Integration

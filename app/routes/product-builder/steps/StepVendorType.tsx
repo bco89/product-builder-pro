@@ -461,30 +461,30 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
         `}
       </style>
       <Card>
-        <FormLayout>
-        <Text variant="headingMd" as="h2">Select Vendor & Product Type</Text>
-        
-        {hasErrors && (
-          <Banner tone="critical" title="Error loading data">
-            <p>
-              {vendorsError && "Failed to load vendors. "}
-              {productTypesError && "Failed to load product types. "}
-              Please try refreshing the page.
-            </p>
-          </Banner>
-        )}
+        <BlockStack gap="500">
+          <Text variant="headingMd" as="h2">Select Vendor & Product Type</Text>
+          
+          {hasErrors && (
+            <Banner tone="critical" title="Error loading data">
+              <p>
+                {vendorsError && "Failed to load vendors. "}
+                {productTypesError && "Failed to load product types. "}
+                Please try refreshing the page.
+              </p>
+            </Banner>
+          )}
 
-        {vendorsLoading ? (
-          <LoadingProgress
-            variant="data-fetch"
-            messages={["Loading your product vendors..."]}
-          />
-        ) : (
-          <>
-            {/* Enhanced Vendor Selection with Combobox */}
-            <BlockStack gap="200">
-              <div style={{ height: 'auto' }}>
-              <Combobox
+          {vendorsLoading ? (
+            <LoadingProgress
+              variant="data-fetch"
+              messages={["Loading your product vendors..."]}
+            />
+          ) : (
+            <FormLayout>
+              {/* Enhanced Vendor Selection with Combobox */}
+              <BlockStack gap="200">
+                <div style={{ height: 'auto' }}>
+                <Combobox
                 activator={
                   <Combobox.TextField
                     label="Vendor"
@@ -583,19 +583,19 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
           )}
         </BlockStack>
 
-            <ButtonGroup>
-              <Button onClick={onBack} disabled>Back</Button>
-              <Button 
-                variant="primary"
-                onClick={handleSubmit} 
-                disabled={!formData.vendor || !formData.productType || vendorsLoading || productTypesLoading}
-              >
-                Next
-              </Button>
-            </ButtonGroup>
-          </>
-        )}
-      </FormLayout>
+              <InlineStack gap="300" align="end">
+                <Button onClick={onBack} disabled>Back</Button>
+                <Button 
+                  variant="primary"
+                  onClick={handleSubmit} 
+                  disabled={!formData.vendor || !formData.productType || vendorsLoading || productTypesLoading}
+                >
+                  Next
+                </Button>
+              </InlineStack>
+            </FormLayout>
+          )}
+        </BlockStack>
 
       {/* New Entry Confirmation Modal */}
       <Modal
