@@ -71,6 +71,13 @@ export const loader = async ({ request }: { request: Request }) => {
           }`
         );
         const shopData = await shopResponse.json();
+        
+        // Check for errors in shop query
+        if (shopData.errors) {
+          console.error('GraphQL errors in shop query:', shopData.errors);
+          throw new Error('Failed to get shop domain');
+        }
+        
         const shop = shopData.data.shop.myshopifyDomain;
         
         // Try to get cached vendors first
@@ -97,10 +104,7 @@ export const loader = async ({ request }: { request: Request }) => {
           const vendorQuery = `#graphql
             query getVendors($first: Int!, $after: String) {
               productVendors(first: $first, after: $after) {
-                edges {
-                  node
-                  cursor
-                }
+                edges
                 pageInfo {
                   hasNextPage
                   endCursor
@@ -116,10 +120,17 @@ export const loader = async ({ request }: { request: Request }) => {
           });
           const vendorData = await vendorResponse.json();
           
+          // Check for GraphQL errors
+          if (vendorData.errors) {
+            console.error('GraphQL errors:', vendorData.errors);
+            throw new Error('GraphQL query failed: ' + vendorData.errors.map((e: any) => e.message).join(', '));
+          }
+          
           if (vendorData.data?.productVendors?.edges) {
-            vendorData.data.productVendors.edges.forEach((edge: { node: string }) => {
-              if (edge.node) {
-                allVendors.push(edge.node);
+            // edges is an array of strings for StringConnection
+            vendorData.data.productVendors.edges.forEach((vendor: string) => {
+              if (vendor) {
+                allVendors.push(vendor);
               }
             });
             
