@@ -9,20 +9,26 @@ export const action = async ({ request }) => {
   logger.webhook(topic, shop);
   const current = payload.current;
 
-  if (session) {
-    await db.session.update({
-      where: {
-        id: session.id,
-      },
-      data: {
-        scope: current.toString(),
-      },
-    });
-    
-    // Invalidate vendor cache to force refresh with new scopes
-    logger.info(`Invalidating vendor cache for shop ${shop} after scope update`);
-    await CacheService.invalidate(shop, 'vendors');
-  }
+  // Mark all sessions for this shop as needing scope refresh
+  // This ensures all users will get new tokens with updated scopes
+  await db.session.updateMany({
+    where: {
+      shop: shop,
+    },
+    data: {
+      scope: current.toString(),
+      needsScopeRefresh: true,
+    },
+  });
+  
+  logger.info(`Marked all sessions for shop ${shop} as needing scope refresh`, {
+    newScopes: current.toString(),
+    sessionCount: await db.session.count({ where: { shop } })
+  });
+  
+  // Invalidate vendor cache to force refresh with new scopes
+  logger.info(`Invalidating vendor cache for shop ${shop} after scope update`);
+  await CacheService.invalidate(shop, 'vendors');
 
   return new Response();
 };

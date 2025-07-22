@@ -5,6 +5,8 @@
 
 import { authenticate as shopifyAuthenticate } from "../shopify.server";
 import { logger } from "./logger.server.ts";
+import { sessionNeedsRefresh } from "./scopeValidator.server.ts";
+import db from "../db.server.ts";
 
 /**
  * Authenticate admin requests with logging
@@ -26,6 +28,43 @@ export async function authenticateAdmin(request: Request) {
       hasAdmin: !!result.admin,
       shop: result.session?.shop,
     });
+    
+    // Check if the session needs to be refreshed due to scope changes
+    if (result.session && sessionNeedsRefresh(result.session)) {
+      logger.warn("Session needs refresh due to scope changes", {
+        sessionId: result.session.id,
+        shop: result.session.shop,
+        currentScope: result.session.scope,
+      });
+      
+      // Delete the session to force re-authentication
+      try {
+        await db.session.delete({
+          where: { id: result.session.id }
+        });
+        
+        logger.info("Deleted session with outdated scopes", {
+          sessionId: result.session.id,
+          shop: result.session.shop
+        });
+        
+        // Throw an error to trigger re-authentication
+        throw new Response("Session requires re-authentication due to scope changes", {
+          status: 401,
+          headers: {
+            "X-Shopify-Retry-Invalid-Session-Request": "1"
+          }
+        });
+      } catch (deleteError) {
+        // If it's already a Response, re-throw it
+        if (deleteError instanceof Response) {
+          throw deleteError;
+        }
+        logger.error("Failed to delete session", deleteError, {
+          sessionId: result.session.id
+        });
+      }
+    }
     
     return result;
   } catch (error) {
