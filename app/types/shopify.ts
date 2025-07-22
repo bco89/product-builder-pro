@@ -291,3 +291,19 @@ export interface BatchValidationResponse {
     productTitle?: string;
   }>;
 }
+
+// Cache types
+export type CacheableDataType = 'productTypes' | 'vendors' | 'storeSettings';
+
+export interface CacheData<T> {
+  data: T;
+  timestamp: number;
+  expiresAt: number;
+}
+
+// Vendor cache data structure
+export interface VendorsData {
+  vendors: string[];
+  totalVendors: number;
+  lastUpdated?: number;
+}

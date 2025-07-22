@@ -54,14 +54,61 @@ export const loader = async ({ request }: { request: Request }) => {
       return json(cached);
     }
 
-    const allProductTypes: { productType: string; vendor: string }[] = [];
+    // First, fetch all product types using the dedicated query
+    const allProductTypes: string[] = [];
     let hasNextPage = true;
     let cursor: string | null = null;
     
-    // Fetch all products with pagination
+    // Fetch all product types with pagination
+    while (hasNextPage) {
+      const productTypesQuery = `#graphql
+        query getProductTypes($first: Int!, $after: String) {
+          productTypes(first: $first, after: $after) {
+            edges {
+              node
+              cursor
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+          }
+        }`;
+      
+      const productTypesResponse = await admin.graphql(productTypesQuery, { 
+        variables: { 
+          first: 1000, // Max page size for productTypes
+          after: cursor 
+        } 
+      });
+      const productTypesData = await productTypesResponse.json();
+      
+      if (productTypesData.data?.productTypes?.edges) {
+        productTypesData.data.productTypes.edges.forEach((edge: { node: string }) => {
+          if (edge.node) {
+            allProductTypes.push(edge.node);
+          }
+        });
+        
+        hasNextPage = productTypesData.data.productTypes.pageInfo.hasNextPage;
+        cursor = productTypesData.data.productTypes.pageInfo.endCursor;
+      } else {
+        hasNextPage = false;
+      }
+    }
+    
+    // Sort all product types alphabetically
+    const allUniqueProductTypes = [...new Set(allProductTypes)].sort();
+    
+    // Now fetch products to build the vendor-product type mapping
+    // This is still needed for the productTypesByVendor mapping
+    const vendorProductTypes: { productType: string; vendor: string }[] = [];
+    hasNextPage = true;
+    cursor = null;
+    
     while (hasNextPage) {
       const query = `#graphql
-        query getProductTypes($cursor: String) {
+        query getProductVendorMapping($cursor: String) {
           products(first: 250, after: $cursor) {
             edges {
               cursor
@@ -85,7 +132,7 @@ export const loader = async ({ request }: { request: Request }) => {
       // Process products
       data.data.products.edges.forEach(edge => {
         if (edge.node.productType && edge.node.vendor) {
-          allProductTypes.push({
+          vendorProductTypes.push({
             productType: edge.node.productType,
             vendor: edge.node.vendor
           });
@@ -98,7 +145,7 @@ export const loader = async ({ request }: { request: Request }) => {
     
     // Group by vendor and deduplicate
     const productTypesByVendor: Record<string, string[]> = {};
-    allProductTypes.forEach(item => {
+    vendorProductTypes.forEach(item => {
       if (!productTypesByVendor[item.vendor]) {
         productTypesByVendor[item.vendor] = [];
       }
@@ -112,13 +159,10 @@ export const loader = async ({ request }: { request: Request }) => {
       productTypesByVendor[vendor].sort();
     });
     
-    // Get all unique product types
-    const allUniqueProductTypes = [...new Set(allProductTypes.map(pt => pt.productType))].sort();
-    
     const result: ProductTypesData = { 
       productTypesByVendor, 
       allProductTypes: allUniqueProductTypes,
-      totalProducts: allProductTypes.length
+      totalProducts: vendorProductTypes.length
     };
     
     // Cache the result with proper shop isolation

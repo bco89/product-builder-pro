@@ -1,5 +1,7 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
+import { CacheService } from "../services/cacheService";
+import type { VendorsData } from "../types/shopify";
 
 interface ProductCategory {
   id: string;
@@ -59,17 +61,91 @@ export const loader = async ({ request }: { request: Request }) => {
 
     switch (queryType) {
       case 'vendors':
-        graphqlQuery = `#graphql
-          query getVendors {
-            products(first: 250) {
-              edges {
-                node {
-                  vendor
+        // First, get the shop domain
+        const shopResponse = await admin.graphql(
+          `#graphql
+          query {
+            shop {
+              myshopifyDomain
+            }
+          }`
+        );
+        const shopData = await shopResponse.json();
+        const shop = shopData.data.shop.myshopifyDomain;
+        
+        // Try to get cached vendors first
+        const cachedVendors = await CacheService.get<VendorsData>(shop, 'vendors');
+        
+        if (cachedVendors && cachedVendors.vendors) {
+          // Return cached data
+          return json({
+            vendors: cachedVendors.vendors,
+            totalVendors: cachedVendors.totalVendors,
+            fromCache: true,
+            cacheAge: Date.now() - (cachedVendors.lastUpdated || 0)
+          });
+        }
+        
+        // If no cached data, fetch fresh data
+        // Use dedicated productVendors query for efficient vendor fetching
+        const allVendors: string[] = [];
+        let hasNextPage = true;
+        let cursor: string | null = null;
+        
+        // Fetch all vendors with pagination
+        while (hasNextPage) {
+          const vendorQuery = `#graphql
+            query getVendors($first: Int!, $after: String) {
+              productVendors(first: $first, after: $after) {
+                edges {
+                  node
+                  cursor
+                }
+                pageInfo {
+                  hasNextPage
+                  endCursor
                 }
               }
-            }
-          }`;
-        break;
+            }`;
+          
+          const vendorResponse = await admin.graphql(vendorQuery, { 
+            variables: { 
+              first: 1000, // Max page size for productVendors
+              after: cursor 
+            } 
+          });
+          const vendorData = await vendorResponse.json();
+          
+          if (vendorData.data?.productVendors?.edges) {
+            vendorData.data.productVendors.edges.forEach((edge: { node: string }) => {
+              if (edge.node) {
+                allVendors.push(edge.node);
+              }
+            });
+            
+            hasNextPage = vendorData.data.productVendors.pageInfo.hasNextPage;
+            cursor = vendorData.data.productVendors.pageInfo.endCursor;
+          } else {
+            hasNextPage = false;
+          }
+        }
+        
+        // Sort vendors alphabetically
+        const sortedVendors = allVendors.sort((a, b) => a.localeCompare(b));
+        
+        // Cache the result
+        const vendorsData: VendorsData = {
+          vendors: sortedVendors,
+          totalVendors: sortedVendors.length,
+          lastUpdated: Date.now()
+        };
+        await CacheService.set(shop, 'vendors', vendorsData);
+        
+        return json({ 
+          vendors: sortedVendors,
+          totalVendors: sortedVendors.length,
+          fromCache: false
+        });
 
       case 'productTypes':
         if (!vendor || vendor === 'all') {
@@ -303,12 +379,8 @@ export const loader = async ({ request }: { request: Request }) => {
 
     switch (queryType) {
       case 'vendors':
-        const vendors = [...new Set(
-          data.data.products.edges
-            .map(edge => edge.node.vendor)
-            .filter(Boolean)
-        )];
-        return json({ vendors });
+        // Already handled above with early return
+        break;
 
       case 'productTypes':
         const productTypes = [...new Set(
