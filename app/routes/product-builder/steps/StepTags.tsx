@@ -1,7 +1,6 @@
-import { useCallback, useState, useEffect, useMemo } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import {
   Card,
-  TextField,
   BlockStack,
   InlineStack,
   Text,
@@ -11,7 +10,6 @@ import {
   Autocomplete,
   Icon,
   Box,
-  Badge,
   Checkbox,
 } from '@shopify/polaris';
 import { SearchIcon } from '@shopify/polaris-icons';
@@ -40,11 +38,86 @@ interface OptionDescriptor {
   label: string;
 }
 
+// Helper function to find relevant tags based on product context
+function findRelevantTags(
+  title: string,
+  category: string | null,
+  allStoreTags: string[],
+  selectedTags: string[],
+  allVendors: string[]
+): string[] {
+  if (!title || allStoreTags.length === 0) return [];
+  
+  // Extract keywords from title (split by spaces, remove common words)
+  const titleWords = title.toLowerCase()
+    .split(/[\s-_]+/)
+    .filter(word => word.length > 2) // Skip very short words
+    .filter(word => !['the', 'and', 'for', 'with', 'from'].includes(word));
+  
+  // Extract keywords from category if available
+  const categoryWords = category?.name
+    ? category.name.toLowerCase().split(/[\s-_>]+/).filter(word => word.length > 2)
+    : [];
+  
+  // Score each tag based on relevance
+  const tagScores = new Map<string, number>();
+  
+  allStoreTags.forEach(tag => {
+    // Skip if already selected or is a vendor name
+    if (selectedTags.includes(tag) || allVendors.includes(tag)) return;
+    
+    const tagLower = tag.toLowerCase();
+    let score = 0;
+    
+    // Check title matches
+    titleWords.forEach(word => {
+      if (tagLower.includes(word) || word.includes(tagLower)) {
+        score += 10; // High score for title matches
+      }
+      // Check for plural/singular variations
+      if (tagLower.includes(word + 's') || tagLower.includes(word.slice(0, -1))) {
+        score += 8;
+      }
+    });
+    
+    // Check category matches
+    categoryWords.forEach(word => {
+      if (tagLower.includes(word) || word.includes(tagLower)) {
+        score += 5; // Medium score for category matches
+      }
+    });
+    
+    // Check for common variations
+    // T-shirt -> Tees, Tanks
+    if (title.toLowerCase().includes('t-shirt') || title.toLowerCase().includes('tshirt')) {
+      if (['tees', 'tee', 'tanks', 'tops', 'shirts'].includes(tagLower)) {
+        score += 8;
+      }
+    }
+    
+    // Pants -> Bottoms, Trousers
+    if (title.toLowerCase().includes('pants') || title.toLowerCase().includes('jeans')) {
+      if (['bottoms', 'trousers', 'denim'].includes(tagLower)) {
+        score += 8;
+      }
+    }
+    
+    if (score > 0) {
+      tagScores.set(tag, score);
+    }
+  });
+  
+  // Sort by score and return top matches
+  return Array.from(tagScores.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([tag]) => tag)
+    .slice(0, 10); // Return top 10 relevant tags
+}
+
 export default function StepTags({ formData, onChange, onNext, onBack, productId }: StepTagsProps) {
   const [selectedTags, setSelectedTags] = useState<string[]>(formData.tags || []);
   
   const [inputValue, setInputValue] = useState('');
-  const [options, setOptions] = useState<OptionDescriptor[]>([]);
 
   // Fetch existing tags from products of the selected type
   const { data: productTypeTags = [], isLoading: productTypeTagsLoading, isError: productTypeTagsError } = useQuery({
@@ -75,7 +148,7 @@ export default function StepTags({ formData, onChange, onNext, onBack, productId
   });
 
   // Fetch all vendors to filter them out from suggestions
-  const { data: allVendors = [], isLoading: allVendorsLoading, isError: allVendorsError } = useQuery({
+  const { data: allVendors = [], isLoading: allVendorsLoading } = useQuery({
     queryKey: ['allVendors'],
     queryFn: async (): Promise<string[]> => {
       const response = await fetch('/api/shopify/products?type=vendors');
@@ -142,46 +215,57 @@ export default function StepTags({ formData, onChange, onNext, onBack, productId
     return options;
   }, [autocompleteOptions, shouldShowAddNewTag, inputValue]);
 
-  // Get product type specific suggestions for the suggestion box
+  // Get smart tag suggestions based on product context
   const productTypeTagSuggestions = useMemo(() => {
     const suggestions: string[] = [];
     
-    // Add priority suggestions first: current year, vendor, and product type
-    const currentYear = new Date().getFullYear().toString();
+    // First, get context-aware tag suggestions based on title and category
+    const relevantTags = findRelevantTags(
+      formData.title,
+      formData.category,
+      allTags || [],
+      selectedTags,
+      allVendors
+    );
     
-    // Add current year as first suggestion if not already selected
-    if (!selectedTags.includes(currentYear)) {
-      suggestions.push(currentYear);
-    }
+    // Add relevant tags first (these are the smart suggestions)
+    suggestions.push(...relevantTags);
     
-    // Add vendor as second suggestion if valid and not already selected
+    // Add vendor if valid and not already selected
     if (formData.vendor && formData.vendor !== 'Default Vendor' && !selectedTags.includes(formData.vendor)) {
-      suggestions.push(formData.vendor);
+      // Only add if not already in relevant tags
+      if (!suggestions.includes(formData.vendor)) {
+        suggestions.push(formData.vendor);
+      }
     }
     
-    // Add product type as third suggestion if not already selected
+    // Add product type if not already selected
     if (formData.productType && !selectedTags.includes(formData.productType)) {
-      suggestions.push(formData.productType);
+      // Only add if not already in relevant tags
+      if (!suggestions.includes(formData.productType)) {
+        suggestions.push(formData.productType);
+      }
     }
     
-    // Add other product type tags if available
-    if (productTypeTags && productTypeTags.length > 0) {
+    // Add other product type specific tags if we still have room
+    if (suggestions.length < 12 && productTypeTags && productTypeTags.length > 0) {
       const filteredTags = productTypeTags.filter(tag => 
         !selectedTags.includes(tag) &&
+        !suggestions.includes(tag) && // Don't duplicate what we already have
         tag !== formData.vendor &&
-        tag !== currentYear &&
         tag !== formData.productType &&
         !allVendors.includes(tag) // Filter out all vendor names from suggestions
       );
       
-      // Sort alphabetically and add to suggestions
+      // Sort alphabetically and add remaining slots
       const sortedTags = filteredTags.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-      suggestions.push(...sortedTags);
+      const remainingSlots = 12 - suggestions.length;
+      suggestions.push(...sortedTags.slice(0, remainingSlots));
     }
     
     // Limit to 12 total suggestions (4 rows × 3 columns)
     return suggestions.slice(0, 12);
-  }, [productTypeTags, selectedTags, formData.vendor, formData.productType, allVendors]);
+  }, [productTypeTags, allTags, selectedTags, formData.vendor, formData.productType, formData.title, formData.category, allVendors]);
 
   // Organize tags into 3 columns for display
   const tagColumns = useMemo(() => {
@@ -306,7 +390,7 @@ export default function StepTags({ formData, onChange, onNext, onBack, productId
                     >
                       <BlockStack gap="300">
                         <Text variant="bodySm" as="p" tone="subdued">
-                          Recommended tags for your product
+                          Smart tag suggestions based on your product details
                         </Text>
                       
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>

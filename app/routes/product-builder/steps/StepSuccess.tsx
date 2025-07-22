@@ -12,12 +12,12 @@ interface StepSuccessProps {
 export default function StepSuccess({ productId, shop, variantCount, onBuildAnother, productTitle }: StepSuccessProps) {
   const preservedNavigate = usePreservedParamsNavigate();
   
-  const handleViewProduct = () => {
+  const getViewProductUrl = () => {
     if (productId) {
       const productIdNum = productId.replace('gid://shopify/Product/', '');
-      const adminUrl = `https://${shop}/admin/products/${productIdNum}`;
-      window.open(adminUrl, '_top');
+      return `shopify:admin/products/${productIdNum}`;
     }
+    return '';
   };
 
   const handleBuildAnother = () => {
@@ -28,9 +28,8 @@ export default function StepSuccess({ productId, shop, variantCount, onBuildAnot
     }
   };
 
-  const handleGoToCatalog = () => {
-    const catalogUrl = `https://${shop}/admin/products`;
-    window.open(catalogUrl, '_top');
+  const getCatalogUrl = () => {
+    return `shopify:admin/products`;
   };
 
   const getSubheadingText = () => {
@@ -87,15 +86,16 @@ export default function StepSuccess({ productId, shop, variantCount, onBuildAnot
           
           <Button
             variant="primary"
-            onClick={handleViewProduct}
+            url={getViewProductUrl()}
             fullWidth
             size="large"
+            disabled={!productId}
           >
             View Created Product
           </Button>
           
           <Button
-            onClick={handleGoToCatalog}
+            url={getCatalogUrl()}
             fullWidth
             size="large"
           >

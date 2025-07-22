@@ -205,6 +205,7 @@ export default function StepReview({ formData, onSubmit, onEdit, onBack, isSubmi
           <Card>
             <BlockStack gap="400">
               <Text variant="headingSm" as="h3">Description</Text>
+              <Divider />
               <BlockStack gap="300">
                 {formData.description ? (
                   <div 
