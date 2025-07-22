@@ -99,12 +99,15 @@ export const loader = async ({ request }: { request: Request }) => {
         let hasNextPage = true;
         let cursor: string | null = null;
         
-        // Fetch all vendors with pagination
+        // Fetch all vendors using the dedicated productVendors query
         while (hasNextPage) {
           const vendorQuery = `#graphql
             query getVendors($first: Int!, $after: String) {
               productVendors(first: $first, after: $after) {
-                edges
+                edges {
+                  cursor
+                  node
+                }
                 pageInfo {
                   hasNextPage
                   endCursor
@@ -127,10 +130,9 @@ export const loader = async ({ request }: { request: Request }) => {
           }
           
           if (vendorData.data?.productVendors?.edges) {
-            // edges is an array of strings for StringConnection
-            vendorData.data.productVendors.edges.forEach((vendor: string) => {
-              if (vendor) {
-                allVendors.push(vendor);
+            vendorData.data.productVendors.edges.forEach((edge: { node: string; cursor: string }) => {
+              if (edge.node) {
+                allVendors.push(edge.node);
               }
             });
             
@@ -505,8 +507,19 @@ export const loader = async ({ request }: { request: Request }) => {
         });
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Failed to fetch ${queryType}:`, error);
+    
+    // Check if this is a GraphQL error from Shopify
+    if (error.graphQLErrors) {
+      console.error('GraphQL Errors:', error.graphQLErrors);
+      const errorMessages = error.graphQLErrors.map((e: any) => e.message).join(', ');
+      return json({ 
+        error: `GraphQL Error: ${errorMessages}`,
+        details: error.graphQLErrors 
+      }, { status: 500 });
+    }
+    
     return json({ error: `Failed to fetch ${queryType}` }, { status: 500 });
   }
 }; 

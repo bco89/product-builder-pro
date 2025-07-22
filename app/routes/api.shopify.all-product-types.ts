@@ -65,8 +65,8 @@ export const loader = async ({ request }: { request: Request }) => {
         query getProductTypes($first: Int!, $after: String) {
           productTypes(first: $first, after: $after) {
             edges {
-              node
               cursor
+              node
             }
             pageInfo {
               hasNextPage
@@ -84,7 +84,7 @@ export const loader = async ({ request }: { request: Request }) => {
       const productTypesData = await productTypesResponse.json();
       
       if (productTypesData.data?.productTypes?.edges) {
-        productTypesData.data.productTypes.edges.forEach((edge: { node: string }) => {
+        productTypesData.data.productTypes.edges.forEach((edge: { node: string; cursor: string }) => {
           if (edge.node) {
             allProductTypes.push(edge.node);
           }
