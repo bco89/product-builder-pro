@@ -589,12 +589,6 @@ Format as JSON with these exact keys:
   "seoTitle": "SEO title (max 60 chars) with primary keyword",
   "seoDescription": "Meta description (max 155 chars) with compelling action"
 }
-
-CRITICAL HTML RULES:
-- Each bullet point must be its own <li> element
-- Never put multiple bullet points in one <li>
-- Never include bullet characters (•, -, *) inside <li> elements
-- Format lists as: <ul><li>Feature one</li><li>Feature two</li><li>Feature three</li></ul>
 `;
 
     // Log the complete prompt being sent to AI

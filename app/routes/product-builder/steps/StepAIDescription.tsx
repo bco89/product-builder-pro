@@ -38,6 +38,7 @@ interface StepAIDescriptionProps {
     description: string;
     seoTitle: string;
     seoDescription: string;
+    pricing: Array<{ price: string; compareAtPrice?: string; cost?: string }>;
   };
   onChange: (updates: any) => void;
   onNext: () => void;
@@ -113,6 +114,7 @@ export default function StepAIDescription({ formData, onChange, onNext, onBack, 
         productUrl: params.productUrl,
         additionalContext: params.additionalContext,
         hasImages: (formData.images || []).length > 0,
+        pricing: formData.pricing,
         shopSettings: {
           businessType: 'retailer',
           storeName: '',
