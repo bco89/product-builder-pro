@@ -25,13 +25,30 @@ import { OnboardingFlow } from '../components/OnboardingFlow';
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
+  
+  // Fetch shop name from Shopify
+  let shopName = '';
+  try {
+    const response = await admin.graphql(
+      `#graphql
+      query getShop {
+        shop {
+          name
+        }
+      }`
+    );
+    const responseJson = await response.json();
+    shopName = responseJson.data?.shop?.name || '';
+  } catch (error) {
+    console.error('Failed to fetch shop name:', error);
+  }
   
   const settings = await prisma.shopSettings.findUnique({
     where: { shop: session.shop }
   });
 
-  return json({ settings, shop: session.shop });
+  return json({ settings, shop: session.shop, shopName });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -40,14 +57,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   
   const settings = {
     storeName: formData.get('storeName')?.toString() || '',
-    storeLocation: formData.get('storeLocation')?.toString() || '',
     businessType: formData.get('businessType')?.toString() || '',
     uniqueSellingPoints: formData.get('uniqueSellingPoints')?.toString() || '',
     coreValues: formData.get('coreValues')?.toString() || '',
     brandPersonality: formData.get('brandPersonality')?.toString() || '',
-    targetCustomerOverride: formData.get('targetCustomerOverride')?.toString() || '',
-    additionalCustomerInsights: formData.get('additionalCustomerInsights')?.toString() || '',
-    excludedCustomerSegments: formData.get('excludedCustomerSegments')?.toString() || '',
   };
 
   await prisma.shopSettings.upsert({
@@ -63,7 +76,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Settings() {
-  const { settings } = useLoaderData<typeof loader>();
+  const { settings, shopName } = useLoaderData<typeof loader>();
   const submit = useSubmit();
   const navigation = useNavigation();
   const [toastActive, setToastActive] = useState(false);
@@ -71,15 +84,11 @@ export default function Settings() {
   
   // Initialize form state with settings data
   const [formData, setFormData] = useState({
-    storeName: settings?.storeName || '',
-    storeLocation: settings?.storeLocation || '',
+    storeName: settings?.storeName || shopName || '',
     businessType: settings?.businessType || 'retailer',
     uniqueSellingPoints: settings?.uniqueSellingPoints || '',
     coreValues: settings?.coreValues || '',
     brandPersonality: settings?.brandPersonality || '',
-    targetCustomerOverride: settings?.targetCustomerOverride || '',
-    additionalCustomerInsights: settings?.additionalCustomerInsights || '',
-    excludedCustomerSegments: settings?.excludedCustomerSegments || '',
   });
   
   const isSubmitting = navigation.state === 'submitting';
@@ -129,26 +138,19 @@ export default function Settings() {
                       name="storeName"
                       value={formData.storeName}
                       onChange={handleChange('storeName')}
-                      autoComplete="off"
-                    />
-                    <TextField
-                      label="Store Location"
-                      name="storeLocation"
-                      value={formData.storeLocation}
-                      onChange={handleChange('storeLocation')}
-                      helpText="e.g., 'Austin, Texas' or 'Made in USA'"
+                      helpText="Pre-filled with your Shopify store name. You can customize this if your brand name is different."
                       autoComplete="off"
                     />
                     
                     <BlockStack gap="200">
-                      <Text variant="bodyMd" as="p" fontWeight="semibold">Business Type</Text>
+                      <Text variant="bodyMd" as="p" fontWeight="semibold">Description Voice</Text>
                       <Text variant="bodySm" as="p" tone="subdued">
-                        Choose whether you create your own products or sell products from other brands
+                        This determines how your product descriptions are written. Choose based on your relationship with the products.
                       </Text>
                       <BlockStack gap="300">
                         <RadioButton
                           label="Product Creator / Manufacturer"
-                          helpText="I make, design, or manufacture my own products"
+                          helpText="Uses 'we/our' language (first-person voice) - Example: 'We handcraft each item...'"
                           checked={formData.businessType === 'manufacturer'}
                           id="manufacturer"
                           name="businessType"
@@ -156,7 +158,7 @@ export default function Settings() {
                         />
                         <RadioButton
                           label="Retailer / Reseller"
-                          helpText="I sell products from other brands or suppliers"
+                          helpText="Uses neutral, third-person descriptions - Example: 'This product features...'"
                           checked={formData.businessType === 'retailer'}
                           id="retailer"
                           name="businessType"
@@ -164,50 +166,6 @@ export default function Settings() {
                         />
                       </BlockStack>
                     </BlockStack>
-                  </FormLayout>
-                </BlockStack>
-              </Card>
-
-              {/* Customer Customization */}
-              <Card>
-                <BlockStack gap="400">
-                  <Text variant="headingMd" as="h2">Customer Customization (Optional)</Text>
-                  <Banner tone="info">
-                    <Text as="p">
-                      Our AI already understands typical customers for each product type. Use these fields only if your store serves a very specific niche or needs to exclude certain segments.
-                    </Text>
-                  </Banner>
-                  
-                  <FormLayout>
-                    <TextField
-                      label="Target Customer Override (Optional)"
-                      name="targetCustomerOverride"
-                      value={formData.targetCustomerOverride}
-                      onChange={handleChange('targetCustomerOverride')}
-                      multiline={2}
-                      helpText="Only fill this if your store serves a VERY specific niche different from typical product buyers. Example: 'Only eco-conscious millennials' or 'Exclusively B2B corporate buyers'"
-                      autoComplete="off"
-                    />
-                    
-                    <TextField
-                      label="Additional Customer Insights (Optional)"
-                      name="additionalCustomerInsights"
-                      value={formData.additionalCustomerInsights}
-                      onChange={handleChange('additionalCustomerInsights')}
-                      multiline={2}
-                      helpText="Any unique insights about your customers that supplement (not replace) standard customer profiles. Example: 'Our customers particularly value handmade craftsmanship' or 'Most buyers are repeat customers'"
-                      autoComplete="off"
-                    />
-                    
-                    <TextField
-                      label="Excluded Customer Segments (Optional)"
-                      name="excludedCustomerSegments"
-                      value={formData.excludedCustomerSegments}
-                      onChange={handleChange('excludedCustomerSegments')}
-                      multiline={2}
-                      helpText="Specify any customer segments you explicitly DON'T serve. Example: 'Not for bargain hunters' or 'Not suitable for beginners'"
-                      autoComplete="off"
-                    />
                   </FormLayout>
                 </BlockStack>
               </Card>

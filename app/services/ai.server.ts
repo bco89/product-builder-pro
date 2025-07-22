@@ -630,14 +630,11 @@ CRITICAL HTML RULES:
   }
 
   private buildCustomerAvatar(settings: any, config: ProductTypeConfig, productType: string): string {
-    // Combine generic product type customer with store-specific details
+    // Use product type customer profile
     const productTypeCustomer = this.getProductTypeCustomer(productType);
     
-    // Use override if provided, otherwise use product type demographics
-    const demographics = settings.targetCustomerOverride || productTypeCustomer.demographics;
-    
-    // Build the avatar with product-type defaults and any additional insights
-    let avatar = `- Who: ${demographics}
+    // Build the avatar with product-type defaults
+    const avatar = `- Who: ${productTypeCustomer.demographics}
 - Pain Points: ${productTypeCustomer.painPoints.join(', ')}
 - Desires: ${productTypeCustomer.desires.join(', ')}
 - Shopping Behavior: ${productTypeCustomer.shoppingBehavior}
@@ -645,16 +642,6 @@ CRITICAL HTML RULES:
 - Motivations: ${productTypeCustomer.motivations}
 - Price Expectations: ${productTypeCustomer.priceExpectations}
 - Brand Loyalty: ${productTypeCustomer.brandLoyalty}`;
-
-    // Add additional insights if provided
-    if (settings.additionalCustomerInsights) {
-      avatar += `\n- Additional Insights: ${settings.additionalCustomerInsights}`;
-    }
-    
-    // Add excluded segments if provided
-    if (settings.excludedCustomerSegments) {
-      avatar += `\n- NOT for: ${settings.excludedCustomerSegments}`;
-    }
     
     return avatar;
   }

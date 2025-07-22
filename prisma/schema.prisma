@@ -83,17 +83,11 @@ model ShopSettings {
   
   // Store Information
   storeName            String?   @db.VarChar(255)
-  storeLocation        String?   @db.VarChar(255)
   
   // Brand Identity Fields
   uniqueSellingPoints   String?   @db.Text
   coreValues           String?   @db.Text
   brandPersonality     String?   @db.Text
-  
-  // Customer Customization Fields (Optional)
-  targetCustomerOverride     String?   @db.Text
-  additionalCustomerInsights String?   @db.Text
-  excludedCustomerSegments   String?   @db.Text
   
   // Product Creation Perspective
   businessType         String?   @db.VarChar(50) // 'manufacturer' or 'retailer'

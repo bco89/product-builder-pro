@@ -14,13 +14,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const defaultSettings = {
     businessType: 'retailer',
     storeName: '',
-    storeLocation: '',
     uniqueSellingPoints: '',
     coreValues: '',
     brandPersonality: '',
-    targetCustomerOverride: '',
-    additionalCustomerInsights: '',
-    excludedCustomerSegments: '',
   };
 
   return json(settings ? { ...defaultSettings, ...settings } : defaultSettings);
