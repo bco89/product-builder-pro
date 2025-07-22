@@ -129,6 +129,25 @@ export const loader = async ({ request }: { request: Request }) => {
           // Check for GraphQL errors
           if (vendorData.errors) {
             console.error('GraphQL errors:', vendorData.errors);
+            
+            // Check if it's a scope error
+            const scopeError = vendorData.errors.find((e: any) => 
+              e.message?.includes('access denied') || 
+              e.message?.includes('Access denied') ||
+              e.message?.includes('requires one of the following access scopes')
+            );
+            
+            if (scopeError) {
+              // Return empty vendors array with a scope error flag
+              return json({
+                vendors: [],
+                totalVendors: 0,
+                error: 'missing_scope',
+                message: 'This app requires additional permissions to access vendor data. Please refresh the page to grant permissions.',
+                requiredScope: 'read_products'
+              }, { status: 200 }); // Return 200 to avoid breaking the UI
+            }
+            
             throw new Error('GraphQL query failed: ' + vendorData.errors.map((e: any) => e.message).join(', '));
           }
           
