@@ -6,21 +6,55 @@ import { Frame } from '@shopify/polaris';
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import { authenticate } from "../shopify.server";
 import type { LoaderFunctionArgs, HeadersFunction } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { json, redirect } from "@remix-run/node";
 import { useEffect, useMemo } from "react";
 import { useAppBridge } from "@shopify/app-bridge-react";
+import { checkScopes, buildOAuthUrl } from "../services/scopeVerification.server";
+import { logger } from "../services/logger.server";
 
 const queryClient = new QueryClient();
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const url = new URL(request.url);
+  const host = url.searchParams.get("host") || "";
+
+  // Check if we should skip scope verification (e.g., during OAuth callback)
+  const skipScopeCheck = url.searchParams.get("skipScopeCheck") === "true";
+  
+  if (!skipScopeCheck) {
+    try {
+      // Check if the app has the required scopes
+      const scopeCheck = await checkScopes(admin);
+      
+      if (!scopeCheck.hasRequiredScopes) {
+        logger.warn("Missing required scopes, redirecting to OAuth", {
+          shop: session.shop,
+          missingScopes: scopeCheck.missingScopes,
+          currentScopes: scopeCheck.currentScopes
+        });
+        
+        // Build OAuth URL and redirect
+        const oauthUrl = buildOAuthUrl(session.shop, host);
+        return redirect(oauthUrl);
+      }
+      
+      logger.info("Scope check passed", {
+        shop: session.shop,
+        scopes: scopeCheck.currentScopes
+      });
+    } catch (error) {
+      logger.error("Error during scope verification", { error, shop: session.shop });
+      // Continue loading the app even if scope check fails
+      // This prevents infinite redirect loops
+    }
+  }
 
   return json({
     apiKey: process.env.SHOPIFY_API_KEY || "",
-    host: url.searchParams.get("host")
+    host
   });
 };
 
