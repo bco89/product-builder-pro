@@ -427,7 +427,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
       return "Select a vendor first to see product type suggestions";
     }
     
-    return "Choose a product type that matches your item.";
+    return "Search for an existing product type or create a new one by typing";
   };
 
   return (
@@ -515,7 +515,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
                     placeholder="Search vendors or type to create new..."
                     autoComplete="off"
                     disabled={!!vendorsError}
-                    helpText="Search existing vendors or type a new vendor name to create one"
+                    helpText="Search for an existing vendor or create a new one by typing"
                   />
                 }
               >
@@ -568,7 +568,6 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
               <LoadingProgress
                 variant="data-fetch"
                 messages={[`Loading product types for ${formData.vendor}...`]}
-                currentCount={filteredProductTypes.length}
               />
             ) : (
               <Autocomplete
