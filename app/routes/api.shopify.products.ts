@@ -128,7 +128,7 @@ export const loader = async ({ request }: { request: Request }) => {
           
           // Check for GraphQL errors
           if (vendorData.errors) {
-            console.error('GraphQL errors:', vendorData.errors);
+            console.error('GraphQL errors:', JSON.stringify(vendorData.errors, null, 2));
             
             // Check if it's a scope error
             const scopeError = vendorData.errors.find((e: any) => 
