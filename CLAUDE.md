@@ -96,12 +96,48 @@ When working with Shopify GraphQL, reference these local docs first:
 4. **Logging**: Use the logger service for structured logging
 5. **TypeScript**: Leverage existing type definitions in `/app/types`
 
+### Authentication & Scope Management
+
+**Scope Handling**:
+- The app uses App Bridge for scope management in managed installation mode
+- Server-side scope checks should NOT redirect to OAuth URLs
+- Missing scopes are handled by the client-side `ScopeCheck` component
+- Sessions with missing scopes are preserved (not deleted) to allow App Bridge handling
+
+**Key Components**:
+- `app/components/ScopeCheck.tsx` - Wraps components requiring specific scopes
+- `app/services/auth.server.ts` - Authentication wrapper with logging (preserves sessions)
+- `app/services/scopeVerification.server.ts` - Server-side scope checking
+- `app/routes/app.tsx` - Main app loader returns scope check results to client
+
+**API Version**:
+- Currently using Shopify API version January 2025 (2025-01)
+- Configured in `app/shopify.server.js` as `ApiVersion.January25`
+- Must match webhook API version in `shopify.app.toml`
+
 ### Testing & Deployment Notes
 
 - No test framework is currently configured
 - Use `npm run lint` before committing
 - For production deployment, set `NODE_ENV=production`
 - Database connection configured via `DATABASE_URL` environment variable
+
+### Production Deployment (Fly.io)
+
+**Database**:
+- Production uses PostgreSQL (not MySQL)
+- Prisma schema must have `provider = "postgresql"`
+- Local development can use MySQL with a different schema if needed
+
+**Deployment Process**:
+- Push to GitHub main branch triggers automatic deployment
+- Monitor deployment: `fly logs --app product-builder-pro`
+- Deployment typically takes 1-3 minutes
+
+**Environment Variables**:
+- All Shopify keys and secrets are managed by Fly.io
+- Database URL is automatically configured
+- No manual environment variable setup needed
 
 ### Common Tasks
 

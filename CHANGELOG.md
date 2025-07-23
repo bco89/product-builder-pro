@@ -1,5 +1,47 @@
 # @shopify/shopify-app-template-remix
 
+## 2025.01.23
+
+### Fixed Shopify App Bridge Scope Authentication Flow
+
+- **Fixed Production Database Configuration**:
+  - Reverted Prisma schema from MySQL to PostgreSQL for Fly.io compatibility
+  - Resolved deployment failures caused by database provider mismatch
+  - Production uses PostgreSQL while local development can use MySQL
+
+- **Resolved Authentication Loop for Missing Scopes**:
+  - Fixed infinite loop where sessions were repeatedly deleted and recreated when `read_products` scope was missing
+  - Updated authentication service to preserve sessions with missing scopes
+  - Removed server-side OAuth redirects that conflicted with App Bridge managed installations
+  - App Bridge now properly handles scope requests through its managed flow
+
+- **Fixed React Hooks Error #301**:
+  - Resolved "Rendered more hooks than during the previous render" error in StepVendorType
+  - Refactored vendor query to return array directly instead of response object
+  - Used `useMemo` for scope error checking to ensure consistent hook ordering
+  - Eliminated conditional variable assignments that could change hook call order
+
+- **Updated Shopify API Version**:
+  - Upgraded from October 2024 (2024-10) to January 2025 API version
+  - Fixed GraphQL errors when fetching vendors using `productVendors` query
+  - Aligned API version with webhook configuration (2025-01)
+  - Improved GraphQL error logging with JSON.stringify for better debugging
+
+- **Enhanced User Experience for Scope Requests**:
+  - Added user-friendly warning banner when permissions are missing
+  - Clear messaging that "read_products" permission is required
+  - ScopeCheck component now properly detects and requests missing scopes
+  - Better error handling with fallback to manual re-authentication if needed
+
+- **Technical Implementation Details**:
+  - Server returns scope check results to client without redirecting
+  - Client-side ScopeCheck component handles permission requests via App Bridge
+  - Added initialization delay to ensure App Bridge is fully loaded
+  - Improved error logging for scope-related issues
+  - Fixed StoreCache model reference in clear-session route
+
+These changes ensure proper handling of Shopify scope requests in managed installation mode, preventing authentication loops and providing a smooth user experience when additional permissions are needed.
+
 ## 2025.01.22
 
 ### Simplified Settings Page & Enhanced User Experience
