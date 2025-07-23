@@ -73,7 +73,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
   });
 
   // Fetch all vendors
-  const { data: vendorsResponse, isLoading: vendorsLoading, error: vendorsError } = useQuery({
+  const { data: vendorsData, isLoading: vendorsLoading, error: vendorsError } = useQuery({
     queryKey: ['vendors'],
     queryFn: async () => {
       const response = await fetch('/api/shopify/products?type=vendors');
@@ -87,13 +87,14 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
         throw new Error('missing_scope');
       }
       
-      return data;
+      return data.vendors || [];
     }
   });
   
-  // Extract vendors data and check for scope errors
-  const vendorsData = vendorsResponse?.vendors || [];
-  const hasScopeError = vendorsError?.message === 'missing_scope' || vendorsResponse?.error === 'missing_scope';
+  // Check for scope errors - using useMemo to ensure consistent hook ordering
+  const hasScopeError = useMemo(() => {
+    return vendorsError?.message === 'missing_scope';
+  }, [vendorsError]);
 
 
 
