@@ -18,7 +18,7 @@ export const loader: LoaderFunction = async ({ request }) => {
     });
     
     // Clear cache entries for this shop
-    await prisma.cache.deleteMany({
+    await prisma.storeCache.deleteMany({
       where: {
         shop: session.shop
       }

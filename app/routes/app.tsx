@@ -6,10 +6,10 @@ import { Frame } from '@shopify/polaris';
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import { authenticate } from "../shopify.server";
 import type { LoaderFunctionArgs, HeadersFunction } from "@remix-run/node";
-import { json, redirect } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { useEffect, useMemo } from "react";
 import { useAppBridge } from "@shopify/app-bridge-react";
-import { checkScopes, buildOAuthUrl } from "../services/scopeVerification.server";
+import { checkScopes } from "../services/scopeVerification.server";
 import { logger } from "../services/logger.server";
 
 const queryClient = new QueryClient();
@@ -24,27 +24,28 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Check if we should skip scope verification (e.g., during OAuth callback)
   const skipScopeCheck = url.searchParams.get("skipScopeCheck") === "true";
   
+  let scopeCheck = { hasRequiredScopes: true, missingScopes: [] as string[], currentScopes: [] as string[] };
+  
   if (!skipScopeCheck) {
     try {
       // Check if the app has the required scopes
-      const scopeCheck = await checkScopes(admin);
+      scopeCheck = await checkScopes(admin);
       
       if (!scopeCheck.hasRequiredScopes) {
-        logger.warn("Missing required scopes, redirecting to OAuth", {
+        logger.warn("Missing required scopes, will be handled by App Bridge", {
           shop: session.shop,
           missingScopes: scopeCheck.missingScopes,
           currentScopes: scopeCheck.currentScopes
         });
         
-        // Build OAuth URL and redirect
-        const oauthUrl = buildOAuthUrl(session.shop, host);
-        return redirect(oauthUrl);
+        // Don't redirect - let App Bridge handle scope requests for managed installations
+        // The client-side ScopeCheck component will handle this
+      } else {
+        logger.info("Scope check passed", {
+          shop: session.shop,
+          scopes: scopeCheck.currentScopes
+        });
       }
-      
-      logger.info("Scope check passed", {
-        shop: session.shop,
-        scopes: scopeCheck.currentScopes
-      });
     } catch (error) {
       logger.error("Error during scope verification", { error, shop: session.shop });
       // Continue loading the app even if scope check fails
@@ -54,7 +55,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   return json({
     apiKey: process.env.SHOPIFY_API_KEY || "",
-    host
+    host,
+    scopeCheck // Return scope check results to client
   });
 };
 
@@ -126,7 +128,7 @@ function AppContent() {
 }
 
 export default function App() {
-  const { apiKey, host } = useLoaderData<typeof loader>();
+  const { apiKey } = useLoaderData<typeof loader>();
 
   return (
     <QueryClientProvider client={queryClient}>
