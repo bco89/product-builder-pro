@@ -73,7 +73,7 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
   });
 
   // Fetch all vendors
-  const { data: vendorsData, isLoading: vendorsLoading, error: vendorsError } = useQuery({
+  const { data: vendorsResponse, isLoading: vendorsLoading, error: vendorsError } = useQuery({
     queryKey: ['vendors'],
     queryFn: async () => {
       const response = await fetch('/api/shopify/products?type=vendors');
@@ -81,9 +81,19 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
         throw new Error('Failed to fetch vendors');
       }
       const data = await response.json();
-      return data.vendors || [];
+      
+      // Check for scope error
+      if (data.error === 'missing_scope') {
+        throw new Error('missing_scope');
+      }
+      
+      return data;
     }
   });
+  
+  // Extract vendors data and check for scope errors
+  const vendorsData = vendorsResponse?.vendors || [];
+  const hasScopeError = vendorsError?.message === 'missing_scope' || vendorsResponse?.error === 'missing_scope';
 
 
 
@@ -464,7 +474,17 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
         <BlockStack gap="500">
           <Text variant="headingMd" as="h2">Select Vendor & Product Type</Text>
           
-          {hasErrors && (
+          {hasScopeError && (
+            <Banner tone="warning" title="Additional permissions required">
+              <p>
+                This app requires the "read_products" permission to access vendor data. 
+                The permissions request should appear automatically. If it doesn't, 
+                please refresh the page to grant the necessary permissions.
+              </p>
+            </Banner>
+          )}
+          
+          {hasErrors && !hasScopeError && (
             <Banner tone="critical" title="Error loading data">
               <p>
                 {vendorsError && "Failed to load vendors. "}
