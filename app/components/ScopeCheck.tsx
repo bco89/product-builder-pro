@@ -10,15 +10,23 @@ export function ScopeCheck({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [hasRequiredScopes, setHasRequiredScopes] = useState(false);
   const [missingScopes, setMissingScopes] = useState<string[]>([]);
+  const [retryCount, setRetryCount] = useState(0);
+  const [error, setError] = useState<{ message: string; details?: string } | null>(null);
+  const maxRetries = 3;
+
+  // Detect mobile device
+  const isMobile = typeof navigator !== 'undefined' && 
+    /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const initTimeout = isMobile ? 3000 : 1500;
 
   useEffect(() => {
     checkScopes();
-  }, []);
+  }, [retryCount]);
 
   const checkScopes = async () => {
     try {
       // Add delay to ensure App Bridge is fully initialized
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, initTimeout));
       
       const { granted } = await shopify.scopes.query();
       console.log('App Bridge scope check - Granted scopes:', granted);
@@ -28,10 +36,12 @@ export function ScopeCheck({ children }: { children: React.ReactNode }) {
       if (missing.length === 0) {
         setHasRequiredScopes(true);
         console.log('All required scopes are granted');
+        setLoading(false);
       } else {
         setMissingScopes(missing);
         setHasRequiredScopes(false);
         console.log('Missing scopes:', missing);
+        setLoading(false);
       }
     } catch (error: any) {
       console.error('Error checking scopes:', {
@@ -40,17 +50,41 @@ export function ScopeCheck({ children }: { children: React.ReactNode }) {
         errorMessage: error?.message,
         errorStack: error?.stack,
         appBridgeAvailable: !!shopify,
-        scopesAPIAvailable: !!shopify?.scopes
+        scopesAPIAvailable: !!shopify?.scopes,
+        isMobile,
+        retryCount
       });
       
-      // If the scopes API is not available, assume we have the required scopes
-      // This can happen in development or with older App Bridge versions
+      // If the scopes API is not available, check if we should retry
       if (error?.message?.includes('scopes') || error?.message?.includes('undefined')) {
-        console.warn('Scopes API may not be available, assuming scopes are granted');
-        setHasRequiredScopes(true);
+        if (retryCount < maxRetries) {
+          const backoff = Math.pow(2, retryCount) * 1000;
+          console.log(`Retrying scope check in ${backoff}ms (attempt ${retryCount + 1}/${maxRetries})`);
+          setTimeout(() => {
+            setRetryCount(prev => prev + 1);
+          }, backoff);
+          return; // Don't set loading to false yet
+        } else {
+          console.error(`Failed to initialize after ${maxRetries} attempts`);
+          // On mobile, show user-friendly error instead of assuming scopes
+          if (isMobile) {
+            setError({
+              message: 'Unable to verify app permissions',
+              details: 'Please try refreshing the page or opening the app on a desktop browser.'
+            });
+            setLoading(false);
+            return;
+          }
+          // On desktop, fall back to assuming scopes are granted
+          console.warn('Scopes API not available after retries, assuming scopes are granted');
+          setHasRequiredScopes(true);
+        }
       }
     } finally {
-      setLoading(false);
+      // Only set loading to false if we're not going to retry
+      if (retryCount >= maxRetries) {
+        setLoading(false);
+      }
     }
   };
 
@@ -99,7 +133,31 @@ export function ScopeCheck({ children }: { children: React.ReactNode }) {
         <Page>
           <Card>
             <p>Checking app permissions...</p>
+            {retryCount > 0 && (
+              <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+                Retry attempt {retryCount} of {maxRetries}...
+              </p>
+            )}
           </Card>
+        </Page>
+      </ScopeContext.Provider>
+    );
+  }
+
+  if (error) {
+    return (
+      <ScopeContext.Provider value={{ hasRequiredScopes: false, loading: false, missingScopes: [] }}>
+        <Page>
+          <Banner
+            title={error.message}
+            tone="critical"
+            action={{
+              content: 'Refresh page',
+              onAction: () => window.location.reload()
+            }}
+          >
+            {error.details && <p>{error.details}</p>}
+          </Banner>
         </Page>
       </ScopeContext.Provider>
     );
