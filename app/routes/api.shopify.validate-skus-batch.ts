@@ -1,7 +1,7 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
 import { batchValidateSkus, batchValidateBarcodes } from "../utils/validation";
-import { logger, Logger } from "../services/logger.server.ts";
+import { logger, Logger } from "../services/logger.server";
 import type { BatchValidationRequest } from "../types/shopify";
 
 interface ValidationConflict {
@@ -19,8 +19,8 @@ interface BatchValidationResult {
   conflicts: ValidationConflict[];
 }
 
-export const action = async ({
-  const requestId = Logger.generateRequestId(); request }: { request: Request }): Promise<Response> => {
+export const action = async ({ request }: { request: Request }): Promise<Response> => {
+  const requestId = Logger.generateRequestId();
   const { admin, session } = await authenticateAdmin(request);
   const context = {
     operation: 'validateskusbatch',

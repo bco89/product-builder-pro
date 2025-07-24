@@ -4,9 +4,9 @@
  */
 
 import { authenticate as shopifyAuthenticate } from "../shopify.server";
-import { logger } from "./logger.server.ts";
-import { sessionNeedsRefresh } from "./scopeValidator.server.ts";
-import db from "../db.server.ts";
+import { logger } from "./logger.server";
+import { sessionNeedsRefresh } from "./scopeValidator.server";
+import db from "../db.server";
 
 /**
  * Authenticate admin requests with logging

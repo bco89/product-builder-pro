@@ -1,6 +1,6 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
-import { logger, Logger } from "../services/logger.server.ts";
+import { logger, Logger } from "../services/logger.server";
 
 interface ProductOption {
   name: string;
@@ -58,8 +58,8 @@ function generateVariantCombinations(options: ProductOption[]): string[][] {
   return cartesian(...optionValues);
 }
 
-export const action = async ({
-  const requestId = Logger.generateRequestId(); request }: { request: Request }) => {
+export const action = async ({ request }: { request: Request }) => {
+  const requestId = Logger.generateRequestId();
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405 });
   }

@@ -9,8 +9,8 @@ import {
 } from "../services/errorHandler.server";
 import type { GraphQLErrorResponse } from "../types/errors";
 
-export const loader = async ({
-  const requestId = Logger.generateRequestId(); request }: LoaderFunctionArgs) => {
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const requestId = Logger.generateRequestId();
   const { session } = await authenticateAdmin(request);
   
   const settings = await prisma.shopSettings.findUnique({

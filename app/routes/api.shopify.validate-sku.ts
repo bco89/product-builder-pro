@@ -1,7 +1,7 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
 import { checkSkuExists } from "../utils/validation";
-import { logger, Logger } from "../services/logger.server.ts";
+import { logger, Logger } from "../services/logger.server";
 import { requestCache, RequestCache } from "../services/requestCache.server";
 import { ShopDataService } from "../services/shopData.server";
 import { errorResponse } from "../services/errorHandler.server";

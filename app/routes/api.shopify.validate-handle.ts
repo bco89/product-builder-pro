@@ -1,7 +1,7 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
 import { generateHandle } from "../utils/handleGenerator";
-import { logger, Logger } from "../services/logger.server.ts";
+import { logger, Logger } from "../services/logger.server";
 import { VALIDATE_PRODUCT_HANDLE } from "../graphql";
 import { 
   retryWithBackoff, 
@@ -10,8 +10,8 @@ import {
 } from "../services/errorHandler.server";
 import type { GraphQLErrorResponse } from "../types/errors";
 
-export const loader = async ({
-  const requestId = Logger.generateRequestId(); request }: { request: Request }): Promise<Response> => {
+export const loader = async ({ request }: { request: Request }): Promise<Response> => {
+  const requestId = Logger.generateRequestId();
   const { admin, session } = await authenticateAdmin(request);
   const context = {
     operation: 'validatehandle',

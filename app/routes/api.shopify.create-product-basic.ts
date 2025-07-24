@@ -1,6 +1,6 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
-import { logger, Logger } from "../services/logger.server.ts";
+import { logger, Logger } from "../services/logger.server";
 import { stripHTML } from "../services/prompts/formatting";
 import type { CreateProductRequest } from "../types/shopify";
 import { CREATE_PRODUCT_WITH_MEDIA, PRODUCT_VARIANTS_BULK_UPDATE } from "../graphql";
@@ -18,7 +18,8 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  const { admin, session } = await authenticateAdmin(request);
+  const auth = await authenticateAdmin(request);
+  const { admin, session } = auth;
   const formData = await request.json() as CreateProductRequest & { 
     imageUrls?: string[];
     category?: { id: string; name: string; };
@@ -118,7 +119,7 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
                 productId: product.id,
                 variants: [{
                   id: defaultVariantId,
-                  price: formData.pricing.price || "0.00"
+                  price: formData.pricing?.price || "0.00"
                 }]
               }
             }

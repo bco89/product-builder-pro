@@ -1,6 +1,6 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
-import { logger, Logger } from "../services/logger.server.ts";
+import { logger, Logger } from "../services/logger.server";
 import { STAGED_UPLOADS_CREATE } from "../graphql";
 
 interface StagedUploadInput {
@@ -11,8 +11,8 @@ interface StagedUploadInput {
   fileSize?: string;
 }
 
-export const action = async ({
-  const requestId = Logger.generateRequestId(); request }: { request: Request }): Promise<Response> => {
+export const action = async ({ request }: { request: Request }): Promise<Response> => {
+  const requestId = Logger.generateRequestId();
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405 });
   }

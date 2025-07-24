@@ -11,8 +11,8 @@ import {
 } from "../services/errorHandler.server";
 import type { GraphQLErrorResponse } from "../types/errors";
 
-export const action = async ({
-  const requestId = Logger.generateRequestId(); request }: ActionFunctionArgs) => {
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const requestId = Logger.generateRequestId();
   try {
     const { session } = await authenticateAdmin(request);
     

@@ -51,8 +51,8 @@ interface ProductsData {
   };
 }
 
-export const loader = async ({
-  const requestId = Logger.generateRequestId(); request }: { request: Request }) => {
+export const loader = async ({ request }: { request: Request }) => {
+  const requestId = Logger.generateRequestId();
   const { admin, session } = await authenticateAdmin(request);
   const context = {
     operation: 'products',

@@ -1,7 +1,7 @@
 import { CacheService } from './cacheService';
 import { logger } from './logger.server';
 import { ShopDataService } from './shopData.server';
-import type { AdminApiContext } from '@shopify/shopify-app-remix/server';
+// Using any type for admin as it's a Shopify-specific object with graphql method
 import { GET_VENDORS, GET_PRODUCT_TYPES_BY_VENDOR } from '../graphql';
 
 interface ProductNode {
@@ -32,7 +32,7 @@ export class CacheWarmingService {
   /**
    * Pre-populate cache with common data on app installation
    */
-  static async warmCache(shop: string, admin: AdminApiContext) {
+  static async warmCache(shop: string, admin: any) {
     logger.info('Starting cache warming', { shop });
     
     try {
@@ -52,7 +52,7 @@ export class CacheWarmingService {
   /**
    * Warm the vendors cache
    */
-  private static async warmVendorsCache(shop: string, admin: AdminApiContext) {
+  private static async warmVendorsCache(shop: string, admin: any) {
     try {
       const allVendors: string[] = [];
       let hasNextPage = true;
@@ -80,7 +80,7 @@ export class CacheWarmingService {
             after: cursor 
           } 
         });
-        const vendorData = await vendorResponse.json();
+        const vendorData: any = await vendorResponse.json();
         
         if (vendorData.errors) {
           logger.error('GraphQL errors warming vendors cache', { 
@@ -128,7 +128,7 @@ export class CacheWarmingService {
   /**
    * Warm the product types cache
    */
-  private static async warmProductTypesCache(shop: string, admin: AdminApiContext) {
+  private static async warmProductTypesCache(shop: string, admin: any) {
     try {
       // Use ShopDataService to fetch all product types efficiently
       const shopDataService = ShopDataService.getInstance(shop);
@@ -177,7 +177,7 @@ export class CacheWarmingService {
                 after: cursor 
               } 
             });
-            const data = await response.json();
+            const data: any = await response.json();
             
             if (data.data?.products?.edges) {
               data.data.products.edges.forEach((edge: { node: { productType: string } }) => {
@@ -220,7 +220,7 @@ export class CacheWarmingService {
   /**
    * Refresh stale cache data in the background
    */
-  static async refreshStaleCache(shop: string, admin: AdminApiContext, dataType: 'vendors' | 'productTypes') {
+  static async refreshStaleCache(shop: string, admin: any, dataType: 'vendors' | 'productTypes') {
     logger.info('Refreshing stale cache in background', { shop, dataType });
     
     try {

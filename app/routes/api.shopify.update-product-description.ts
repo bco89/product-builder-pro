@@ -11,8 +11,8 @@ import {
 } from "../services/errorHandler.server";
 import type { GraphQLErrorResponse } from "../types/errors";
 
-export const action = async ({
-  const requestId = Logger.generateRequestId(); request }: ActionFunctionArgs) => {
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const requestId = Logger.generateRequestId();
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405 });
   }

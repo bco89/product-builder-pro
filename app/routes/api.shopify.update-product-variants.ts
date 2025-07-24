@@ -1,6 +1,6 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
-import { logger, Logger } from "../services/logger.server.ts";
+import { logger, Logger } from "../services/logger.server";
 import { smartSort } from "../utils/smartSort";
 import { 
   GET_PRODUCT_VARIANTS,

@@ -175,7 +175,7 @@ export const GET_PRODUCT_VARIANTS = `
 
 export const VALIDATE_PRODUCT_HANDLE = `
   query validateProductHandle($handle: String!) {
-    productByHandle(handle: $handle) {
+    productByIdentifier(identifier: { handle: $handle }) {
       id
       title
     }

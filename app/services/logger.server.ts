@@ -147,3 +147,6 @@ class Logger {
 
 // Create singleton logger instance
 export const logger = new Logger();
+
+// Export the Logger class for static method access
+export { Logger };
