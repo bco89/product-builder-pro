@@ -71,13 +71,13 @@ export async function checkHandleExists(
     });
 
     const result = await response.json() as ShopifyGraphQLResponse<{
-      productByHandle: {
+      productByIdentifier: {
         id: string;
         title: string;
       } | null;
     }>;
 
-    const existingProduct = result.data?.productByHandle;
+    const existingProduct = result.data?.productByIdentifier;
     const exists = !!existingProduct;
 
     if (exists) {

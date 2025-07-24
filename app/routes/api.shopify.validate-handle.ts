@@ -26,7 +26,7 @@ export const loader = async ({ request }: { request: Request }): Promise<Respons
   }
 
   try {
-    // Query Shopify to check if handle exists using productByHandle
+    // Query Shopify to check if handle exists using productByIdentifier
     const response = await admin.graphql(VALIDATE_PRODUCT_HANDLE, {
       variables: { handle }
     });
@@ -36,8 +36,8 @@ export const loader = async ({ request }: { request: Request }): Promise<Respons
       throw new Error('Invalid GraphQL response');
     }
     
-    // productByHandle returns null if no product exists with that handle
-    const existingProduct = result.data.productByHandle;
+    // productByIdentifier returns null if no product exists with that handle
+    const existingProduct = result.data.productByIdentifier;
     
     const available = !existingProduct;
     
@@ -57,7 +57,7 @@ export const loader = async ({ request }: { request: Request }): Promise<Respons
         
         const suggestionResult = await suggestionResponse.json();
         
-        if (suggestionResult.data && !suggestionResult.data.productByHandle) {
+        if (suggestionResult.data && !suggestionResult.data.productByIdentifier) {
           suggestions.push(suggestion);
           if (suggestions.length >= 3) break; // Limit to 3 suggestions
         }

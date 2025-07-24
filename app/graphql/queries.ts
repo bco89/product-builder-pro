@@ -53,10 +53,10 @@ export const GET_STORE_METRICS = `
           node
         }
       }
-      productVendors(first: 100) {
-        edges {
-          node
-        }
+    }
+    productVendors(first: 100) {
+      edges {
+        node
       }
     }
     products(first: 1) {
@@ -79,11 +79,9 @@ export const GET_PRODUCT_COUNT = `
 
 export const GET_VENDORS = `
   query getVendors {
-    shop {
-      productVendors(first: 100) {
-        edges {
-          node
-        }
+    productVendors(first: 100) {
+      edges {
+        node
       }
     }
   }

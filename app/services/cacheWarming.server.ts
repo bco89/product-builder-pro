@@ -2,18 +2,8 @@ import { CacheService } from './cacheService';
 import { logger } from './logger.server';
 import { ShopDataService } from './shopData.server';
 // Using any type for admin as it's a Shopify-specific object with graphql method
-import { GET_VENDORS, GET_PRODUCT_TYPES_BY_VENDOR } from '../graphql';
 
-interface ProductNode {
-  productType: string;
-  vendor: string;
-}
-
-interface ProductEdge {
-  node: ProductNode;
-}
-
-// Removed unused interface - using direct type annotations instead
+// Removed unused interfaces - using direct type annotations instead
 
 interface VendorsData {
   vendors: string[];
@@ -62,7 +52,7 @@ export class CacheWarmingService {
       while (hasNextPage) {
         const vendorQuery = `#graphql
           query getVendors($first: Int!, $after: String) {
-            productVendors(first: $first, after: $after, sort: { sortKey: CREATED_AT, reverse: true }) {
+            productVendors(first: $first, after: $after, reverse: true) {
               edges {
                 cursor
                 node
