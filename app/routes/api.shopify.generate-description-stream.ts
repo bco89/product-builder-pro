@@ -123,11 +123,102 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               extractionMethod: scrapedData?.extractionMethod
             });
           } catch (error) {
-    return errorResponse(error, context);
+            // Handle URL scraping error
+            logger.error('URL scraping failed', error, { 
+              shop: session.shop, 
+              url: data.productUrl 
+            });
+            
+            sendEvent({ 
+              stage: 2, 
+              progress: 100, 
+              message: "Could not extract data from URL, using provided information",
+              extractedFeatures,
+              error: true 
+            });
+          }
+        } else {
+          // Stage 2: Reviewing context
+          sendEvent({ 
+            stage: 2, 
+            progress: 100, 
+            message: "Reviewing product context",
+            extractedFeatures 
+          });
+        }
+
+        // Stage 3: AI Description Generation
+        sendEvent({ stage: 3, progress: 0, message: "Generating product description" });
+        
+        const aiService = new AIService();
+        
+        // Build context for AI
+        const context = {
+          productTitle: data.productTitle,
+          productType: data.productType,
+          vendor: data.vendor,
+          category: data.category,
+          tags: data.tags || [],
+          features: extractedFeatures,
+          scrapedData: scrapedData,
+          tone: data.tone || 'professional',
+          focusKeywords: data.focusKeywords || []
+        };
+        
+        // Generate description
+        const description = await aiService.generateProductDescription(
+          context,
+          session.shop
+        );
+        
+        // Log the generation
+        if (data.productId) {
+          await prisma.promptLog.create({
+            data: {
+              shop: session.shop,
+              productId: data.productId,
+              prompt: JSON.stringify(context),
+              response: description,
+              model: "gpt-4",
+              tokensUsed: 0, // Would need to get this from AI service
+              responseTime: 0, // Would need to track this
+            },
+          });
+        }
+        
+        sendEvent({ 
+          stage: 3, 
+          progress: 100, 
+          message: "Description generated successfully",
+          description,
+          complete: true 
+        });
+        
+        // Close the stream
+        controller.close();
+        
+      } catch (error) {
+        logger.error('Stream generation failed', error, { 
+          shop: session.shop,
+          requestId 
+        });
+        
+        // Send error event
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+        sendEvent({ 
+          error: true, 
+          message: errorMessage,
+          complete: true 
+        });
+        
+        controller.close();
+      }
+    }
   });
 
   return new Response(stream, { headers });
   } catch (error) {
-    return errorResponse(error, context);
+    logger.error('Failed to create description stream', error, { requestId });
+    return errorResponse(error, { requestId });
   }
 };
