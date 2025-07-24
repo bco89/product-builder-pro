@@ -1,5 +1,5 @@
 import { json } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { authenticateAdmin } from "../services/auth.server";
 import { logger } from "../services/logger.server.ts";
 import { smartSort } from "../utils/smartSort";
 
@@ -24,7 +24,7 @@ export const action = async ({ request }: { request: Request }) => {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  const { admin } = await authenticate.admin(request);
+  const { admin } = await authenticateAdmin(request);
   const { productId, options, skus, barcodes, pricing, weight, weightUnit } = await request.json();
 
   try {

@@ -1,5 +1,5 @@
 import { json } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { authenticateAdmin } from "../services/auth.server";
 import { logger } from "../services/logger.server.ts";
 
 interface TaxonomyCategory {
@@ -14,7 +14,7 @@ interface TaxonomyCategory {
 }
 
 export const loader = async ({ request }: { request: Request }) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin } = await authenticateAdmin(request);
   const url = new URL(request.url);
   const productType = url.searchParams.get("productType");
   const parentId = url.searchParams.get("parentId");

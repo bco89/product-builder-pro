@@ -1,5 +1,5 @@
 import { json } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { authenticateAdmin } from "../services/auth.server";
 import { batchValidateSkus, batchValidateBarcodes } from "../utils/validation";
 import { logger } from "../services/logger.server.ts";
 import type { BatchValidationRequest } from "../types/shopify";
@@ -20,7 +20,7 @@ interface BatchValidationResult {
 }
 
 export const action = async ({ request }: { request: Request }): Promise<Response> => {
-  const { admin } = await authenticate.admin(request);
+  const { admin } = await authenticateAdmin(request);
   const requestData: BatchValidationRequest & { barcodes?: string[] } = await request.json();
   const { values: skus, barcodes = [], productId } = requestData;
 

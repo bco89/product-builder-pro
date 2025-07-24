@@ -1,5 +1,5 @@
 import { json } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { authenticateAdmin } from "../services/auth.server";
 import { requestCache, RequestCache } from "../services/requestCache.server";
 import { ShopDataService } from "../services/shopData.server";
 import { logger } from "../services/logger.server";
@@ -14,7 +14,7 @@ interface BarcodeValidationResult {
 }
 
 export const loader = async ({ request }: { request: Request }) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin } = await authenticateAdmin(request);
   const url = new URL(request.url);
   const barcode = url.searchParams.get('barcode');
 

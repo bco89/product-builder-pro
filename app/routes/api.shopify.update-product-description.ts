@@ -1,5 +1,5 @@
 import { json } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { authenticateAdmin } from "../services/auth.server";
 import { logger } from "../services/logger.server";
 import { stripHTML } from "../services/prompts/formatting";
 import type { ActionFunctionArgs } from "@remix-run/node";
@@ -9,7 +9,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  const { admin } = await authenticate.admin(request);
+  const { admin } = await authenticateAdmin(request);
   const formData = await request.json();
 
   try {

@@ -1,5 +1,5 @@
 import { json } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { authenticateAdmin } from "../services/auth.server";
 import { logger } from "../services/logger.server.ts";
 import { stripHTML } from "../services/prompts/formatting";
 import type { CreateProductRequest } from "../types/shopify";
@@ -15,7 +15,7 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  const { admin } = await authenticate.admin(request);
+  const { admin } = await authenticateAdmin(request);
   const formData = await request.json() as CreateProductRequest & { 
     imageUrls?: string[];
     category?: { id: string; name: string; };

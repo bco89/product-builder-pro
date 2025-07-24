@@ -1,5 +1,5 @@
 import { json } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { authenticateAdmin } from "../services/auth.server";
 import { CacheService } from "../services/cacheService";
 import { CacheWarmingService } from "../services/cacheWarming.server";
 import { requestCache, RequestCache } from "../services/requestCache.server";
@@ -33,7 +33,7 @@ interface ProductTypesData {
 }
 
 export const loader = async ({ request }: { request: Request }) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin } = await authenticateAdmin(request);
   const url = new URL(request.url);
   const vendor = url.searchParams.get('vendor');
   

@@ -1,12 +1,12 @@
 import { json } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { authenticateAdmin } from "../services/auth.server";
 import { checkSkuExists } from "../utils/validation";
 import { logger } from "../services/logger.server.ts";
 import { requestCache, RequestCache } from "../services/requestCache.server";
 import { ShopDataService } from "../services/shopData.server";
 
 export const loader = async ({ request }: { request: Request }): Promise<Response> => {
-  const { admin } = await authenticate.admin(request);
+  const { admin } = await authenticateAdmin(request);
   const url = new URL(request.url);
   const sku = url.searchParams.get('sku');
   const productId = url.searchParams.get('productId'); // Optional: exclude current product

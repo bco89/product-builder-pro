@@ -1,9 +1,9 @@
-import { authenticate } from "../shopify.server";
+import { authenticateWebhook } from "../services/auth.server";
 import db from "../db.server.ts";
 import { logger } from "../services/logger.server.ts";
 
 export const action = async ({ request }) => {
-  const { shop, session, topic } = await authenticate.webhook(request);
+  const { shop, session, topic } = await authenticateWebhook(request);
 
   logger.webhook(topic, shop);
 

@@ -1,5 +1,5 @@
 import { json } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { authenticateAdmin } from "../services/auth.server";
 
 interface StoreMetrics {
   productCount: number;
@@ -8,7 +8,7 @@ interface StoreMetrics {
 
 export const loader = async ({ request }: { request: Request }) => {
   try {
-    const { admin } = await authenticate.admin(request);
+    const { admin } = await authenticateAdmin(request);
 
     // Get product count from Shopify
     const query = `#graphql

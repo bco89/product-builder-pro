@@ -46,7 +46,25 @@ export async function authenticateAdmin(request: Request) {
   } catch (error) {
     const duration = Date.now() - startTime;
     logger.error("Admin authentication failed", error, { url, duration });
-    throw error;
+    
+    // Provide consistent error responses
+    if (error instanceof Response) {
+      throw error; // Pass through Shopify responses
+    }
+    
+    // Handle common authentication errors
+    const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+    
+    if (errorMessage.includes('Invalid session') || errorMessage.includes('Session not found')) {
+      throw new Response("Session expired. Please reload the page.", { status: 401 });
+    }
+    
+    if (errorMessage.includes('Missing authorization')) {
+      throw new Response("Authorization required. Please log in to continue.", { status: 401 });
+    }
+    
+    // Generic authentication error
+    throw new Response("Authentication failed. Please try again.", { status: 401 });
   }
 }
 
@@ -74,7 +92,24 @@ export async function authenticateWebhook(request: Request) {
     return result;
   } catch (error) {
     logger.error("Webhook authentication failed", error);
-    throw error;
+    
+    // Provide consistent error responses for webhooks
+    if (error instanceof Response) {
+      throw error; // Pass through Shopify responses
+    }
+    
+    const errorMessage = error instanceof Error ? error.message : 'Webhook authentication failed';
+    
+    if (errorMessage.includes('Invalid webhook')) {
+      throw new Response("Invalid webhook signature", { status: 401 });
+    }
+    
+    if (errorMessage.includes('Missing headers')) {
+      throw new Response("Required webhook headers missing", { status: 400 });
+    }
+    
+    // Generic webhook error
+    throw new Response("Webhook authentication failed", { status: 401 });
   }
 }
 

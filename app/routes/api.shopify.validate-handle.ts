@@ -1,5 +1,5 @@
 import { json } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { authenticateAdmin } from "../services/auth.server";
 import { generateHandle } from "../utils/handleGenerator";
 import { logger } from "../services/logger.server.ts";
 import type { ShopifyGraphQLResponse } from "../types/shopify";
@@ -17,7 +17,7 @@ interface ProductHandleQueryResponse {
 }
 
 export const loader = async ({ request }: { request: Request }): Promise<Response> => {
-  const { admin } = await authenticate.admin(request);
+  const { admin } = await authenticateAdmin(request);
   const url = new URL(request.url);
   const handle = url.searchParams.get('handle');
 

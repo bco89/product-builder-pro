@@ -1,12 +1,12 @@
 import { json } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { authenticateAdmin } from "../services/auth.server";
 import { CacheService } from "../services/cacheService";
 import { prisma } from "../db.server";
 import { logger } from "../services/logger.server";
 
 export const loader = async ({ request }: { request: Request }) => {
   try {
-    const { session } = await authenticate.admin(request);
+    const { session } = await authenticateAdmin(request);
     
     // Get cache statistics
     const cacheStats = CacheService.getAllStats();

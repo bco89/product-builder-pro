@@ -1,10 +1,10 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { authenticateWebhook } from "../services/auth.server";
 import { CacheWarmingService } from "../services/cacheWarming.server";
 import { logger } from "../services/logger.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { shop, topic, admin } = await authenticate.webhook(request);
+  const { shop, topic, admin } = await authenticateWebhook(request);
 
   if (!admin) {
     logger.error("No admin context in app/installed webhook");

@@ -14,10 +14,10 @@ import {
   Box,
   List,
 } from "@shopify/polaris";
-import { authenticate } from "../shopify.server";
+import { authenticateAdmin } from "../services/auth.server";
 
 export const loader = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdmin(request);
   
   // Get the URL with all query parameters
   const url = new URL(request.url);
@@ -38,7 +38,7 @@ export const loader = async ({ request }) => {
 };
 
 export const action = async ({ request }) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin } = await authenticateAdmin(request);
   const color = ["Red", "Orange", "Yellow", "Green"][
     Math.floor(Math.random() * 4)
   ];

@@ -1,8 +1,8 @@
 import { json } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { authenticateAdmin } from "../services/auth.server";
 
 export const loader = async ({ request }: { request: Request }) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin } = await authenticateAdmin(request);
 
   try {
     // Query the shop to get the default weight unit
