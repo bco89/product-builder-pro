@@ -1,5 +1,6 @@
 import { CacheService } from './cacheService';
 import { logger } from './logger.server';
+import { ShopDataService } from './shopData.server';
 import type { AdminApiContext } from '@shopify/shopify-app-remix/server';
 
 interface ProductNode {
@@ -11,17 +12,7 @@ interface ProductEdge {
   node: ProductNode;
 }
 
-interface ProductsData {
-  data: {
-    products: {
-      edges: ProductEdge[];
-      pageInfo: {
-        hasNextPage: boolean;
-        endCursor: string;
-      };
-    };
-  };
-}
+// Removed unused interface - using direct type annotations instead
 
 interface VendorsData {
   vendors: string[];
@@ -138,86 +129,88 @@ export class CacheWarmingService {
    */
   private static async warmProductTypesCache(shop: string, admin: AdminApiContext) {
     try {
-      const allProductTypes: { productType: string; vendor: string }[] = [];
-      let hasNextPage = true;
-      let cursor: string | null = null;
+      // Use ShopDataService to fetch all product types efficiently
+      const shopDataService = ShopDataService.getInstance(shop);
+      const allProductTypes = await shopDataService.getAllProductTypes(admin);
       
-      // Fetch all products with pagination
-      while (hasNextPage) {
-        const query = `#graphql
-          query getProductTypes($cursor: String) {
-            products(first: 250, after: $cursor) {
-              edges {
-                cursor
-                node {
-                  productType
-                  vendor
-                }
-              }
-              pageInfo {
-                hasNextPage
-                endCursor
-              }
-            }
-          }`;
-        
-        const response = await admin.graphql(query, { 
-          variables: { cursor } 
-        });
-        const data = (await response.json()) as ProductsData;
-        
-        if (data.data?.products?.edges) {
-          data.data.products.edges.forEach(edge => {
-            if (edge.node.productType && edge.node.vendor) {
-              allProductTypes.push({
-                productType: edge.node.productType,
-                vendor: edge.node.vendor
-              });
-            }
-          });
-          
-          hasNextPage = data.data.products.pageInfo.hasNextPage;
-          cursor = data.data.products.pageInfo.endCursor;
-        } else {
-          hasNextPage = false;
-        }
-      }
-      
-      // Group by vendor and deduplicate
-      const productTypesByVendor: Record<string, string[]> = {};
-      allProductTypes.forEach(item => {
-        if (!productTypesByVendor[item.vendor]) {
-          productTypesByVendor[item.vendor] = [];
-        }
-        if (!productTypesByVendor[item.vendor].includes(item.productType)) {
-          productTypesByVendor[item.vendor].push(item.productType);
-        }
-      });
-      
-      // Sort product types within each vendor
-      Object.keys(productTypesByVendor).forEach(vendorKey => {
-        productTypesByVendor[vendorKey].sort();
-      });
-      
-      // Get all unique product types
-      const allUniqueProductTypes = [...new Set(allProductTypes.map(pt => pt.productType))].sort();
-      
-      // Cache the result
-      const cacheData: ProductTypesData = { 
-        productTypesByVendor, 
-        allProductTypes: allUniqueProductTypes,
-        totalProducts: allProductTypes.length,
-        lastUpdated: Date.now()
-      };
-      
-      await CacheService.set(shop, 'productTypes', cacheData);
-      
-      logger.info('Product types cache warmed', { 
+      logger.info('All product types fetched for cache warming', { 
         shop, 
-        vendorCount: Object.keys(productTypesByVendor).length,
-        uniqueProductTypes: allUniqueProductTypes.length,
-        totalProducts: allProductTypes.length
+        productTypeCount: allProductTypes.length 
       });
+      
+      // For initial cache warming, we'll also fetch a sample of vendor-specific types
+      // Get the first few vendors and their product types
+      const { data: vendorsData } = await CacheService.get<VendorsData>(shop, 'vendors');
+      
+      if (vendorsData && vendorsData.vendors.length > 0) {
+        const productTypesByVendor: Record<string, string[]> = {};
+        
+        // Fetch product types for the first 5 vendors as a sample
+        const sampleVendors = vendorsData.vendors.slice(0, 5);
+        
+        for (const vendor of sampleVendors) {
+          const vendorTypes: string[] = [];
+          let hasNextPage = true;
+          let cursor: string | null = null;
+          
+          while (hasNextPage) {
+            const query = `#graphql
+              query getVendorProductTypes($vendor: String!, $first: Int!, $after: String) {
+                products(first: $first, query: $vendor, after: $after) {
+                  edges {
+                    node {
+                      productType
+                    }
+                  }
+                  pageInfo {
+                    hasNextPage
+                    endCursor
+                  }
+                }
+              }`;
+            
+            const response = await admin.graphql(query, { 
+              variables: { 
+                vendor: `vendor:"${vendor}"`,
+                first: 100,
+                after: cursor 
+              } 
+            });
+            const data = await response.json();
+            
+            if (data.data?.products?.edges) {
+              data.data.products.edges.forEach((edge: { node: { productType: string } }) => {
+                if (edge.node.productType && !vendorTypes.includes(edge.node.productType)) {
+                  vendorTypes.push(edge.node.productType);
+                }
+              });
+              
+              hasNextPage = data.data.products.pageInfo.hasNextPage;
+              cursor = data.data.products.pageInfo.endCursor;
+            } else {
+              hasNextPage = false;
+            }
+          }
+          
+          productTypesByVendor[vendor] = vendorTypes.sort();
+        }
+        
+        // Cache the initial data
+        const cacheData: ProductTypesData = { 
+          productTypesByVendor, 
+          allProductTypes: allProductTypes,
+          totalProducts: 0, // We don't need to track total products anymore
+          lastUpdated: Date.now()
+        };
+        
+        await CacheService.set(shop, 'productTypes', cacheData);
+        
+        logger.info('Product types cache warmed', { 
+          shop, 
+          vendorCount: Object.keys(productTypesByVendor).length,
+          uniqueProductTypes: allProductTypes.length
+        });
+      }
     } catch (error) {
       logger.error('Failed to warm product types cache', { shop, error });
     }

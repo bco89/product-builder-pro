@@ -2,14 +2,14 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { CacheService } from "../services/cacheService";
 import { CacheWarmingService } from "../services/cacheWarming.server";
+import { requestCache, RequestCache } from "../services/requestCache.server";
+import { ShopDataService } from "../services/shopData.server";
 
 interface ProductNode {
   productType: string;
-  vendor: string;
 }
 
 interface ProductEdge {
-  cursor: string;
   node: ProductNode;
 }
 
@@ -48,18 +48,16 @@ export const loader = async ({ request }: { request: Request }) => {
     }, { status: 400 });
   }
 
+  // Generate cache key for request deduplication
+  const cacheKey = RequestCache.generateKey('product-types-by-vendor', { vendor });
+
   try {
-    // First, get the shop domain
-    const shopResponse = await admin.graphql(
-      `#graphql
-      query {
-        shop {
-          myshopifyDomain
-        }
-      }`
-    );
-    const shopData = await shopResponse.json();
-    const shop = shopData.data.shop.myshopifyDomain;
+    // Use request deduplication to prevent concurrent identical requests
+    return await requestCache.deduplicate(cacheKey, async () => {
+    // Get shop domain from singleton service (cached for session)
+    const shopDataService = ShopDataService.getInstance(request.headers.get('host') || '');
+    const shopInfo = await shopDataService.getShopData(admin);
+    const shop = shopInfo.myshopifyDomain;
 
     // Try to get cached data with stale-while-revalidate
     const { data: cachedData, metadata } = await CacheService.get<ProductTypesData>(shop, 'productTypes', {
@@ -89,20 +87,22 @@ export const loader = async ({ request }: { request: Request }) => {
     }
 
     // If no cached data, fetch fresh data
-    const allProductTypes: { productType: string; vendor: string }[] = [];
+    // Get all product types from singleton service (cached for session)
+    const allProductTypes = await shopDataService.getAllProductTypes(admin);
+    
+    // Fetch vendor-specific product types (optimized query)
+    const vendorProductTypes: string[] = [];
     let hasNextPage = true;
     let cursor: string | null = null;
     
-    // Fetch all products with pagination
+    // Fetch only products from this vendor with minimal fields
     while (hasNextPage) {
       const query = `#graphql
-        query getProductTypes($cursor: String) {
-          products(first: 250, after: $cursor) {
+        query getVendorProductTypes($vendor: String!, $first: Int!, $after: String) {
+          products(first: $first, query: $vendor, after: $after) {
             edges {
-              cursor
               node {
                 productType
-                vendor
               }
             }
             pageInfo {
@@ -113,17 +113,18 @@ export const loader = async ({ request }: { request: Request }) => {
         }`;
       
       const response = await admin.graphql(query, { 
-        variables: { cursor } 
+        variables: { 
+          vendor: `vendor:"${vendor}"`,
+          first: 100, // Smaller page size for faster response
+          after: cursor 
+        } 
       });
       const data = (await response.json()) as ProductsData;
       
-      // Process products
+      // Process vendor-specific products
       data.data.products.edges.forEach(edge => {
-        if (edge.node.productType && edge.node.vendor) {
-          allProductTypes.push({
-            productType: edge.node.productType,
-            vendor: edge.node.vendor
-          });
+        if (edge.node.productType && !vendorProductTypes.includes(edge.node.productType)) {
+          vendorProductTypes.push(edge.node.productType);
         }
       });
       
@@ -131,46 +132,44 @@ export const loader = async ({ request }: { request: Request }) => {
       cursor = data.data.products.pageInfo.endCursor;
     }
     
-    // Group by vendor and deduplicate
-    const productTypesByVendor: Record<string, string[]> = {};
-    allProductTypes.forEach(item => {
-      if (!productTypesByVendor[item.vendor]) {
-        productTypesByVendor[item.vendor] = [];
-      }
-      if (!productTypesByVendor[item.vendor].includes(item.productType)) {
-        productTypesByVendor[item.vendor].push(item.productType);
-      }
-    });
+    // Sort vendor-specific types
+    const sortedVendorTypes = vendorProductTypes.sort();
     
-    // Sort product types within each vendor
-    Object.keys(productTypesByVendor).forEach(vendorKey => {
-      productTypesByVendor[vendorKey].sort();
-    });
+    // Build optimized cache data structure
+    const productTypesByVendor: Record<string, string[]> = {
+      [vendor]: sortedVendorTypes
+    };
     
-    // Get all unique product types
-    const allUniqueProductTypes = [...new Set(allProductTypes.map(pt => pt.productType))].sort();
-    
-    // Cache the result with proper shop isolation and timestamp
+    // Cache the result (we'll update the cache structure to be more efficient)
     const cacheData: ProductTypesData = { 
       productTypesByVendor, 
-      allProductTypes: allUniqueProductTypes,
-      totalProducts: allProductTypes.length,
+      allProductTypes: allProductTypes,
+      totalProducts: vendorProductTypes.length,
       lastUpdated: Date.now()
     };
+    
+    // Update cache with vendor-specific data
+    const existingCache = await CacheService.get<ProductTypesData>(shop, 'productTypes');
+    if (existingCache.data) {
+      // Merge with existing cache
+      cacheData.productTypesByVendor = {
+        ...existingCache.data.productTypesByVendor,
+        [vendor]: sortedVendorTypes
+      };
+    }
+    
     await CacheService.set(shop, 'productTypes', cacheData);
     
-    // Return vendor-specific data
-    const suggestedProductTypes = productTypesByVendor[vendor] || [];
-    
     return json({
-      suggestedProductTypes,
-      allProductTypes: allUniqueProductTypes,
+      suggestedProductTypes: sortedVendorTypes,
+      allProductTypes: allProductTypes,
       vendor,
-      totalSuggested: suggestedProductTypes.length,
-      totalAll: allUniqueProductTypes.length,
+      totalSuggested: sortedVendorTypes.length,
+      totalAll: allProductTypes.length,
       fromCache: false,
-      totalProcessed: allProductTypes.length
+      totalProcessed: vendorProductTypes.length
     });
+    }); // End of requestCache.deduplicate
     
   } catch (error) {
     console.error("Failed to fetch product types by vendor:", error);

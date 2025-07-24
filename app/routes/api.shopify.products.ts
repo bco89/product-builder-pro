@@ -2,6 +2,8 @@ import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
 import { CacheService } from "../services/cacheService";
 import { CacheWarmingService } from "../services/cacheWarming.server";
+import { ShopDataService } from "../services/shopData.server";
+import { requestCache, RequestCache } from "../services/requestCache.server";
 import type { VendorsData } from "../types/shopify";
 
 interface ProductCategory {
@@ -65,44 +67,34 @@ export const loader = async ({ request }: { request: Request }) => {
 
     switch (queryType) {
       case 'vendors':
-        // First, get the shop domain
-        const shopResponse = await admin.graphql(
-          `#graphql
-          query {
-            shop {
-              myshopifyDomain
+        // Generate cache key for request deduplication
+        const vendorCacheKey = RequestCache.generateKey('vendors', { shop: request.headers.get('host') || '' });
+        
+        return await requestCache.deduplicate(vendorCacheKey, async () => {
+          // Get shop domain from singleton service (cached for session)
+          const shopDataService = ShopDataService.getInstance(request.headers.get('host') || '');
+          const shopInfo = await shopDataService.getShopData(admin);
+          const shop = shopInfo.myshopifyDomain;
+          
+          // Try to get cached vendors with stale-while-revalidate
+          const { data: cachedVendors, metadata } = await CacheService.get<VendorsData>(shop, 'vendors', {
+            staleWhileRevalidate: true,
+            onStaleData: async () => {
+              // Refresh cache in background
+              await CacheWarmingService.refreshStaleCache(shop, admin, 'vendors');
             }
-          }`
-        );
-        const shopData = await shopResponse.json();
-        
-        // Check for errors in shop query
-        if (shopData.errors) {
-          console.error('GraphQL errors in shop query:', shopData.errors);
-          throw new Error('Failed to get shop domain');
-        }
-        
-        const shop = shopData.data.shop.myshopifyDomain;
-        
-        // Try to get cached vendors with stale-while-revalidate
-        const { data: cachedVendors, metadata } = await CacheService.get<VendorsData>(shop, 'vendors', {
-          staleWhileRevalidate: true,
-          onStaleData: async () => {
-            // Refresh cache in background
-            await CacheWarmingService.refreshStaleCache(shop, admin, 'vendors');
-          }
-        });
-        
-        if (cachedVendors && cachedVendors.vendors) {
-          // Return cached data
-          return json({
-            vendors: cachedVendors.vendors,
-            totalVendors: cachedVendors.totalVendors,
-            fromCache: true,
-            cacheAge: Date.now() - (cachedVendors.lastUpdated || 0),
-            cacheMetadata: metadata
           });
-        }
+          
+          if (cachedVendors && cachedVendors.vendors) {
+            // Return cached data
+            return json({
+              vendors: cachedVendors.vendors,
+              totalVendors: cachedVendors.totalVendors,
+              fromCache: true,
+              cacheAge: Date.now() - (cachedVendors.lastUpdated || 0),
+              cacheMetadata: metadata
+            });
+          }
         
         // If no cached data, fetch fresh data
         // Use dedicated productVendors query for efficient vendor fetching
@@ -189,6 +181,7 @@ export const loader = async ({ request }: { request: Request }) => {
           totalVendors: sortedVendors.length,
           fromCache: false
         });
+        }); // End of requestCache.deduplicate for vendors
 
       case 'productTypes':
         if (!vendor || vendor === 'all') {
