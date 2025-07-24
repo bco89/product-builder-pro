@@ -1,6 +1,6 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
-import { logger } from "../services/logger.server.ts";
+import { logger, Logger } from "../services/logger.server.ts";
 import { GET_CATEGORIES_BY_PRODUCT_TYPE, GET_TAXONOMY_CATEGORIES_HIERARCHICAL } from "../graphql";
 
 interface TaxonomyCategory {
@@ -14,8 +14,14 @@ interface TaxonomyCategory {
   childrenIds?: string[];
 }
 
-export const loader = async ({ request }: { request: Request }) => {
-  const { admin } = await authenticateAdmin(request);
+export const loader = async ({
+  const requestId = Logger.generateRequestId(); request }: { request: Request }) => {
+  const { admin, session } = await authenticateAdmin(request);
+  const context = {
+    operation: 'categoriesbyproducttype',
+    shop: session.shop,
+    requestId,
+  };
   const url = new URL(request.url);
   const productType = url.searchParams.get("productType");
   const parentId = url.searchParams.get("parentId");
@@ -46,65 +52,7 @@ export const loader = async ({ request }: { request: Request }) => {
     });
 
   } catch (error) {
-    logger.error("Failed to fetch taxonomy categories:", error);
-    
-    const fallbackCategories = [
-      {
-        id: "gid://shopify/TaxonomyCategory/aa-1",
-        name: "Apparel & Accessories",
-        fullName: "Apparel & Accessories",
-        level: 0,
-        isLeaf: false,
-        isRoot: true,
-        parentId: null,
-        childrenIds: []
-      },
-      {
-        id: "gid://shopify/TaxonomyCategory/aa-2",
-        name: "Arts & Entertainment",
-        fullName: "Arts & Entertainment", 
-        level: 0,
-        isLeaf: false,
-        isRoot: true,
-        parentId: null,
-        childrenIds: []
-      },
-      {
-        id: "gid://shopify/TaxonomyCategory/aa-3",
-        name: "Baby & Toddler",
-        fullName: "Baby & Toddler",
-        level: 0,
-        isLeaf: false,
-        isRoot: true,
-        parentId: null,
-        childrenIds: []
-      },
-      {
-        id: "gid://shopify/TaxonomyCategory/aa-4",
-        name: "Business & Industrial",
-        fullName: "Business & Industrial",
-        level: 0,
-        isLeaf: false,
-        isRoot: true,
-        parentId: null,
-        childrenIds: []
-      },
-      {
-        id: "gid://shopify/TaxonomyCategory/aa-5",
-        name: "Cameras & Optics",
-        fullName: "Cameras & Optics",
-        level: 0,
-        isLeaf: false,
-        isRoot: true,
-        parentId: null,
-        childrenIds: []
-      }
-    ];
-    
-    return json({ 
-      categories: fallbackCategories,
-      suggestedCategories: []
-    });
+    return errorResponse(error, context);
   }
 };
 
@@ -157,8 +105,7 @@ async function fetchSuggestedCategories(admin: any, productType: string): Promis
     return suggestedCategories;
 
   } catch (error) {
-    logger.error("Failed to fetch suggested categories:", error);
-    return [];
+    return errorResponse(error, context);
   }
 }
 

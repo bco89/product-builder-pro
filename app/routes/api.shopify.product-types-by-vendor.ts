@@ -33,8 +33,14 @@ interface ProductTypesData {
   lastUpdated?: number;
 }
 
-export const loader = async ({ request }: { request: Request }) => {
-  const { admin } = await authenticateAdmin(request);
+export const loader = async ({
+  const requestId = Logger.generateRequestId(); request }: { request: Request }) => {
+  const { admin, session } = await authenticateAdmin(request);
+  const context = {
+    operation: 'producttypesbyvendor',
+    shop: session.shop,
+    requestId,
+  };
   const url = new URL(request.url);
   const vendor = url.searchParams.get('vendor');
   
@@ -173,14 +179,6 @@ export const loader = async ({ request }: { request: Request }) => {
     }); // End of requestCache.deduplicate
     
   } catch (error) {
-    console.error("Failed to fetch product types by vendor:", error);
-    return json({ 
-      error: "Failed to fetch product types",
-      suggestedProductTypes: [],
-      allProductTypes: [],
-      vendor,
-      totalSuggested: 0,
-      totalAll: 0
-    }, { status: 500 });
+    return errorResponse(error, context);
   }
 }; 

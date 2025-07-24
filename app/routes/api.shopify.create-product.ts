@@ -1,6 +1,6 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
-import { logger } from "../services/logger.server.ts";
+import { logger, Logger } from "../services/logger.server.ts";
 
 interface ProductOption {
   name: string;
@@ -58,12 +58,18 @@ function generateVariantCombinations(options: ProductOption[]): string[][] {
   return cartesian(...optionValues);
 }
 
-export const action = async ({ request }: { request: Request }) => {
+export const action = async ({
+  const requestId = Logger.generateRequestId(); request }: { request: Request }) => {
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  const { admin } = await authenticateAdmin(request);
+  const { admin, session } = await authenticateAdmin(request);
+  const context = {
+    operation: 'createproduct',
+    shop: session.shop,
+    requestId,
+  };
   const formData = await request.json() as FormData;
 
   try {
@@ -266,17 +272,6 @@ export const action = async ({ request }: { request: Request }) => {
       shopDomain: process.env.SHOPIFY_SHOP_DOMAIN || ''
     });
   } catch (error) {
-    logger.error("Failed to create product:", error);
-    if (error instanceof Error) {
-      logger.error("Error details:", error);
-      return json(
-        { error: `Failed to create product: ${error.message}` },
-        { status: 500 }
-      );
-    }
-    return json(
-      { error: "Failed to create product: Unknown error" },
-      { status: 500 }
-    );
+    return errorResponse(error, context);
   }
 }; 

@@ -1,6 +1,6 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
-import { logger } from "../services/logger.server.ts";
+import { logger, Logger } from "../services/logger.server.ts";
 import { STAGED_UPLOADS_CREATE } from "../graphql";
 
 interface StagedUploadInput {
@@ -11,12 +11,18 @@ interface StagedUploadInput {
   fileSize?: string;
 }
 
-export const action = async ({ request }: { request: Request }): Promise<Response> => {
+export const action = async ({
+  const requestId = Logger.generateRequestId(); request }: { request: Request }): Promise<Response> => {
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  const { admin } = await authenticateAdmin(request);
+  const { admin, session } = await authenticateAdmin(request);
+  const context = {
+    operation: 'stageduploads',
+    shop: session.shop,
+    requestId,
+  };
   const { files } = await request.json();
 
   try {
@@ -61,10 +67,6 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
       stagedTargets: responseJson.data.stagedUploadsCreate.stagedTargets
     });
   } catch (error) {
-    logger.error("Failed to create staged uploads:", error);
-    return json(
-      { error: error instanceof Error ? error.message : "Failed to create staged uploads" },
-      { status: 500 }
-    );
+    return errorResponse(error, context);
   }
 };

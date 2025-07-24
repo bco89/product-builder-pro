@@ -1,22 +1,38 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
+import { logger, Logger } from "../services/logger.server";
 import { GET_STORE_SETTINGS } from "../graphql";
+import { 
+  retryWithBackoff, 
+  parseGraphQLResponse, 
+  errorResponse 
+} from "../services/errorHandler.server";
+import type { GraphQLErrorResponse } from "../types/errors";
 
 export const loader = async ({ request }: { request: Request }) => {
-  const { admin } = await authenticateAdmin(request);
+  const requestId = Logger.generateRequestId();
+  const { admin, session } = await authenticateAdmin(request);
+  const context = {
+    operation: 'storesettings',
+    shop: session.shop,
+    requestId,
+  };
 
   try {
-    // Query the shop to get the default weight unit
-    const response = await admin.graphql(GET_STORE_SETTINGS);
-
-    const responseJson = await response.json();
+    // Query the shop to get the default weight unit with retry logic
+    const responseJson = await retryWithBackoff(
+      async () => {
+        const response = await admin.graphql(GET_STORE_SETTINGS);
+        return await response.json();
+      },
+      { maxRetries: 2 },
+      context
+    ) as GraphQLErrorResponse;
     
-    if (responseJson.errors) {
-      console.error("GraphQL errors:", responseJson.errors);
-      return json(
-        { error: "Failed to fetch shop settings" },
-        { status: 500 }
-      );
+    // Check for errors using centralized parser
+    const error = parseGraphQLResponse(responseJson);
+    if (error) {
+      return errorResponse(error, context);
     }
 
     const shop = responseJson.data?.shop;
@@ -28,10 +44,6 @@ export const loader = async ({ request }: { request: Request }) => {
       currencyFormats: shop?.currencyFormats
     });
   } catch (error) {
-    console.error("Failed to fetch shop settings:", error);
-    return json(
-      { error: "Failed to fetch shop settings" },
-      { status: 500 }
-    );
+    return errorResponse(error, context);
   }
 }; 

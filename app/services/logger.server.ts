@@ -88,6 +88,61 @@ class Logger {
   db(operation: string, context?: LogContext): void {
     this.debug(`[DB] ${operation}`, context);
   }
+
+  /**
+   * Log GraphQL errors specifically
+   */
+  graphqlError(operation: string, errors: any[], context?: LogContext): void {
+    const errorSummary = errors.map(e => ({
+      message: e.message,
+      code: e.extensions?.code,
+      path: e.path,
+    }));
+    this.error(`[GraphQL] ${operation} failed`, undefined, {
+      ...context,
+      errors: errorSummary,
+    });
+  }
+
+  /**
+   * Log retry attempts
+   */
+  retryAttempt(operation: string, attempt: number, delay: number, context?: LogContext): void {
+    this.warn(`[Retry] ${operation} - Attempt ${attempt}`, {
+      ...context,
+      attempt,
+      delay,
+      nextRetryIn: `${delay}ms`,
+    });
+  }
+
+  /**
+   * Log successful recovery after retries
+   */
+  errorRecovered(operation: string, attempts: number, context?: LogContext): void {
+    this.info(`[Recovery] ${operation} succeeded after ${attempts} attempts`, {
+      ...context,
+      attempts,
+      recovered: true,
+    });
+  }
+
+  /**
+   * Log rate limiting events
+   */
+  rateLimit(operation: string, retryAfter?: number, context?: LogContext): void {
+    this.warn(`[RateLimit] ${operation} throttled`, {
+      ...context,
+      retryAfter: retryAfter ? `${retryAfter}s` : 'unknown',
+    });
+  }
+
+  /**
+   * Generate a unique request ID for error correlation
+   */
+  static generateRequestId(): string {
+    return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
 }
 
 // Create singleton logger instance

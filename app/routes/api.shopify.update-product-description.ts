@@ -1,16 +1,28 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
-import { logger } from "../services/logger.server";
+import { logger, Logger } from "../services/logger.server";
 import { stripHTML } from "../services/prompts/formatting";
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { UPDATE_PRODUCT_DESCRIPTION } from "../graphql";
+import { 
+  retryWithBackoff, 
+  parseGraphQLResponse, 
+  errorResponse 
+} from "../services/errorHandler.server";
+import type { GraphQLErrorResponse } from "../types/errors";
 
-export const action = async ({ request }: ActionFunctionArgs) => {
+export const action = async ({
+  const requestId = Logger.generateRequestId(); request }: ActionFunctionArgs) => {
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  const { admin } = await authenticateAdmin(request);
+  const { admin, session } = await authenticateAdmin(request);
+  const context = {
+    operation: 'updateproductdescription',
+    shop: session.shop,
+    requestId,
+  };
   const formData = await request.json();
 
   try {
@@ -65,10 +77,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       product: responseJson.data.productUpdate.product
     });
   } catch (error) {
-    logger.error("Failed to update product description:", error);
-    return json(
-      { error: error instanceof Error ? error.message : "Failed to update product" },
-      { status: 500 }
-    );
+    return errorResponse(error, context);
   }
 };

@@ -7,9 +7,15 @@ interface StoreMetrics {
   storeSize: 'small' | 'medium' | 'large';
 }
 
-export const loader = async ({ request }: { request: Request }) => {
+export const loader = async ({
+  const requestId = Logger.generateRequestId(); request }: { request: Request }) => {
   try {
-    const { admin } = await authenticateAdmin(request);
+    const { admin, session } = await authenticateAdmin(request);
+  const context = {
+    operation: 'storemetrics',
+    shop: session.shop,
+    requestId,
+  };
 
     // Get product count from Shopify
     const response = await admin.graphql(GET_PRODUCT_COUNT);
@@ -34,11 +40,6 @@ export const loader = async ({ request }: { request: Request }) => {
     return json(metrics);
 
   } catch (error) {
-    console.error('Error fetching store metrics:', error);
-    // Default to small store if we can't determine size
-    return json({
-      productCount: 0,
-      storeSize: 'small'
-    } as StoreMetrics);
+    return errorResponse(error, context);
   }
 }; 

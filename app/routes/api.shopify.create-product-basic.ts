@@ -1,22 +1,37 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
-import { logger } from "../services/logger.server.ts";
+import { logger, Logger } from "../services/logger.server.ts";
 import { stripHTML } from "../services/prompts/formatting";
 import type { CreateProductRequest } from "../types/shopify";
 import { CREATE_PRODUCT_WITH_MEDIA, PRODUCT_VARIANTS_BULK_UPDATE } from "../graphql";
+import { 
+  retryWithBackoff, 
+  parseGraphQLResponse, 
+  errorResponse 
+} from "../services/errorHandler.server";
+import type { GraphQLErrorResponse } from "../types/errors";
 
 export const action = async ({ request }: { request: Request }): Promise<Response> => {
+  const requestId = Logger.generateRequestId();
+  
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  const { admin } = await authenticateAdmin(request);
+  const { admin, session } = await authenticateAdmin(request);
   const formData = await request.json() as CreateProductRequest & { 
     imageUrls?: string[];
     category?: { id: string; name: string; };
     pricing?: { price: string; };
     seoTitle?: string;
     seoDescription?: string;
+  };
+
+  const context = {
+    operation: 'createProductBasic',
+    shop: session.shop,
+    requestId,
+    productTitle: formData.title,
   };
 
   try {
@@ -31,53 +46,52 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
     
     logger.info("Media input prepared:", { media });
 
-    const response = await admin.graphql(
-      CREATE_PRODUCT_WITH_MEDIA,
+    // Execute GraphQL mutation with retry logic
+    const responseJson = await retryWithBackoff(
+      async () => {
+        const response = await admin.graphql(
+          CREATE_PRODUCT_WITH_MEDIA,
+          {
+            variables: {
+              product: {
+                title: formData.title,
+                descriptionHtml: formData.description,
+                handle: formData.handle,
+                vendor: formData.vendor,
+                productType: formData.productType,
+                tags: formData.tags,
+                status: "DRAFT",
+                ...(formData.category && { category: formData.category.id }),
+                ...(formData.seoTitle || formData.seoDescription ? {
+                  seo: {
+                    ...(formData.seoTitle && { title: stripHTML(formData.seoTitle) }),
+                    ...(formData.seoDescription && { description: stripHTML(formData.seoDescription) })
+                  }
+                } : {}),
+              },
+              media: media.length > 0 ? media : undefined
+            }
+          }
+        );
+        return await response.json();
+      },
       {
-        variables: {
-          product: {
-            title: formData.title,
-            descriptionHtml: formData.description,
-            handle: formData.handle,
-            vendor: formData.vendor,
-            productType: formData.productType,
-            tags: formData.tags,
-            status: "DRAFT",
-            ...(formData.category && { category: formData.category.id }),
-            ...(formData.seoTitle || formData.seoDescription ? {
-              seo: {
-                ...(formData.seoTitle && { title: stripHTML(formData.seoTitle) }),
-                ...(formData.seoDescription && { description: stripHTML(formData.seoDescription) })
-              }
-            } : {}),
-          },
-          media: media.length > 0 ? media : undefined
+        maxRetries: 3,
+        shouldRetry: (error, attempt) => {
+          // Don't retry validation errors
+          if (error?.data?.productCreate?.userErrors?.length > 0) return false;
+          // Use default retry logic for other errors
+          return attempt < 3;
         }
-      }
-    );
-
-    const responseJson = await response.json();
+      },
+      context
+    ) as GraphQLErrorResponse;
     logger.info("Product creation response:", { responseJson });
     
-    // Check for GraphQL errors
-    if (responseJson.errors) {
-      logger.error("GraphQL errors:", undefined, { errors: responseJson.errors });
-      const mediaError = responseJson.errors.find((err: any) => 
-        err.message?.toLowerCase().includes('media') || 
-        err.extensions?.code === 'MEDIA_ERROR'
-      );
-      return json(
-        { error: mediaError?.message || responseJson.errors[0].message || 'GraphQL error occurred' },
-        { status: 400 }
-      );
-    }
-    
-    if (responseJson.data?.productCreate?.userErrors?.length > 0) {
-      logger.error("Product creation errors:", undefined, { userErrors: responseJson.data.productCreate.userErrors });
-      return json(
-        { error: responseJson.data.productCreate.userErrors[0].message },
-        { status: 400 }
-      );
+    // Check for errors using centralized parser
+    const error = parseGraphQLResponse(responseJson);
+    if (error) {
+      return errorResponse(error, context);
     }
 
     if (!responseJson.data?.productCreate?.product) {
@@ -94,21 +108,35 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
     // Update default variant with initial pricing if provided
     if (defaultVariantId && formData.pricing) {
       logger.info("Updating default variant with pricing");
-      const updateResponse = await admin.graphql(
-        PRODUCT_VARIANTS_BULK_UPDATE,
-        {
-          variables: {
-            productId: product.id,
-            variants: [{
-              id: defaultVariantId,
-              price: formData.pricing.price || "0.00"
-            }]
-          }
-        }
-      );
-
-      const updateResponseJson = await updateResponse.json();
+      
+      const updateResponseJson = await retryWithBackoff(
+        async () => {
+          const updateResponse = await admin.graphql(
+            PRODUCT_VARIANTS_BULK_UPDATE,
+            {
+              variables: {
+                productId: product.id,
+                variants: [{
+                  id: defaultVariantId,
+                  price: formData.pricing.price || "0.00"
+                }]
+              }
+            }
+          );
+          return await updateResponse.json();
+        },
+        { maxRetries: 2 }, // Fewer retries for update
+        { ...context, operation: 'updateDefaultVariantPricing' }
+      ) as GraphQLErrorResponse;
+      
       logger.info("Variant update response:", { updateResponseJson });
+      
+      // Check for errors in variant update
+      const variantError = parseGraphQLResponse(updateResponseJson);
+      if (variantError) {
+        logger.warn("Failed to update variant pricing, but product was created", variantError);
+        // Don't fail the whole operation if variant update fails
+      }
     }
 
     return json({
@@ -117,17 +145,6 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
       title: product.title
     });
   } catch (error) {
-    logger.error("Failed to create product:", error);
-    if (error instanceof Error) {
-      logger.error("Error details:", error);
-      return json(
-        { error: `Failed to create product: ${error.message}` },
-        { status: 500 }
-      );
-    }
-    return json(
-      { error: "Failed to create product: Unknown error" },
-      { status: 500 }
-    );
+    return errorResponse(error, context);
   }
 }; 

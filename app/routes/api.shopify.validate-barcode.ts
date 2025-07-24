@@ -2,8 +2,14 @@ import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
 import { requestCache, RequestCache } from "../services/requestCache.server";
 import { ShopDataService } from "../services/shopData.server";
-import { logger } from "../services/logger.server";
+import { logger, Logger } from "../services/logger.server";
 import { VALIDATE_BARCODE } from "../graphql";
+import { 
+  retryWithBackoff, 
+  parseGraphQLResponse, 
+  errorResponse 
+} from "../services/errorHandler.server";
+import type { GraphQLErrorResponse } from "../types/errors";
 
 interface BarcodeValidationResult {
   available: boolean;
@@ -15,7 +21,13 @@ interface BarcodeValidationResult {
 }
 
 export const loader = async ({ request }: { request: Request }) => {
-  const { admin } = await authenticateAdmin(request);
+  const requestId = Logger.generateRequestId();
+  const { admin, session } = await authenticateAdmin(request);
+  const context = {
+    operation: 'validatebarcode',
+    shop: session.shop,
+    requestId,
+  };
   const url = new URL(request.url);
   const barcode = url.searchParams.get('barcode');
 
@@ -78,10 +90,6 @@ export const loader = async ({ request }: { request: Request }) => {
     });
 
   } catch (error) {
-    console.error('Error validating Barcode:', error);
-    return json(
-      { error: 'Failed to validate Barcode' },
-      { status: 500 }
-    );
+    return errorResponse(error, context);
   }
 }; 

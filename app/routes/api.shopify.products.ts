@@ -51,8 +51,14 @@ interface ProductsData {
   };
 }
 
-export const loader = async ({ request }: { request: Request }) => {
-  const { admin } = await authenticateAdmin(request);
+export const loader = async ({
+  const requestId = Logger.generateRequestId(); request }: { request: Request }) => {
+  const { admin, session } = await authenticateAdmin(request);
+  const context = {
+    operation: 'products',
+    shop: session.shop,
+    requestId,
+  };
   const url = new URL(request.url);
   const queryType = url.searchParams.get('type');
   const vendor = url.searchParams.get('vendor');

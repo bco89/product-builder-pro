@@ -1,11 +1,23 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
 import { generateHandle } from "../utils/handleGenerator";
-import { logger } from "../services/logger.server.ts";
+import { logger, Logger } from "../services/logger.server.ts";
 import { VALIDATE_PRODUCT_HANDLE } from "../graphql";
+import { 
+  retryWithBackoff, 
+  parseGraphQLResponse, 
+  errorResponse 
+} from "../services/errorHandler.server";
+import type { GraphQLErrorResponse } from "../types/errors";
 
-export const loader = async ({ request }: { request: Request }): Promise<Response> => {
-  const { admin } = await authenticateAdmin(request);
+export const loader = async ({
+  const requestId = Logger.generateRequestId(); request }: { request: Request }): Promise<Response> => {
+  const { admin, session } = await authenticateAdmin(request);
+  const context = {
+    operation: 'validatehandle',
+    shop: session.shop,
+    requestId,
+  };
   const url = new URL(request.url);
   const handle = url.searchParams.get('handle');
 
@@ -65,10 +77,6 @@ export const loader = async ({ request }: { request: Request }): Promise<Respons
     });
 
   } catch (error) {
-    logger.error('Error validating product handle', error);
-    return json(
-      { error: 'Failed to validate product handle' },
-      { status: 500 }
-    );
+    return errorResponse(error, context);
   }
 }; 

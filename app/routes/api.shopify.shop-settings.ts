@@ -2,8 +2,15 @@ import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
 import { prisma } from "../db.server";
 import type { LoaderFunctionArgs } from "@remix-run/node";
+import { 
+  retryWithBackoff, 
+  parseGraphQLResponse, 
+  errorResponse 
+} from "../services/errorHandler.server";
+import type { GraphQLErrorResponse } from "../types/errors";
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+export const loader = async ({
+  const requestId = Logger.generateRequestId(); request }: LoaderFunctionArgs) => {
   const { session } = await authenticateAdmin(request);
   
   const settings = await prisma.shopSettings.findUnique({
