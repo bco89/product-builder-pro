@@ -11,6 +11,8 @@ import { useEffect, useMemo } from "react";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { checkScopes } from "../services/scopeVerification.server";
 import { logger } from "../services/logger.server";
+import { CacheService } from "../services/cacheService";
+import type { ScopeCheckData } from "../types/shopify";
 
 const queryClient = new QueryClient();
 
@@ -28,8 +30,58 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   
   if (!skipScopeCheck) {
     try {
-      // Check if the app has the required scopes
-      scopeCheck = await checkScopes(admin);
+      // Try to get cached scope check first
+      const { data: cachedScopeCheck } = await CacheService.get<ScopeCheckData>(
+        session.shop, 
+        'scopeCheck',
+        {
+          staleWhileRevalidate: true,
+          onStaleData: async () => {
+            // Refresh scope check in background
+            try {
+              const freshScopeCheck = await checkScopes(admin);
+              await CacheService.set(
+                session.shop,
+                'scopeCheck',
+                {
+                  ...freshScopeCheck,
+                  lastChecked: Date.now()
+                } as ScopeCheckData,
+                1000 * 60 * 60 * 24 // Cache for 24 hours
+              );
+            } catch (error) {
+              logger.error("Failed to refresh scope check cache", { error, shop: session.shop });
+            }
+          }
+        }
+      );
+      
+      if (cachedScopeCheck) {
+        // Use cached scope check
+        scopeCheck = {
+          hasRequiredScopes: cachedScopeCheck.hasRequiredScopes,
+          missingScopes: cachedScopeCheck.missingScopes,
+          currentScopes: cachedScopeCheck.currentScopes
+        };
+        logger.debug("Using cached scope check", {
+          shop: session.shop,
+          age: Date.now() - cachedScopeCheck.lastChecked
+        });
+      } else {
+        // No cache, check scopes and cache the result
+        scopeCheck = await checkScopes(admin);
+        
+        // Cache the scope check result
+        await CacheService.set(
+          session.shop,
+          'scopeCheck',
+          {
+            ...scopeCheck,
+            lastChecked: Date.now()
+          } as ScopeCheckData,
+          1000 * 60 * 60 * 24 // Cache for 24 hours
+        );
+      }
       
       if (!scopeCheck.hasRequiredScopes) {
         logger.warn("Missing required scopes, will be handled by App Bridge", {

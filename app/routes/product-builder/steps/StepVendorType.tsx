@@ -4,7 +4,6 @@ import {
   FormLayout,
   Button,
   Text,
-  ButtonGroup,
   Combobox,
   Listbox,
   Autocomplete,
@@ -19,6 +18,7 @@ import {
 import { SearchIcon, PlusIcon } from '@shopify/polaris-icons';
 import { useQuery } from '@tanstack/react-query';
 import LoadingProgress from '../../../components/LoadingProgress';
+import { usePrefetchedData } from '../../../contexts/PrefetchedDataContext';
 
 interface ProductType {
   productType: string;
@@ -58,6 +58,9 @@ interface ProductTypesDataResponse {
 }
 
 export default function StepVendorType({ formData, onChange, onNext, onBack, productId }: StepVendorTypeProps) {
+  // Get prefetched data
+  const prefetchedData = usePrefetchedData();
+  
   // State for search inputs
   const [vendorInputValue, setVendorInputValue] = useState(formData.vendor || '');
   const [productTypeInputValue, setProductTypeInputValue] = useState(formData.productType || '');
@@ -72,10 +75,16 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
     isConfirmed: false
   });
 
-  // Fetch all vendors
+  // Use prefetched vendors or fetch if not available
   const { data: vendorsData, isLoading: vendorsLoading, error: vendorsError } = useQuery({
     queryKey: ['vendors'],
     queryFn: async () => {
+      // First check if we have prefetched data
+      if (prefetchedData.vendors && prefetchedData.vendors.length > 0) {
+        return prefetchedData.vendors;
+      }
+      
+      // Otherwise fetch from API
       const response = await fetch('/api/shopify/products?type=vendors');
       if (!response.ok) {
         throw new Error('Failed to fetch vendors');
@@ -88,7 +97,12 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
       }
       
       return data.vendors || [];
-    }
+    },
+    // If we have prefetched data, use it as initial data
+    initialData: prefetchedData.vendors && prefetchedData.vendors.length > 0 
+      ? prefetchedData.vendors 
+      : undefined,
+    staleTime: prefetchedData.fromCache ? 10 * 60 * 1000 : 0 // If from cache, consider fresh for 10 minutes
   });
   
   // Check for scope errors - using useMemo to ensure consistent hook ordering
@@ -103,13 +117,37 @@ export default function StepVendorType({ formData, onChange, onNext, onBack, pro
     queryKey: ['productTypesByVendor', formData.vendor],
     enabled: !!formData.vendor,
     queryFn: async () => {
+      // Check if we have prefetched product types for this vendor
+      if (prefetchedData.productTypes && 
+          prefetchedData.productTypes.productTypesByVendor && 
+          formData.vendor &&
+          prefetchedData.productTypes.productTypesByVendor[formData.vendor]) {
+        return {
+          suggestedProductTypes: prefetchedData.productTypes.productTypesByVendor[formData.vendor],
+          allProductTypes: prefetchedData.productTypes.allProductTypes || [],
+          fromCache: true
+        };
+      }
+      
+      // Otherwise fetch from API
       const response = await fetch(`/api/shopify/product-types-by-vendor?vendor=${encodeURIComponent(formData.vendor)}`);
       if (!response.ok) {
         throw new Error('Failed to fetch product types');
       }
       return response.json();
     },
-    staleTime: 10 * 60 * 1000, // Cache for 10 minutes - increased for better performance
+    // Use prefetched data as initial data if available
+    initialData: (prefetchedData.productTypes && 
+                  prefetchedData.productTypes.productTypesByVendor && 
+                  formData.vendor &&
+                  prefetchedData.productTypes.productTypesByVendor[formData.vendor])
+      ? {
+          suggestedProductTypes: prefetchedData.productTypes.productTypesByVendor[formData.vendor],
+          allProductTypes: prefetchedData.productTypes.allProductTypes || [],
+          fromCache: true
+        }
+      : undefined,
+    staleTime: prefetchedData.fromCache ? 10 * 60 * 1000 : 5 * 60 * 1000,
   });
 
   // Helper function to check if entry exists

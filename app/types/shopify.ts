@@ -293,7 +293,7 @@ export interface BatchValidationResponse {
 }
 
 // Cache types
-export type CacheableDataType = 'productTypes' | 'vendors' | 'storeSettings';
+export type CacheableDataType = 'productTypes' | 'vendors' | 'storeSettings' | 'scopeCheck';
 
 export interface CacheData<T> {
   data: T;
@@ -306,4 +306,12 @@ export interface VendorsData {
   vendors: string[];
   totalVendors: number;
   lastUpdated?: number;
+}
+
+// Scope check cache data structure
+export interface ScopeCheckData {
+  hasRequiredScopes: boolean;
+  missingScopes: string[];
+  currentScopes: string[];
+  lastChecked: number;
 }

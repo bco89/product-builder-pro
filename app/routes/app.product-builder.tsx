@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Page,
   Layout,
@@ -10,18 +10,19 @@ import {
   Badge,
   InlineStack,
   Text,
-  Button,
   Spinner,
-  Icon,
   Box
 } from '@shopify/polaris';
-import { CheckIcon, ClockIcon, AlertCircleIcon } from '@shopify/polaris-icons';
 import { json } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { authenticate } from '../shopify.server';
+import { CacheService } from '../services/cacheService';
+import { CacheWarmingService } from '../services/cacheWarming.server';
+import type { VendorsData, ProductTypesData } from '../types/shopify';
 import { useAppBridge } from '@shopify/app-bridge-react';
 import type { PricingData } from './product-builder/FormContext';
 import { ScopeCheck } from '../components/ScopeCheck';
+import { PrefetchedDataProvider } from '../contexts/PrefetchedDataContext';
 
 // Step Components
 import StepVendorType from './product-builder/steps/StepVendorType';
@@ -37,32 +38,89 @@ import StepSuccess from './product-builder/steps/StepSuccess';
 
 export const loader = async ({ request }: { request: Request }) => {
   const { admin } = await authenticate.admin(request);
-  const response = await admin.graphql(
-    `#graphql
-    query {
-      shop {
-        myshopifyDomain
-      }
-    }`
-  );
-  const shopData = await response.json();
+  
+  // Fetch shop data, vendors, and product types in parallel
+  const [shopResponse, vendorsResult, productTypesResult] = await Promise.all([
+    // Shop data query
+    admin.graphql(
+      `#graphql
+      query {
+        shop {
+          myshopifyDomain
+        }
+      }`
+    ),
+    
+    // Vendors with stale-while-revalidate
+    (async () => {
+      const shop = new URL(request.url).searchParams.get('shop') || '';
+      const { data: cachedVendors } = await CacheService.get<VendorsData>(shop, 'vendors', {
+        staleWhileRevalidate: true,
+        onStaleData: async () => {
+          await CacheWarmingService.refreshStaleCache(shop, admin, 'vendors');
+        }
+      });
+      return cachedVendors;
+    })(),
+    
+    // Product types with stale-while-revalidate
+    (async () => {
+      const shop = new URL(request.url).searchParams.get('shop') || '';
+      const { data: cachedProductTypes } = await CacheService.get<ProductTypesData>(shop, 'productTypes', {
+        staleWhileRevalidate: true,
+        onStaleData: async () => {
+          await CacheWarmingService.refreshStaleCache(shop, admin, 'productTypes');
+        }
+      });
+      return cachedProductTypes;
+    })()
+  ]);
+  
+  const shopData = await shopResponse.json();
+  const shop = shopData.data.shop.myshopifyDomain;
+  
+  // If we didn't get cached data from URL params, try again with the actual shop domain
+  let vendors = vendorsResult;
+  let productTypes = productTypesResult;
+  
+  if (!vendors || !productTypes) {
+    const [vendorsRetry, productTypesRetry] = await Promise.all([
+      !vendors ? CacheService.get<VendorsData>(shop, 'vendors') : Promise.resolve({ data: vendors }),
+      !productTypes ? CacheService.get<ProductTypesData>(shop, 'productTypes') : Promise.resolve({ data: productTypes })
+    ]);
+    
+    vendors = vendorsRetry.data;
+    productTypes = productTypesRetry.data;
+  }
   
   return json({
-    shop: shopData.data.shop.myshopifyDomain,
+    shop,
     apiKey: process.env.SHOPIFY_API_KEY,
-    tinymceApiKey: process.env.TINYMCE_API_KEY
+    tinymceApiKey: process.env.TINYMCE_API_KEY,
+    // Prefetched data for child components
+    prefetchedData: {
+      vendors: vendors?.vendors || [],
+      productTypes: productTypes || null,
+      fromCache: !!(vendors || productTypes)
+    }
   });
 };
 
 export default function ProductBuilder() {
-  const { shop, apiKey, tinymceApiKey } = useLoaderData<{ shop: string; apiKey: string; tinymceApiKey?: string }>();
-  const app = useAppBridge();
-  const navigate = useNavigate();
+  const { shop, tinymceApiKey, prefetchedData } = useLoaderData<{ 
+    shop: string; 
+    apiKey: string; 
+    tinymceApiKey?: string;
+    prefetchedData: {
+      vendors: string[];
+      productTypes: any;
+      fromCache: boolean;
+    };
+  }>();
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [errorBanner, setErrorBanner] = useState('');
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [productId, setProductId] = useState<string | null>(null);
   const [hasVariants, setHasVariants] = useState<boolean | null>(null);
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
@@ -367,7 +425,6 @@ export default function ProductBuilder() {
       }
 
       setToastMessage('Product variants updated successfully!');
-      setHasUnsavedChanges(false);
       setShowSuccess(true);
       
     } catch (error) {
@@ -377,7 +434,7 @@ export default function ProductBuilder() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [productId, formData, shop]);
+  }, [productId, formData]);
 
   // Submit handler for non-variant products (now finalizes instead of creates)
   const handleSubmit = useCallback(async () => {
@@ -412,7 +469,6 @@ export default function ProductBuilder() {
       }
 
       setToastMessage('Product finalized successfully!');
-      setHasUnsavedChanges(false);
       setShowSuccess(true);
       
     } catch (error) {
@@ -432,7 +488,6 @@ export default function ProductBuilder() {
   const handleUpdateForm = useCallback((updates: Partial<typeof formData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
     setErrorBanner('');
-    setHasUnsavedChanges(true);
   }, []);
 
   const handleBuildAnother = useCallback(() => {
@@ -463,7 +518,6 @@ export default function ProductBuilder() {
     setIsSubmitting(false);
     setToastMessage('');
     setErrorBanner('');
-    setHasUnsavedChanges(false);
     setProductId(null);
     setHasVariants(null);
     setIsCreatingProduct(false);
@@ -478,7 +532,7 @@ export default function ProductBuilder() {
     } else {
       setCurrentStep(currentStep + 1);
     }
-  }, [currentStep, hasVariants, productId, steps.length, createProductMidFlow]);
+  }, [currentStep, productId, steps.length, createProductMidFlow]);
 
   const renderStep = () => {
     const StepComponent = steps[currentStep].component;
@@ -603,7 +657,8 @@ export default function ProductBuilder() {
 
   return (
     <ScopeCheck>
-      <Page
+      <PrefetchedDataProvider data={prefetchedData}>
+        <Page
         title={getPageTitle()}
         subtitle={getPageSubtitle()}
         compactTitle
@@ -721,6 +776,7 @@ export default function ProductBuilder() {
       )}
       <Box paddingBlockEnd="800" />
     </Page>
+      </PrefetchedDataProvider>
     </ScopeCheck>
   );
 } 

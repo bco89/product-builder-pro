@@ -1,6 +1,7 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
 import { CacheService } from "../services/cacheService";
+import { CacheWarmingService } from "../services/cacheWarming.server";
 import type { VendorsData } from "../types/shopify";
 
 interface ProductCategory {
@@ -83,8 +84,14 @@ export const loader = async ({ request }: { request: Request }) => {
         
         const shop = shopData.data.shop.myshopifyDomain;
         
-        // Try to get cached vendors first
-        const cachedVendors = await CacheService.get<VendorsData>(shop, 'vendors');
+        // Try to get cached vendors with stale-while-revalidate
+        const { data: cachedVendors, metadata } = await CacheService.get<VendorsData>(shop, 'vendors', {
+          staleWhileRevalidate: true,
+          onStaleData: async () => {
+            // Refresh cache in background
+            await CacheWarmingService.refreshStaleCache(shop, admin, 'vendors');
+          }
+        });
         
         if (cachedVendors && cachedVendors.vendors) {
           // Return cached data
@@ -92,7 +99,8 @@ export const loader = async ({ request }: { request: Request }) => {
             vendors: cachedVendors.vendors,
             totalVendors: cachedVendors.totalVendors,
             fromCache: true,
-            cacheAge: Date.now() - (cachedVendors.lastUpdated || 0)
+            cacheAge: Date.now() - (cachedVendors.lastUpdated || 0),
+            cacheMetadata: metadata
           });
         }
         
