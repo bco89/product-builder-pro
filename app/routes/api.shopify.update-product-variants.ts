@@ -2,6 +2,12 @@ import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
 import { logger } from "../services/logger.server.ts";
 import { smartSort } from "../utils/smartSort";
+import { 
+  GET_PRODUCT_VARIANTS,
+  CREATE_PRODUCT_OPTIONS,
+  PRODUCT_VARIANTS_BULK_UPDATE,
+  PRODUCT_VARIANTS_BULK_CREATE
+} from "../graphql";
 
 function generateVariantCombinations(options: any[]): string[][] {
   const cartesian = (...arrays: string[][]): string[][] => {
@@ -36,20 +42,9 @@ export const action = async ({ request }: { request: Request }) => {
       
       // Get the default variant ID for non-variant products
       const variantResponse = await admin.graphql(
-        `#graphql
-        query getProductVariants($productId: ID!) {
-          product(id: $productId) {
-            variants(first: 1) {
-              edges {
-                node {
-                  id
-                }
-              }
-            }
-          }
-        }`,
+        GET_PRODUCT_VARIANTS,
         {
-          variables: { productId }
+          variables: { id: productId }
         }
       );
 
@@ -59,22 +54,7 @@ export const action = async ({ request }: { request: Request }) => {
       if (defaultVariantId) {
         // Update the default variant with SKU, barcode, and pricing
         const updateResponse = await admin.graphql(
-          `#graphql
-          mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-            productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-              productVariants {
-                id
-                sku
-                barcode
-                price
-                compareAtPrice
-              }
-              userErrors {
-                field
-                message
-              }
-            }
-          }`,
+          PRODUCT_VARIANTS_BULK_UPDATE,
           {
             variables: {
               productId: productId,
@@ -130,39 +110,7 @@ export const action = async ({ request }: { request: Request }) => {
     }));
 
     const optionsResponse = await admin.graphql(
-      `#graphql
-      mutation productOptionsCreate($productId: ID!, $options: [OptionCreateInput!]!) {
-        productOptionsCreate(productId: $productId, options: $options) {
-          product {
-            id
-            options {
-              id
-              name
-              position
-              optionValues {
-                id
-                name
-              }
-            }
-            variants(first: 100) {
-              edges {
-                node {
-                  id
-                  title
-                  selectedOptions {
-                    name
-                    value
-                  }
-                }
-              }
-            }
-          }
-          userErrors {
-            field
-            message
-          }
-        }
-      }`,
+      CREATE_PRODUCT_OPTIONS,
       {
         variables: {
           productId: productId,
@@ -258,22 +206,7 @@ export const action = async ({ request }: { request: Request }) => {
       logger.debug("Updating existing variants:", JSON.stringify(variantsToUpdate, null, 2));
       
       const updateResponse = await admin.graphql(
-        `#graphql
-        mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-          productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-            productVariants {
-              id
-              title
-              price
-              sku
-              barcode
-            }
-            userErrors {
-              field
-              message
-            }
-          }
-        }`,
+        PRODUCT_VARIANTS_BULK_UPDATE,
         {
           variables: {
             productId: productId,
@@ -300,25 +233,11 @@ export const action = async ({ request }: { request: Request }) => {
       logger.debug("Creating new variants:", JSON.stringify(variantsToCreate, null, 2));
       
       const createResponse = await admin.graphql(
-        `#graphql
-        mutation productVariantsBulkCreate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-          productVariantsBulkCreate(productId: $productId, variants: $variants) {
-            productVariants {
-              id
-              title
-              price
-              sku
-              barcode
-            }
-            userErrors {
-              field
-              message
-            }
-          }
-        }`,
+        PRODUCT_VARIANTS_BULK_CREATE,
         {
           variables: {
             productId: productId,
+            strategy: "REMOVE_STANDALONE_VARIANT",
             variants: variantsToCreate
           }
         }

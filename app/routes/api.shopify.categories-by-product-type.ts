@@ -1,6 +1,7 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
 import { logger } from "../services/logger.server.ts";
+import { GET_CATEGORIES_BY_PRODUCT_TYPE, GET_TAXONOMY_CATEGORIES_HIERARCHICAL } from "../graphql";
 
 interface TaxonomyCategory {
   id: string;
@@ -110,29 +111,8 @@ export const loader = async ({ request }: { request: Request }) => {
 async function fetchSuggestedCategories(admin: any, productType: string): Promise<TaxonomyCategory[]> {
   try {
     // Get products with the specified product type and their categories
-    const productsQuery = `#graphql
-      query GetProductsByType($query: String!) {
-        products(first: 50, query: $query) {
-          edges {
-            node {
-              id
-              title
-              productType
-              category {
-                id
-                name
-                fullName
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    const queryString = `product_type:"${productType}"`;
-    
-    const productsResponse = await admin.graphql(productsQuery, {
-      variables: { query: queryString }
+    const productsResponse = await admin.graphql(GET_CATEGORIES_BY_PRODUCT_TYPE, {
+      variables: { productType: `product_type:"${productType}"` }
     });
 
     const productsData = await productsResponse.json();
@@ -183,31 +163,6 @@ async function fetchSuggestedCategories(admin: any, productType: string): Promis
 }
 
 async function fetchRegularCategories(admin: any, search?: string, parentId?: string, productType?: string) {
-  const query = `#graphql
-    query GetCategories($search: String, $childrenOf: ID) {
-      taxonomy {
-        categories(
-          first: 50
-          search: $search
-          childrenOf: $childrenOf
-        ) {
-          edges {
-            node {
-              id
-              name
-              fullName
-              level
-              isLeaf
-              isRoot
-              parentId
-              childrenIds
-            }
-          }
-        }
-      }
-    }
-  `;
-
   const variables: { search?: string; childrenOf?: string } = {};
   if (search) {
     variables.search = search;
@@ -216,7 +171,7 @@ async function fetchRegularCategories(admin: any, search?: string, parentId?: st
     variables.childrenOf = parentId;
   }
 
-  const response = await admin.graphql(query, { variables });
+  const response = await admin.graphql(GET_TAXONOMY_CATEGORIES_HIERARCHICAL, { variables });
   const data = await response.json();
   
   if (!data?.data?.taxonomy?.categories?.edges) {

@@ -3,12 +3,7 @@ import { authenticateAdmin } from "../services/auth.server";
 import { logger } from "../services/logger.server.ts";
 import { stripHTML } from "../services/prompts/formatting";
 import type { CreateProductRequest } from "../types/shopify";
-
-interface CreateMediaInput {
-  alt?: string;
-  mediaContentType: string;
-  originalSource: string;
-}
+import { CREATE_PRODUCT_WITH_MEDIA, PRODUCT_VARIANTS_BULK_UPDATE } from "../graphql";
 
 export const action = async ({ request }: { request: Request }): Promise<Response> => {
   if (request.method !== "POST") {
@@ -28,7 +23,7 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
     logger.info("Creating basic product:", { formData });
 
     // Prepare media input if images are provided
-    const media: CreateMediaInput[] = formData.imageUrls?.map((url, index) => ({
+    const media = formData.imageUrls?.map((url, index) => ({
       mediaContentType: "IMAGE",
       originalSource: url,
       alt: `${formData.title} - Image ${index + 1}`
@@ -37,27 +32,7 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
     logger.info("Media input prepared:", { media });
 
     const response = await admin.graphql(
-      `#graphql
-      mutation productCreate($product: ProductCreateInput!, $media: [CreateMediaInput!]) {
-        productCreate(product: $product, media: $media) {
-          product {
-            id
-            title
-            handle
-            variants(first: 1) {
-              edges {
-                node {
-                  id
-                }
-              }
-            }
-          }
-          userErrors {
-            field
-            message
-          }
-        }
-      }`,
+      CREATE_PRODUCT_WITH_MEDIA,
       {
         variables: {
           product: {
@@ -120,19 +95,7 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
     if (defaultVariantId && formData.pricing) {
       logger.info("Updating default variant with pricing");
       const updateResponse = await admin.graphql(
-        `#graphql
-        mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-          productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-            productVariants {
-              id
-              price
-            }
-            userErrors {
-              field
-              message
-            }
-          }
-        }`,
+        PRODUCT_VARIANTS_BULK_UPDATE,
         {
           variables: {
             productId: product.id,

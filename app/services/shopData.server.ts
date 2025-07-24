@@ -1,5 +1,6 @@
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { logger } from "./logger.server";
+import { GET_SHOP_DATA, GET_STORE_SETTINGS, GET_PRODUCT_COUNT, GET_ALL_PRODUCT_TYPES } from "../graphql";
 
 interface ShopData {
   shop: string;
@@ -60,16 +61,7 @@ export class ShopDataService {
 
     logger.info('Fetching shop data', { shop: this.shopDomain });
     
-    const response = await admin.graphql(
-      `#graphql
-      query getShopData {
-        shop {
-          name
-          email
-          myshopifyDomain
-        }
-      }`
-    );
+    const response = await admin.graphql(GET_SHOP_DATA);
 
     const data = await response.json();
     
@@ -78,9 +70,12 @@ export class ShopDataService {
       throw new Error('Failed to fetch shop data');
     }
 
+    const shop = data.data.shop;
     this.shopData = {
       shop: this.shopDomain,
-      ...data.data.shop
+      name: shop.name,
+      email: shop.email,
+      myshopifyDomain: shop.primaryDomain?.host || this.shopDomain
     };
 
     return this.shopData;
@@ -97,14 +92,7 @@ export class ShopDataService {
 
     logger.info('Fetching store settings', { shop: this.shopDomain });
     
-    const response = await admin.graphql(
-      `#graphql
-      query getStoreSettings {
-        shop {
-          weightUnit
-        }
-      }`
-    );
+    const response = await admin.graphql(GET_STORE_SETTINGS);
 
     const data = await response.json();
     
@@ -114,7 +102,7 @@ export class ShopDataService {
     }
 
     this.storeSettings = {
-      defaultWeightUnit: data.data.shop.weightUnit
+      defaultWeightUnit: data.data.shop.weightUnit || 'POUNDS'
     };
 
     return this.storeSettings;
@@ -131,14 +119,7 @@ export class ShopDataService {
 
     logger.info('Fetching store metrics', { shop: this.shopDomain });
     
-    const response = await admin.graphql(
-      `#graphql
-      query getStoreMetrics {
-        productsCount {
-          count
-        }
-      }`
-    );
+    const response = await admin.graphql(GET_PRODUCT_COUNT);
 
     const data = await response.json();
     

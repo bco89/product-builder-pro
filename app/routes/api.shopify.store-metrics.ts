@@ -1,5 +1,6 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
+import { GET_PRODUCT_COUNT } from "../graphql";
 
 interface StoreMetrics {
   productCount: number;
@@ -11,16 +12,9 @@ export const loader = async ({ request }: { request: Request }) => {
     const { admin } = await authenticateAdmin(request);
 
     // Get product count from Shopify
-    const query = `#graphql
-      query GetProductCount {
-        productsCount {
-          count
-        }
-      }`;
-
-    const response = await admin.graphql(query);
+    const response = await admin.graphql(GET_PRODUCT_COUNT);
     const data = await response.json();
-    const productCount = data.data.productsCount.count;
+    const productCount = data.data?.productsCount?.count || 0;
 
     // Determine store size based on product count
     let storeSize: 'small' | 'medium' | 'large';

@@ -2,6 +2,7 @@ import { CacheService } from './cacheService';
 import { logger } from './logger.server';
 import { ShopDataService } from './shopData.server';
 import type { AdminApiContext } from '@shopify/shopify-app-remix/server';
+import { GET_VENDORS, GET_PRODUCT_TYPES_BY_VENDOR } from '../graphql';
 
 interface ProductNode {
   productType: string;

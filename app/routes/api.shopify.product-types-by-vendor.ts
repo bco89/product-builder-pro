@@ -4,6 +4,7 @@ import { CacheService } from "../services/cacheService";
 import { CacheWarmingService } from "../services/cacheWarming.server";
 import { requestCache, RequestCache } from "../services/requestCache.server";
 import { ShopDataService } from "../services/shopData.server";
+import { GET_PRODUCT_TYPES_BY_VENDOR } from "../graphql";
 
 interface ProductNode {
   productType: string;

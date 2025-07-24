@@ -3,6 +3,7 @@ import { authenticateAdmin } from "../services/auth.server";
 import { logger } from "../services/logger.server";
 import { stripHTML } from "../services/prompts/formatting";
 import type { ActionFunctionArgs } from "@remix-run/node";
+import { UPDATE_PRODUCT_DESCRIPTION } from "../graphql";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method !== "POST") {
@@ -16,27 +17,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     logger.info("Updating product description:", { productId: formData.productId });
 
     const response = await admin.graphql(
-      `#graphql
-      mutation productUpdate($product: ProductUpdateInput!) {
-        productUpdate(product: $product) {
-          product {
-            id
-            title
-            descriptionHtml
-            seo {
-              title
-              description
-            }
-          }
-          userErrors {
-            field
-            message
-          }
-        }
-      }`,
+      UPDATE_PRODUCT_DESCRIPTION,
       {
         variables: {
-          product: {
+          input: {
             id: formData.productId,
             descriptionHtml: formData.description,
             ...(formData.seoTitle || formData.seoDescription ? {

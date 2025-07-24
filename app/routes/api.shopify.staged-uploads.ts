@@ -1,6 +1,7 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
 import { logger } from "../services/logger.server.ts";
+import { STAGED_UPLOADS_CREATE } from "../graphql";
 
 interface StagedUploadInput {
   filename: string;
@@ -31,23 +32,7 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
     }));
 
     const response = await admin.graphql(
-      `#graphql
-      mutation stagedUploadsCreate($input: [StagedUploadInput!]!) {
-        stagedUploadsCreate(input: $input) {
-          stagedTargets {
-            url
-            resourceUrl
-            parameters {
-              name
-              value
-            }
-          }
-          userErrors {
-            field
-            message
-          }
-        }
-      }`,
+      STAGED_UPLOADS_CREATE,
       {
         variables: { input }
       }
