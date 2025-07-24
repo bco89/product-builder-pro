@@ -774,7 +774,7 @@ export default function ProductBuilder() {
           duration={4000}
         />
       )}
-      <Box paddingBlockEnd="800" />
+      <Box paddingBlockEnd="200" />
     </Page>
       </PrefetchedDataProvider>
     </ScopeCheck>
