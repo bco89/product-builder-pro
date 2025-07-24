@@ -26,9 +26,9 @@ export default function App() {
   return (
     <div className={styles.index}>
       <div className={styles.content}>
-        <h1 className={styles.heading}>A short heading about [your app]</h1>
+        <h1 className={styles.heading}>Product Builder Pro</h1>
         <p className={styles.text}>
-          A tagline about [your app] that describes your value proposition.
+          Create products effortlessly with AI-powered descriptions and guided workflows.
         </p>
         {showForm && (
           <Form className={styles.form} method="post" action="/auth/login">
@@ -44,16 +44,13 @@ export default function App() {
         )}
         <ul className={styles.list}>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>AI-Powered Descriptions</strong>. Generate compelling product descriptions automatically using advanced AI technology.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Guided Product Creation</strong>. Step-by-step wizard ensures you never miss important product details.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Variant Management</strong>. Easily create and manage up to 100 product variants with bulk editing tools.
           </li>
         </ul>
       </div>

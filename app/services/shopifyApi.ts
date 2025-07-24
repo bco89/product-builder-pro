@@ -66,11 +66,9 @@ interface StoreSettings {
 }
 
 export interface ShopifyApiService {
-  getVendors(): Promise<string[]>;
   getProductTypes(vendor: string): Promise<ProductType[]>;
   getCategories(vendor: string, productType: string): Promise<ProductCategory[]>;
   validateHandle(handle: string): Promise<HandleValidationResult>;
-  createProduct(productData: ProductFormData): Promise<any>;
   getStoreMetrics(): Promise<StoreMetrics>;
   getStoreSettings(): Promise<StoreSettings>;
   validateSKU(sku: string): Promise<SKUValidationResult>;
@@ -79,13 +77,7 @@ export interface ShopifyApiService {
 }
 
 export class ShopifyApiServiceImpl implements ShopifyApiService {
-  constructor(private session: any) {}
-
-  async getVendors(): Promise<string[]> {
-    const response = await fetch('/api/shopify/vendors');
-    const data = await response.json();
-    return data.vendors || [];
-  }
+  constructor() {}
 
   async getProductTypes(vendor: string): Promise<ProductType[]> {
     const response = await fetch(
@@ -119,19 +111,6 @@ export class ShopifyApiServiceImpl implements ShopifyApiService {
     return response.json();
   }
 
-  async createProduct(productData: ProductFormData): Promise<any> {
-    const response = await fetch('/api/shopify/create-product', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(productData),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to create product');
-    }
-    return response.json();
-  }
 
   async getStoreMetrics(): Promise<StoreMetrics> {
     const response = await fetch('/api/shopify/store-metrics');
