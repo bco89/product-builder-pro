@@ -1,6 +1,8 @@
 import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
 import { GET_PRODUCT_COUNT } from "../graphql";
+import { Logger } from "../services/logger.server";
+import { errorResponse } from "../services/errorHandler.server";
 
 interface StoreMetrics {
   productCount: number;

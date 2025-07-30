@@ -3,6 +3,7 @@ import { authenticateAdmin } from "../services/auth.server";
 import { batchValidateSkus, batchValidateBarcodes } from "../utils/validation";
 import { logger, Logger } from "../services/logger.server";
 import type { BatchValidationRequest } from "../types/shopify";
+import { errorResponse } from "../services/errorHandler.server";
 
 interface ValidationConflict {
   type: 'sku' | 'barcode';

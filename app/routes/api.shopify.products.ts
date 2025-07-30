@@ -5,6 +5,7 @@ import { CacheWarmingService } from "../services/cacheWarming.server";
 import { ShopDataService } from "../services/shopData.server";
 import { requestCache, RequestCache } from "../services/requestCache.server";
 import type { VendorsData } from "../types/shopify";
+import { Logger } from "../services/logger.server";
 
 interface ProductCategory {
   id: string;

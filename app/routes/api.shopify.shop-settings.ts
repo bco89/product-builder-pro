@@ -8,6 +8,7 @@ import {
   errorResponse 
 } from "../services/errorHandler.server";
 import type { GraphQLErrorResponse } from "../types/errors";
+import { Logger } from "../services/logger.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const requestId = Logger.generateRequestId();

@@ -2,6 +2,7 @@ import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
 import { logger, Logger } from "../services/logger.server";
 import { GET_CATEGORIES_BY_PRODUCT_TYPE, GET_TAXONOMY_CATEGORIES_HIERARCHICAL } from "../graphql";
+import { errorResponse } from "../services/errorHandler.server";
 
 interface TaxonomyCategory {
   id: string;
