@@ -17,7 +17,7 @@ import {
   InlineStack,
 } from '@shopify/polaris';
 import { QuestionCircleIcon } from '@shopify/polaris-icons';
-import { authenticateAdmin } from '../services/auth.server';
+import { authenticate } from '../shopify.server';
 import { json } from '@remix-run/node';
 import { useLoaderData, useSubmit, useNavigation, Form } from '@remix-run/react';
 import { prisma } from '../db.server';
@@ -25,7 +25,7 @@ import { OnboardingFlow } from '../components/OnboardingFlow';
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session, admin } = await authenticateAdmin(request);
+  const { session, admin } = await authenticate.admin(request);
   
   // Fetch shop name from Shopify
   let shopName = '';
@@ -52,7 +52,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticateAdmin(request);
+  const { session } = await authenticate.admin(request);
   const formData = await request.formData();
   
   const settings = {

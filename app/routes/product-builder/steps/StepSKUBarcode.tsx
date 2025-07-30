@@ -48,7 +48,6 @@ interface ValidationStates {
 interface ValidationConflict {
   type: 'sku' | 'barcode';
   value: string;
-  variantId?: string; // ID of the variant this conflict is for
   conflictingProduct: {
     id: string;
     title: string;
@@ -129,12 +128,7 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack, pro
 
   // Helper function to get conflict key
   const getConflictKey = (type: 'sku' | 'barcode', value: string, index: number) => {
-    // For products with variants, use the variant ID
-    if (hasVariants && variants[index]) {
-      return `${type}-${value}-${variants[index].id}`;
-    }
-    // For single products, use a fixed identifier
-    return `${type}-${value}-single-product`;
+    return `${type}-${value}-${index}`;
   };
 
   // Helper function to check if value has changed since last validation
@@ -232,7 +226,6 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack, pro
           conflicts: [{
             type: 'sku',
             value: sku,
-            variantId: hasVariants && variants[index] ? variants[index].id : 'single-product',
             conflictingProduct: result.conflictingProduct!
           }]
         });
@@ -315,7 +308,6 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack, pro
           conflicts: [{
             type: 'barcode',
             value: barcode,
-            variantId: hasVariants && variants[index] ? variants[index].id : 'single-product',
             conflictingProduct: result.conflictingProduct!
           }]
         });
@@ -394,25 +386,9 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack, pro
       const result = await shopifyApi.validateSKUsBatch(allSkus, allBarcodes);
       
       if (!result.valid) {
-        // Map conflicts to include variant IDs
-        const variantsList = hasVariants ? generateVariants() : [{ id: 'single-product', sku: formData.skus[0], barcode: formData.barcodes[0] }];
-        
-        const enrichedConflicts = result.conflicts.map(conflict => {
-          // Find the variant that has this SKU or barcode
-          const variant = variantsList.find(v => 
-            (conflict.type === 'sku' && v.sku === conflict.value) ||
-            (conflict.type === 'barcode' && v.barcode === conflict.value)
-          );
-          
-          return {
-            ...conflict,
-            variantId: variant?.id || 'single-product'
-          };
-        });
-        
         setConflictModal({
           isOpen: true,
-          conflicts: enrichedConflicts
+          conflicts: result.conflicts
         });
         return false;
       }
@@ -553,9 +529,7 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack, pro
     setConflictHistory(prev => {
       const updated = { ...prev };
       currentConflicts.forEach(conflict => {
-        // Use variant ID from conflict data or 'single-product' for non-variant products
-        const variantId = conflict.variantId || 'single-product';
-        const key = `${conflict.type}-${conflict.value}-${variantId}`;
+        const key = getConflictKey(conflict.type, conflict.value, hasVariants ? 0 : 0); // TODO: Fix index tracking
         if (updated[key]) {
           updated[key].userChoice = 'resolved';
         }
@@ -572,9 +546,7 @@ export default function StepSKUBarcode({ formData, onChange, onNext, onBack, pro
     setConflictHistory(prev => {
       const updated = { ...prev };
       currentConflicts.forEach(conflict => {
-        // Use variant ID from conflict data or 'single-product' for non-variant products
-        const variantId = conflict.variantId || 'single-product';
-        const key = `${conflict.type}-${conflict.value}-${variantId}`;
+        const key = getConflictKey(conflict.type, conflict.value, hasVariants ? 0 : 0); // TODO: Fix index tracking
         if (updated[key]) {
           updated[key].userChoice = 'continue';
         }

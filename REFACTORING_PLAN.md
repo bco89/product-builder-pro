@@ -14,7 +14,7 @@ Some phases contain breaking changes that will make the app unusable until compl
 - **Mobile**: ~~App fails to load on mobile devices due to permission/scope issues~~ ✅ FIXED
 - **Code Quality**: ~~Obsolete code~~, inconsistent patterns, ~~API version mismatch~~ ✅ CLEANED UP
 - **Missing Features**: No Admin Extensions for contextual product creation
-- **Technical Debt**: ~~No centralized error handling~~ ✅ IMPLEMENTED, ~~inefficient GraphQL queries~~ ✅ OPTIMIZED
+- **Technical Debt**: No centralized error handling, ~~inefficient GraphQL queries~~ ✅ OPTIMIZED
 
 ## Success Criteria
 - [x] Initial load time reduced to under 2 seconds ✅ ACHIEVED - App loads almost instantly
@@ -25,7 +25,6 @@ Some phases contain breaking changes that will make the app unusable until compl
 - [x] Positive feedback from beta testers ✅ "App loads almost instantly now"
 - [x] GraphQL query payloads reduced by 80% ✅ ACHIEVED
 - [x] Zero duplicate API calls ✅ ACHIEVED
-- [x] Centralized error handling with retry logic ✅ ACHIEVED
 
 ---
 
@@ -232,104 +231,66 @@ Some phases contain breaking changes that will make the app unusable until compl
 
 ## Phase 3: Code Quality & Architecture (Week 2)
 
-### 3.1 Standardize Authentication ✅
+### 3.1 Standardize Authentication
 **Priority**: MEDIUM  
 **Time Estimate**: 2 hours
-**Actual Time**: 15 minutes
 **Dependencies**: Conflicts with Phase 1.2 if done together
 **Breaks**: All API routes during migration
 **Safe to Pause**: NO - Must update all routes in one session
 
-- [x] Update all API routes to use `authenticateAdmin` from `auth.server.ts`
-- [x] Remove direct imports of `authenticate` from `shopify.server`
-- [x] Add consistent error handling for authentication failures
-- [x] Update logging to use structured format
-- [x] Test all API endpoints for proper authentication
+- [ ] Update all API routes to use `authenticateAdmin` from `auth.server.ts`
+- [ ] Remove direct imports of `authenticate` from `shopify.server`
+- [ ] Add consistent error handling for authentication failures
+- [ ] Update logging to use structured format
+- [ ] Test all API endpoints for proper authentication
 
-**Results**: All 26 routes now use centralized authentication with enhanced error handling
-
-### 3.2 Centralize GraphQL Queries ✅
+### 3.2 Centralize GraphQL Queries
 **Priority**: MEDIUM  
 **Time Estimate**: 4 hours
-**Actual Time**: 45 minutes
 **⚠️ BREAKING CHANGE - 4-6 HOUR WINDOW REQUIRED**
 **Dependencies**: Complete Phase 1.3 first, ideally Phase 2.2
 **Breaks**: EVERY API route until complete
 **Safe to Pause**: NO - App completely broken until done
 
-- [x] Create comprehensive `app/graphql/queries.ts` file
-- [x] Move all inline queries from API routes
-- [x] Create fragments for common fields:
-  - [x] Product fields fragment
-  - [x] Variant fields fragment
-  - [x] Media fields fragment
-  - [x] Money fields fragment
-  - [x] Metafield fragment
-  - [x] Error fragments
-- [x] Add TypeScript types for all queries
-- [x] Update all API routes to import from central file
+- [ ] Create comprehensive `app/graphql/queries.ts` file
+- [ ] Move all inline queries from API routes
+- [ ] Create fragments for common fields:
+  - [ ] Product fields fragment
+  - [ ] Variant fields fragment
+  - [ ] Media fields fragment
+- [ ] Add TypeScript types for all queries
+- [ ] Update all API routes to import from central file
 
-**Results**: 
-- Created 5 new files organizing all GraphQL operations
-- Migrated 15+ API routes to use centralized queries
-- Reduced code duplication by ~40% through reusable fragments
-- All GraphQL operations now have proper TypeScript types
-- App remains fully functional with no breaking changes
-
-### 3.3 Improve Error Handling ✅
+### 3.3 Improve Error Handling
 **Priority**: MEDIUM  
 **Time Estimate**: 3 hours
-**Actual Time**: 2.5 hours
-**Dependencies**: None
-**Breaks**: Nothing - Enhancement only
-**Safe to Pause**: YES - Can be done incrementally
 
-- [x] Create `app/services/errorHandler.server.ts`
-- [x] Implement centralized GraphQL error parser
-- [x] Add retry logic with exponential backoff:
-  - [x] Max 3 retries with configurable options
-  - [x] Handle rate limiting (429 errors) with Retry-After header
-  - [x] Handle transient errors (500, 502, 503)
-- [x] Create user-friendly error messages mapping
-- [x] Add error boundary component for UI
-- [x] Implement error logging to monitoring service
+- [ ] Create `app/services/errorHandler.server.ts`
+- [ ] Implement centralized GraphQL error parser
+- [ ] Add retry logic with exponential backoff:
+  - [ ] Max 3 retries
+  - [ ] Handle rate limiting (429 errors)
+  - [ ] Handle transient errors (500, 502, 503)
+- [ ] Create user-friendly error messages mapping
+- [ ] Add error boundary component for UI
+- [ ] Implement error logging to monitoring service
 
-**Results**:
-- Created comprehensive error handling system with 4 new files
-- Updated all 19 API routes to use centralized error handling
-- Automatic retry for rate limiting and transient errors
-- User-friendly error messages for all error types
-- Request ID generation for error correlation
-- Polaris-based ErrorBoundary for React components
-
-### 3.4 UI/UX Quick Wins ✅
+### 3.4 UI/UX Quick Wins
 **Priority**: LOW  
 **Time Estimate**: 2 hours
-**Actual Time**: 25 minutes
-**Dependencies**: None
-**Breaks**: Nothing
-**Safe to Pause**: YES - Each change independent
 
-- [x] Remove all emoji usage from loading messages
-- [x] Update `app/routes/_index/route.tsx`:
-  - [x] Replace placeholder content
-  - [x] Add proper app description
-  - [x] Update feature list
-- [x] Fix excessive padding in `app/routes/product-builder/route.tsx`:
-  - [x] Change `paddingBlockEnd="800"` to `paddingBlockEnd="200"`
-- [x] Add loading skeletons:
-  - [x] ~~Vendor list skeleton~~ (Already implemented)
-  - [x] ~~Product type skeleton~~ (Already implemented)
-  - [x] ~~Form field skeletons~~ (LoadingProgress component already exists)
-- [x] Fix TODO comments in `StepSKUBarcode.tsx` (lines 532, 549)
-
-**Results**:
-- Removed emojis from all loading messages for professional appearance
-- Updated landing page with content derived from existing help section
-- Fixed excessive bottom padding in product builder
-- Discovered LoadingProgress component already implemented - 100% code reuse
-- Simplified conflict tracking using variant IDs instead of complex index tracking
-- **Optimization**: 87% code reduction by maximizing reuse of existing patterns
+- [ ] Remove all emoji usage from loading messages
+- [ ] Update `app/routes/_index/route.tsx`:
+  - [ ] Replace placeholder content
+  - [ ] Add proper app description
+  - [ ] Update feature list
+- [ ] Fix excessive padding in `app/routes/product-builder/route.tsx`:
+  - [ ] Change `paddingBlockEnd="800"` to `paddingBlockEnd="200"`
+- [ ] Add loading skeletons:
+  - [ ] Vendor list skeleton
+  - [ ] Product type skeleton
+  - [ ] Form field skeletons
+- [ ] Fix TODO comments in `StepSKUBarcode.tsx` (lines 532, 549)
 
 ---
 

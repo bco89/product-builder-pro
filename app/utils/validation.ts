@@ -5,7 +5,6 @@
 
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import type { ValidationResponse, BatchValidationResponse, ShopifyGraphQLResponse } from "../types/shopify";
-import { VALIDATE_PRODUCT_HANDLE, VALIDATE_SKU, VALIDATE_BARCODE } from "../graphql";
 
 // Validation patterns
 const VALIDATION_PATTERNS = {
@@ -65,31 +64,50 @@ export async function checkHandleExists(
     };
   }
 
+  const query = `#graphql
+    query checkProductHandle($handle: String!) {
+      products(first: 1, query: $handle) {
+        edges {
+          node {
+            id
+            handle
+            title
+          }
+        }
+      }
+    }
+  `;
+
   try {
-    const response = await admin.graphql(VALIDATE_PRODUCT_HANDLE, {
-      variables: { handle },
+    const response = await admin.graphql(query, {
+      variables: { handle: `handle:'${handle}'` },
     });
 
     const result = await response.json() as ShopifyGraphQLResponse<{
-      productByIdentifier: {
-        id: string;
-        title: string;
-      } | null;
+      products: {
+        edges: Array<{
+          node: {
+            id: string;
+            handle: string;
+            title: string;
+          };
+        }>;
+      };
     }>;
 
-    const existingProduct = result.data?.productByIdentifier;
-    const exists = !!existingProduct;
+    const existingProducts = result.data?.products.edges || [];
+    const exists = existingProducts.length > 0;
 
     if (exists) {
       return {
         isValid: false,
         exists: true,
         message: ERROR_MESSAGES.handle.exists,
-        conflictingProducts: [{
-          id: existingProduct.id,
-          title: existingProduct.title,
-          handle: handle,
-        }],
+        conflictingProducts: existingProducts.map(edge => ({
+          id: edge.node.id,
+          title: edge.node.title,
+          handle: edge.node.handle,
+        })),
       };
     }
 
@@ -117,9 +135,26 @@ export async function checkSkuExists(
     };
   }
 
+  const query = `#graphql
+    query checkProductSku($sku: String!) {
+      productVariants(first: 10, query: $sku) {
+        edges {
+          node {
+            id
+            sku
+            product {
+              id
+              title
+            }
+          }
+        }
+      }
+    }
+  `;
+
   try {
-    const response = await admin.graphql(VALIDATE_SKU, {
-      variables: { query: `sku:'${sku}'` },
+    const response = await admin.graphql(query, {
+      variables: { sku: `sku:'${sku}'` },
     });
 
     const result = await response.json() as ShopifyGraphQLResponse<{
@@ -180,9 +215,26 @@ export async function checkBarcodeExists(
     };
   }
 
+  const query = `#graphql
+    query checkProductBarcode($barcode: String!) {
+      productVariants(first: 10, query: $barcode) {
+        edges {
+          node {
+            id
+            barcode
+            product {
+              id
+              title
+            }
+          }
+        }
+      }
+    }
+  `;
+
   try {
-    const response = await admin.graphql(VALIDATE_BARCODE, {
-      variables: { query: `barcode:'${barcode}'` },
+    const response = await admin.graphql(query, {
+      variables: { barcode: `barcode:'${barcode}'` },
     });
 
     const result = await response.json() as ShopifyGraphQLResponse<{
@@ -194,7 +246,6 @@ export async function checkBarcodeExists(
             product: {
               id: string;
               title: string;
-              handle: string;
             };
           };
         }>;

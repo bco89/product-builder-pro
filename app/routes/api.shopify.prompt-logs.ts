@@ -2,16 +2,8 @@ import { json } from "@remix-run/node";
 import { authenticateAdmin } from "../services/auth.server";
 import { getRecentExtractedData, getRecentLLMPrompts } from "../services/prompt-logger-db.server";
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { 
-  retryWithBackoff, 
-  parseGraphQLResponse, 
-  errorResponse 
-} from "../services/errorHandler.server";
-import type { GraphQLErrorResponse } from "../types/errors";
-import { Logger } from "../services/logger.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const requestId = Logger.generateRequestId();
   const { session } = await authenticateAdmin(request);
   
   const url = new URL(request.url);
@@ -33,6 +25,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       return json({ extractedLogs, promptLogs });
     }
   } catch (error) {
-    return errorResponse(error, context);
+    return json({ error: 'Failed to fetch logs' }, { status: 500 });
   }
 };

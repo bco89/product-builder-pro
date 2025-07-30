@@ -1,8 +1,5 @@
 import { json } from "@remix-run/node";
-import { authenticateAdmin } from "../services/auth.server";
-import { GET_PRODUCT_COUNT } from "../graphql";
-import { Logger } from "../services/logger.server";
-import { errorResponse } from "../services/errorHandler.server";
+import { authenticate } from "../shopify.server";
 
 interface StoreMetrics {
   productCount: number;
@@ -10,19 +7,20 @@ interface StoreMetrics {
 }
 
 export const loader = async ({ request }: { request: Request }) => {
-  const requestId = Logger.generateRequestId();
   try {
-    const { admin, session } = await authenticateAdmin(request);
-  const context = {
-    operation: 'storemetrics',
-    shop: session.shop,
-    requestId,
-  };
+    const { admin } = await authenticate.admin(request);
 
     // Get product count from Shopify
-    const response = await admin.graphql(GET_PRODUCT_COUNT);
+    const query = `#graphql
+      query GetProductCount {
+        productsCount {
+          count
+        }
+      }`;
+
+    const response = await admin.graphql(query);
     const data = await response.json();
-    const productCount = data.data?.productsCount?.count || 0;
+    const productCount = data.data.productsCount.count;
 
     // Determine store size based on product count
     let storeSize: 'small' | 'medium' | 'large';
@@ -42,6 +40,11 @@ export const loader = async ({ request }: { request: Request }) => {
     return json(metrics);
 
   } catch (error) {
-    return errorResponse(error, context);
+    console.error('Error fetching store metrics:', error);
+    // Default to small store if we can't determine size
+    return json({
+      productCount: 0,
+      storeSize: 'small'
+    } as StoreMetrics);
   }
 }; 

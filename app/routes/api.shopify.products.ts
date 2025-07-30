@@ -5,7 +5,6 @@ import { CacheWarmingService } from "../services/cacheWarming.server";
 import { ShopDataService } from "../services/shopData.server";
 import { requestCache, RequestCache } from "../services/requestCache.server";
 import type { VendorsData } from "../types/shopify";
-import { Logger } from "../services/logger.server";
 
 interface ProductCategory {
   id: string;
@@ -53,13 +52,7 @@ interface ProductsData {
 }
 
 export const loader = async ({ request }: { request: Request }) => {
-  const requestId = Logger.generateRequestId();
-  const { admin, session } = await authenticateAdmin(request);
-  const context = {
-    operation: 'products',
-    shop: session.shop,
-    requestId,
-  };
+  const { admin } = await authenticateAdmin(request);
   const url = new URL(request.url);
   const queryType = url.searchParams.get('type');
   const vendor = url.searchParams.get('vendor');

@@ -1,15 +1,8 @@
 import { json } from "@remix-run/node";
-import { authenticateAdmin } from "../services/auth.server";
+import { authenticate } from "../shopify.server";
 import { requestCache, RequestCache } from "../services/requestCache.server";
 import { ShopDataService } from "../services/shopData.server";
-import { logger, Logger } from "../services/logger.server";
-import { VALIDATE_BARCODE } from "../graphql";
-import { 
-  retryWithBackoff, 
-  parseGraphQLResponse, 
-  errorResponse 
-} from "../services/errorHandler.server";
-import type { GraphQLErrorResponse } from "../types/errors";
+import { logger } from "../services/logger.server";
 
 interface BarcodeValidationResult {
   available: boolean;
@@ -21,13 +14,7 @@ interface BarcodeValidationResult {
 }
 
 export const loader = async ({ request }: { request: Request }) => {
-  const requestId = Logger.generateRequestId();
-  const { admin, session } = await authenticateAdmin(request);
-  const context = {
-    operation: 'validatebarcode',
-    shop: session.shop,
-    requestId,
-  };
+  const { admin } = await authenticate.admin(request);
   const url = new URL(request.url);
   const barcode = url.searchParams.get('barcode');
 
@@ -50,32 +37,55 @@ export const loader = async ({ request }: { request: Request }) => {
     const cacheKey = RequestCache.generateKey('validate-barcode', { barcode });
     
     return await requestCache.deduplicate(cacheKey, async () => {
-      const response = await admin.graphql(VALIDATE_BARCODE, {
-        variables: { query: `barcode:'${barcode}'` }
+      const query = `#graphql
+        query checkProductBarcode($barcode: String!) {
+          products(first: 50, query: $barcode) {
+            edges {
+              node {
+                id
+                title
+                handle
+                variants(first: 50) {
+                  edges {
+                    node {
+                      barcode
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }`;
+
+      const response = await admin.graphql(query, {
+        variables: { barcode: `barcode:'${barcode}'` }
       });
 
       const data = await response.json();
-      const variants = data.data?.productVariants?.edges || [];
+      const products = data.data.products.edges;
       
-      // Check if any variant has this exact barcode
-      const matchingVariant = variants.find((edge: any) => 
-        edge.node.barcode === barcode
-      );
-      
-      if (matchingVariant) {
-        const result: BarcodeValidationResult = {
-          available: false,
-          conflictingProduct: {
-            id: matchingVariant.node.product.id,
-            title: matchingVariant.node.product.title,
-            handle: matchingVariant.node.product.handle || ''
-          }
-        };
+      // Check for exact barcode match
+      for (const productEdge of products) {
+        const product = productEdge.node;
+        const hasMatchingBarcode = product.variants.edges.some((variantEdge: any) => 
+          variantEdge.node.barcode === barcode
+        );
         
-        // Cache the result
-        shopDataService.cacheValidationResult('barcode', barcode, result);
-        
-        return json(result);
+        if (hasMatchingBarcode) {
+          const result: BarcodeValidationResult = {
+            available: false,
+            conflictingProduct: {
+              id: product.id,
+              title: product.title,
+              handle: product.handle
+            }
+          };
+          
+          // Cache the result
+          shopDataService.cacheValidationResult('barcode', barcode, result);
+          
+          return json(result);
+        }
       }
 
       // No conflicts found
@@ -90,6 +100,10 @@ export const loader = async ({ request }: { request: Request }) => {
     });
 
   } catch (error) {
-    return errorResponse(error, context);
+    console.error('Error validating Barcode:', error);
+    return json(
+      { error: 'Failed to validate Barcode' },
+      { status: 500 }
+    );
   }
 }; 

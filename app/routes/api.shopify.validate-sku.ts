@@ -1,25 +1,15 @@
 import { json } from "@remix-run/node";
-import { authenticateAdmin } from "../services/auth.server";
+import { authenticate } from "../shopify.server";
 import { checkSkuExists } from "../utils/validation";
-import { logger, Logger } from "../services/logger.server";
+import { logger } from "../services/logger.server.ts";
 import { requestCache, RequestCache } from "../services/requestCache.server";
 import { ShopDataService } from "../services/shopData.server";
-import { errorResponse } from "../services/errorHandler.server";
 
 export const loader = async ({ request }: { request: Request }): Promise<Response> => {
-  const requestId = Logger.generateRequestId();
-  const { admin, session } = await authenticateAdmin(request);
+  const { admin } = await authenticate.admin(request);
   const url = new URL(request.url);
   const sku = url.searchParams.get('sku');
   const productId = url.searchParams.get('productId'); // Optional: exclude current product
-
-  const context = {
-    operation: 'validateSku',
-    shop: session.shop,
-    requestId,
-    sku,
-    productId,
-  };
 
   if (!sku) {
     return json({ error: 'SKU parameter is required' }, { status: 400 });
@@ -61,6 +51,10 @@ export const loader = async ({ request }: { request: Request }): Promise<Respons
       return json(response);
     });
   } catch (error) {
-    return errorResponse(error, context);
+    logger.error('Error validating SKU', error, { sku });
+    return json(
+      { error: 'Failed to validate SKU' },
+      { status: 500 }
+    );
   }
 };

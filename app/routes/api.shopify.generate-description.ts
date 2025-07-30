@@ -3,21 +3,12 @@ import { authenticateAdmin } from "../services/auth.server";
 import { AIService } from "../services/ai.server";
 import { ProductScraperService, ProductScraperError } from "../services/scraper.server";
 import { prisma } from "../db.server";
-import { logger, Logger } from "../services/logger.server";
-import { errorResponse } from "../services/errorHandler.server";
+import { logger } from "../services/logger.server";
 import type { ActionFunctionArgs } from "@remix-run/node";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const requestId = Logger.generateRequestId();
   const { session } = await authenticateAdmin(request);
   const data = await request.json();
-  
-  const context = {
-    operation: 'generateDescription',
-    shop: session.shop,
-    requestId,
-    method: data.method,
-  };
 
   try {
     let scrapedData = null;
@@ -115,7 +106,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     return json(result);
   } catch (error) {
-    // Let errorResponse handle AI service errors and other errors
-    return errorResponse(error, context);
+    logger.error('Generation error:', error, { shop: session.shop });
+    
+    // Check if it's an AI service error
+    if (error instanceof Error && error.message.includes('API key')) {
+      return json({ 
+        error: 'AI service not configured. Please contact support.',
+        code: 'AI_NOT_CONFIGURED',
+        details: 'The AI description service is not properly configured.'
+      }, { status: 503 });
+    }
+    
+    return json({ 
+      error: 'Failed to generate description. Please try again.',
+      code: 'GENERATION_ERROR',
+      details: 'An unexpected error occurred while generating the description.'
+    }, { status: 500 });
   }
 };

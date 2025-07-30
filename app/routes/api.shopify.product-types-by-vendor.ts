@@ -1,12 +1,9 @@
 import { json } from "@remix-run/node";
-import { authenticateAdmin } from "../services/auth.server";
+import { authenticate } from "../shopify.server";
 import { CacheService } from "../services/cacheService";
 import { CacheWarmingService } from "../services/cacheWarming.server";
 import { requestCache, RequestCache } from "../services/requestCache.server";
 import { ShopDataService } from "../services/shopData.server";
-import { GET_PRODUCT_TYPES_BY_VENDOR } from "../graphql";
-import { Logger } from "../services/logger.server";
-import { errorResponse } from "../services/errorHandler.server";
 
 interface ProductNode {
   productType: string;
@@ -36,13 +33,7 @@ interface ProductTypesData {
 }
 
 export const loader = async ({ request }: { request: Request }) => {
-  const requestId = Logger.generateRequestId();
-  const { admin, session } = await authenticateAdmin(request);
-  const context = {
-    operation: 'producttypesbyvendor',
-    shop: session.shop,
-    requestId,
-  };
+  const { admin } = await authenticate.admin(request);
   const url = new URL(request.url);
   const vendor = url.searchParams.get('vendor');
   
@@ -181,6 +172,14 @@ export const loader = async ({ request }: { request: Request }) => {
     }); // End of requestCache.deduplicate
     
   } catch (error) {
-    return errorResponse(error, context);
+    console.error("Failed to fetch product types by vendor:", error);
+    return json({ 
+      error: "Failed to fetch product types",
+      suggestedProductTypes: [],
+      allProductTypes: [],
+      vendor,
+      totalSuggested: 0,
+      totalAll: 0
+    }, { status: 500 });
   }
 }; 

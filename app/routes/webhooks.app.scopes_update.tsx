@@ -1,10 +1,10 @@
-import { authenticateWebhook } from "../services/auth.server";
+import { authenticate } from "../shopify.server";
 import db from "../db.server.ts";
 import { logger } from "../services/logger.server.ts";
 import { CacheService } from "../services/cacheService";
 
 export const action = async ({ request }) => {
-  const { payload, session, topic, shop } = await authenticateWebhook(request);
+  const { payload, session, topic, shop } = await authenticate.webhook(request);
 
   logger.webhook(topic, shop);
   const current = payload.current;

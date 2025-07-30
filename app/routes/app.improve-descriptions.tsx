@@ -25,7 +25,7 @@ import {
   Tag,
 } from '@shopify/polaris';
 import { MagicIcon, AlertCircleIcon, InfoIcon, ImageIcon, SearchIcon } from '@shopify/polaris-icons';
-import { authenticateAdmin } from '../services/auth.server';
+import { authenticate } from '../shopify.server';
 import { json } from '@remix-run/node';
 import { useLoaderData } from '@remix-run/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -52,7 +52,7 @@ interface Product {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin } = await authenticateAdmin(request);
+  const { admin } = await authenticate.admin(request);
   
   const url = new URL(request.url);
   const searchParams = url.searchParams;

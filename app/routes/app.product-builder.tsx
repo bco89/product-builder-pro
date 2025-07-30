@@ -15,7 +15,7 @@ import {
 } from '@shopify/polaris';
 import { json } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
-import { authenticateAdmin } from '../services/auth.server';
+import { authenticate } from '../shopify.server';
 import { CacheService } from '../services/cacheService';
 import { CacheWarmingService } from '../services/cacheWarming.server';
 import type { VendorsData, ProductTypesData } from '../types/shopify';
@@ -37,7 +37,7 @@ import StepFinalReview from './product-builder/steps/StepFinalReview';
 import StepSuccess from './product-builder/steps/StepSuccess';
 
 export const loader = async ({ request }: { request: Request }) => {
-  const { admin } = await authenticateAdmin(request);
+  const { admin } = await authenticate.admin(request);
   
   // Fetch shop data, vendors, and product types in parallel
   const [shopResponse, vendorsResult, productTypesResult] = await Promise.all([
@@ -774,7 +774,7 @@ export default function ProductBuilder() {
           duration={4000}
         />
       )}
-      <Box paddingBlockEnd="200" />
+      <Box paddingBlockEnd="800" />
     </Page>
       </PrefetchedDataProvider>
     </ScopeCheck>

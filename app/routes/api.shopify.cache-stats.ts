@@ -1,19 +1,12 @@
 import { json } from "@remix-run/node";
-import { authenticateAdmin } from "../services/auth.server";
+import { authenticate } from "../shopify.server";
 import { CacheService } from "../services/cacheService";
 import { prisma } from "../db.server";
-import { logger, Logger } from "../services/logger.server";
-import { 
-  retryWithBackoff, 
-  parseGraphQLResponse, 
-  errorResponse 
-} from "../services/errorHandler.server";
-import type { GraphQLErrorResponse } from "../types/errors";
+import { logger } from "../services/logger.server";
 
 export const loader = async ({ request }: { request: Request }) => {
-  const requestId = Logger.generateRequestId();
   try {
-    const { session } = await authenticateAdmin(request);
+    const { session } = await authenticate.admin(request);
     
     // Get cache statistics
     const cacheStats = CacheService.getAllStats();
@@ -69,6 +62,7 @@ export const loader = async ({ request }: { request: Request }) => {
       }
     });
   } catch (error) {
-    return errorResponse(error, context);
+    logger.error("Failed to fetch cache stats", { error });
+    return json({ error: "Failed to fetch cache statistics" }, { status: 500 });
   }
 };

@@ -42,17 +42,17 @@ interface LoadingProgressProps {
 
 const defaultMessages = {
   'ai-generation': [
-    "Analyzing product details...",
-    "Crafting the perfect description...",
-    "Optimizing for your keywords...",
-    "Adding finishing touches...",
-    "Almost ready to impress!"
+    "🔍 Analyzing product details...",
+    "✨ Crafting the perfect description...",
+    "🎯 Optimizing for your keywords...",
+    "📝 Adding finishing touches...",
+    "🚀 Almost ready to impress!"
   ],
   'data-fetch': [
-    "Searching for the best options...",
-    "Analyzing available data...",
-    "Organizing results for you...",
-    "Preparing your selections..."
+    "🔍 Searching for the best options...",
+    "📊 Analyzing available data...",
+    "✨ Organizing results for you...",
+    "🎁 Preparing your selections..."
   ],
   'stage-based': [
     "Processing your request...",

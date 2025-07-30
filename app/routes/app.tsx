@@ -4,7 +4,7 @@ import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Frame } from '@shopify/polaris';
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
-import { authenticateAdmin } from "../services/auth.server";
+import { authenticate } from "../shopify.server";
 import type { LoaderFunctionArgs, HeadersFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useEffect, useMemo } from "react";
@@ -19,7 +19,7 @@ const queryClient = new QueryClient();
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session, admin } = await authenticateAdmin(request);
+  const { session, admin } = await authenticate.admin(request);
   const url = new URL(request.url);
   const host = url.searchParams.get("host") || "";
 

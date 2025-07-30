@@ -1,23 +1,23 @@
 import { json } from "@remix-run/node";
-import { authenticateAdmin } from "../services/auth.server";
+import { authenticate } from "../shopify.server";
 import { generateHandle } from "../utils/handleGenerator";
-import { logger, Logger } from "../services/logger.server";
-import { VALIDATE_PRODUCT_HANDLE } from "../graphql";
-import { 
-  retryWithBackoff, 
-  parseGraphQLResponse, 
-  errorResponse 
-} from "../services/errorHandler.server";
-import type { GraphQLErrorResponse } from "../types/errors";
+import { logger } from "../services/logger.server.ts";
+import type { ShopifyGraphQLResponse } from "../types/shopify";
+
+interface ProductHandleQueryResponse {
+  products: {
+    edges: Array<{
+      node: {
+        id: string;
+        handle: string;
+        title: string;
+      };
+    }>;
+  };
+}
 
 export const loader = async ({ request }: { request: Request }): Promise<Response> => {
-  const requestId = Logger.generateRequestId();
-  const { admin, session } = await authenticateAdmin(request);
-  const context = {
-    operation: 'validatehandle',
-    shop: session.shop,
-    requestId,
-  };
+  const { admin } = await authenticate.admin(request);
   const url = new URL(request.url);
   const handle = url.searchParams.get('handle');
 
@@ -26,20 +26,32 @@ export const loader = async ({ request }: { request: Request }): Promise<Respons
   }
 
   try {
-    // Query Shopify to check if handle exists using productByIdentifier
-    const response = await admin.graphql(VALIDATE_PRODUCT_HANDLE, {
-      variables: { handle }
+    // Query Shopify to check if handle exists
+    const graphqlQuery = `#graphql
+      query checkProductHandle($handle: String!) {
+        products(first: 1, query: $handle) {
+          edges {
+            node {
+              id
+              handle
+              title
+            }
+          }
+        }
+      }`;
+
+    const response = await admin.graphql<ShopifyGraphQLResponse<ProductHandleQueryResponse>>(graphqlQuery, {
+      variables: { handle: `handle:'${handle}'` }
     });
 
     const result = await response.json();
     if (!result.data) {
       throw new Error('Invalid GraphQL response');
     }
+    const data = result.data;
+    const existingProducts = data.products.edges;
     
-    // productByIdentifier returns null if no product exists with that handle
-    const existingProduct = result.data.productByIdentifier;
-    
-    const available = !existingProduct;
+    const available = existingProducts.length === 0;
     
     let suggestions: string[] = [];
     if (!available) {
@@ -51,13 +63,13 @@ export const loader = async ({ request }: { request: Request }): Promise<Respons
         const suggestion = `${baseHandle}-${i}`;
         
         // Check if this suggestion is also taken
-        const suggestionResponse = await admin.graphql(VALIDATE_PRODUCT_HANDLE, {
-          variables: { handle: suggestion }
+        const suggestionResponse = await admin.graphql(graphqlQuery, {
+          variables: { handle: `handle:'${suggestion}'` }
         });
         
-        const suggestionResult = await suggestionResponse.json();
+        const suggestionResult = await suggestionResponse.json() as ShopifyGraphQLResponse<ProductHandleQueryResponse>;
         
-        if (suggestionResult.data && !suggestionResult.data.productByIdentifier) {
+        if (suggestionResult.data && suggestionResult.data.products.edges.length === 0) {
           suggestions.push(suggestion);
           if (suggestions.length >= 3) break; // Limit to 3 suggestions
         }
@@ -68,15 +80,19 @@ export const loader = async ({ request }: { request: Request }): Promise<Respons
       available,
       handle,
       suggestions,
-      ...(existingProduct && {
+      ...(existingProducts.length > 0 && {
         conflictingProduct: {
-          handle: handle,
-          title: existingProduct.title || 'Unknown Product'
+          handle: existingProducts[0].node.handle,
+          title: existingProducts[0].node.title
         }
       })
     });
 
   } catch (error) {
-    return errorResponse(error, context);
+    logger.error('Error validating product handle', error);
+    return json(
+      { error: 'Failed to validate product handle' },
+      { status: 500 }
+    );
   }
 }; 

@@ -1,38 +1,42 @@
 import { json } from "@remix-run/node";
-import { authenticateAdmin } from "../services/auth.server";
-import { logger, Logger } from "../services/logger.server";
+import { authenticate } from "../shopify.server";
+import { logger } from "../services/logger.server";
 import { stripHTML } from "../services/prompts/formatting";
 import type { ActionFunctionArgs } from "@remix-run/node";
-import { UPDATE_PRODUCT_DESCRIPTION } from "../graphql";
-import { 
-  retryWithBackoff, 
-  parseGraphQLResponse, 
-  errorResponse 
-} from "../services/errorHandler.server";
-import type { GraphQLErrorResponse } from "../types/errors";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const requestId = Logger.generateRequestId();
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  const { admin, session } = await authenticateAdmin(request);
-  const context = {
-    operation: 'updateproductdescription',
-    shop: session.shop,
-    requestId,
-  };
+  const { admin } = await authenticate.admin(request);
   const formData = await request.json();
 
   try {
     logger.info("Updating product description:", { productId: formData.productId });
 
     const response = await admin.graphql(
-      UPDATE_PRODUCT_DESCRIPTION,
+      `#graphql
+      mutation productUpdate($product: ProductUpdateInput!) {
+        productUpdate(product: $product) {
+          product {
+            id
+            title
+            descriptionHtml
+            seo {
+              title
+              description
+            }
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }`,
       {
         variables: {
-          input: {
+          product: {
             id: formData.productId,
             descriptionHtml: formData.description,
             ...(formData.seoTitle || formData.seoDescription ? {
@@ -77,6 +81,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       product: responseJson.data.productUpdate.product
     });
   } catch (error) {
-    return errorResponse(error, context);
+    logger.error("Failed to update product description:", error);
+    return json(
+      { error: error instanceof Error ? error.message : "Failed to update product" },
+      { status: 500 }
+    );
   }
 };

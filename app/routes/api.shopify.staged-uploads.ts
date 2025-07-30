@@ -1,8 +1,6 @@
 import { json } from "@remix-run/node";
-import { authenticateAdmin } from "../services/auth.server";
-import { logger, Logger } from "../services/logger.server";
-import { STAGED_UPLOADS_CREATE } from "../graphql";
-import { errorResponse } from "../services/errorHandler.server";
+import { authenticate } from "../shopify.server";
+import { logger } from "../services/logger.server.ts";
 
 interface StagedUploadInput {
   filename: string;
@@ -13,17 +11,11 @@ interface StagedUploadInput {
 }
 
 export const action = async ({ request }: { request: Request }): Promise<Response> => {
-  const requestId = Logger.generateRequestId();
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  const { admin, session } = await authenticateAdmin(request);
-  const context = {
-    operation: 'stageduploads',
-    shop: session.shop,
-    requestId,
-  };
+  const { admin } = await authenticate.admin(request);
   const { files } = await request.json();
 
   try {
@@ -39,7 +31,23 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
     }));
 
     const response = await admin.graphql(
-      STAGED_UPLOADS_CREATE,
+      `#graphql
+      mutation stagedUploadsCreate($input: [StagedUploadInput!]!) {
+        stagedUploadsCreate(input: $input) {
+          stagedTargets {
+            url
+            resourceUrl
+            parameters {
+              name
+              value
+            }
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }`,
       {
         variables: { input }
       }
@@ -68,6 +76,10 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
       stagedTargets: responseJson.data.stagedUploadsCreate.stagedTargets
     });
   } catch (error) {
-    return errorResponse(error, context);
+    logger.error("Failed to create staged uploads:", error);
+    return json(
+      { error: error instanceof Error ? error.message : "Failed to create staged uploads" },
+      { status: 500 }
+    );
   }
 };

@@ -1,8 +1,6 @@
 import { json } from "@remix-run/node";
-import { authenticateAdmin } from "../services/auth.server";
-import { logger, Logger } from "../services/logger.server";
-import { GET_CATEGORIES_BY_PRODUCT_TYPE, GET_TAXONOMY_CATEGORIES_HIERARCHICAL } from "../graphql";
-import { errorResponse } from "../services/errorHandler.server";
+import { authenticate } from "../shopify.server";
+import { logger } from "../services/logger.server.ts";
 
 interface TaxonomyCategory {
   id: string;
@@ -16,13 +14,7 @@ interface TaxonomyCategory {
 }
 
 export const loader = async ({ request }: { request: Request }) => {
-  const requestId = Logger.generateRequestId();
-  const { admin, session } = await authenticateAdmin(request);
-  const context = {
-    operation: 'categoriesbyproducttype',
-    shop: session.shop,
-    requestId,
-  };
+  const { admin } = await authenticate.admin(request);
   const url = new URL(request.url);
   const productType = url.searchParams.get("productType");
   const parentId = url.searchParams.get("parentId");
@@ -53,15 +45,94 @@ export const loader = async ({ request }: { request: Request }) => {
     });
 
   } catch (error) {
-    return errorResponse(error, context);
+    logger.error("Failed to fetch taxonomy categories:", error);
+    
+    const fallbackCategories = [
+      {
+        id: "gid://shopify/TaxonomyCategory/aa-1",
+        name: "Apparel & Accessories",
+        fullName: "Apparel & Accessories",
+        level: 0,
+        isLeaf: false,
+        isRoot: true,
+        parentId: null,
+        childrenIds: []
+      },
+      {
+        id: "gid://shopify/TaxonomyCategory/aa-2",
+        name: "Arts & Entertainment",
+        fullName: "Arts & Entertainment", 
+        level: 0,
+        isLeaf: false,
+        isRoot: true,
+        parentId: null,
+        childrenIds: []
+      },
+      {
+        id: "gid://shopify/TaxonomyCategory/aa-3",
+        name: "Baby & Toddler",
+        fullName: "Baby & Toddler",
+        level: 0,
+        isLeaf: false,
+        isRoot: true,
+        parentId: null,
+        childrenIds: []
+      },
+      {
+        id: "gid://shopify/TaxonomyCategory/aa-4",
+        name: "Business & Industrial",
+        fullName: "Business & Industrial",
+        level: 0,
+        isLeaf: false,
+        isRoot: true,
+        parentId: null,
+        childrenIds: []
+      },
+      {
+        id: "gid://shopify/TaxonomyCategory/aa-5",
+        name: "Cameras & Optics",
+        fullName: "Cameras & Optics",
+        level: 0,
+        isLeaf: false,
+        isRoot: true,
+        parentId: null,
+        childrenIds: []
+      }
+    ];
+    
+    return json({ 
+      categories: fallbackCategories,
+      suggestedCategories: []
+    });
   }
 };
 
 async function fetchSuggestedCategories(admin: any, productType: string): Promise<TaxonomyCategory[]> {
   try {
     // Get products with the specified product type and their categories
-    const productsResponse = await admin.graphql(GET_CATEGORIES_BY_PRODUCT_TYPE, {
-      variables: { productType: `product_type:"${productType}"` }
+    const productsQuery = `#graphql
+      query GetProductsByType($query: String!) {
+        products(first: 50, query: $query) {
+          edges {
+            node {
+              id
+              title
+              productType
+              category {
+                id
+                name
+                fullName
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const queryString = `product_type:"${productType}"`;
+    
+    const productsResponse = await admin.graphql(productsQuery, {
+      variables: { query: queryString }
     });
 
     const productsData = await productsResponse.json();
@@ -106,11 +177,37 @@ async function fetchSuggestedCategories(admin: any, productType: string): Promis
     return suggestedCategories;
 
   } catch (error) {
-    return errorResponse(error, context);
+    logger.error("Failed to fetch suggested categories:", error);
+    return [];
   }
 }
 
 async function fetchRegularCategories(admin: any, search?: string, parentId?: string, productType?: string) {
+  const query = `#graphql
+    query GetCategories($search: String, $childrenOf: ID) {
+      taxonomy {
+        categories(
+          first: 50
+          search: $search
+          childrenOf: $childrenOf
+        ) {
+          edges {
+            node {
+              id
+              name
+              fullName
+              level
+              isLeaf
+              isRoot
+              parentId
+              childrenIds
+            }
+          }
+        }
+      }
+    }
+  `;
+
   const variables: { search?: string; childrenOf?: string } = {};
   if (search) {
     variables.search = search;
@@ -119,7 +216,7 @@ async function fetchRegularCategories(admin: any, search?: string, parentId?: st
     variables.childrenOf = parentId;
   }
 
-  const response = await admin.graphql(GET_TAXONOMY_CATEGORIES_HIERARCHICAL, { variables });
+  const response = await admin.graphql(query, { variables });
   const data = await response.json();
   
   if (!data?.data?.taxonomy?.categories?.edges) {

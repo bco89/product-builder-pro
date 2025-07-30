@@ -28,7 +28,7 @@ export default function App() {
       <div className={styles.content}>
         <h1 className={styles.heading}>Product Builder Pro</h1>
         <p className={styles.text}>
-          A guided multi-step wizard that helps you create products with confidence. Follow our proven workflow to ensure every product detail is perfect.
+          Create products effortlessly with AI-powered descriptions and guided workflows.
         </p>
         {showForm && (
           <Form className={styles.form} method="post" action="/auth/login">
@@ -44,13 +44,13 @@ export default function App() {
         )}
         <ul className={styles.list}>
           <li>
-            <strong>Smart Two-Phase Workflow</strong>. Phase 1 guides you through vendor selection, product details, AI description generation, and tagging. Phase 2 handles variant configuration or simple SKU assignment based on your needs.
+            <strong>AI-Powered Descriptions</strong>. Generate compelling product descriptions automatically using advanced AI technology.
           </li>
           <li>
-            <strong>AI-Enhanced Descriptions</strong>. Generate SEO-optimized product descriptions and meta tags automatically. Our AI analyzes your product details to create compelling, keyword-rich content that converts.
+            <strong>Guided Product Creation</strong>. Step-by-step wizard ensures you never miss important product details.
           </li>
           <li>
-            <strong>Flexible Variant System</strong>. Configure up to 100 variants with custom options (size, color, material, etc.). Bulk assign SKUs, barcodes, and pricing. Or skip variants entirely for simple products.
+            <strong>Variant Management</strong>. Easily create and manage up to 100 product variants with bulk editing tools.
           </li>
         </ul>
       </div>

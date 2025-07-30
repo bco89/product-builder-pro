@@ -1,9 +1,8 @@
 import { json } from "@remix-run/node";
-import { authenticateAdmin } from "../services/auth.server";
+import { authenticate } from "../shopify.server";
 import { batchValidateSkus, batchValidateBarcodes } from "../utils/validation";
-import { logger, Logger } from "../services/logger.server";
+import { logger } from "../services/logger.server.ts";
 import type { BatchValidationRequest } from "../types/shopify";
-import { errorResponse } from "../services/errorHandler.server";
 
 interface ValidationConflict {
   type: 'sku' | 'barcode';
@@ -21,13 +20,7 @@ interface BatchValidationResult {
 }
 
 export const action = async ({ request }: { request: Request }): Promise<Response> => {
-  const requestId = Logger.generateRequestId();
-  const { admin, session } = await authenticateAdmin(request);
-  const context = {
-    operation: 'validateskusbatch',
-    shop: session.shop,
-    requestId,
-  };
+  const { admin } = await authenticate.admin(request);
   const requestData: BatchValidationRequest & { barcodes?: string[] } = await request.json();
   const { values: skus, barcodes = [], productId } = requestData;
 
@@ -81,6 +74,13 @@ export const action = async ({ request }: { request: Request }): Promise<Respons
 
     return json(response);
   } catch (error) {
-    return errorResponse(error, context);
+    logger.error('Error in batch validation', error, { 
+      skuCount: skus.length, 
+      barcodeCount: barcodes.length 
+    });
+    return json(
+      { error: 'Failed to validate SKUs and barcodes' },
+      { status: 500 }
+    );
   }
 };
