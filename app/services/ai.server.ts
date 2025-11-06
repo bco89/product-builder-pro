@@ -156,7 +156,7 @@ ${params.tags?.length ? `Tags: ${params.tags.join(', ')}` : ''}
       
       if (this.provider === 'anthropic' && this.anthropic) {
         const completion = await this.anthropic.messages.create({
-          model: 'claude-3-5-sonnet-20241022',
+          model: 'claude-sonnet-4-5-20250929',
           messages: [{ role: 'user', content: userPrompt }],
           system: systemPrompt,
           max_tokens: 150, // Small limit for categorization
@@ -352,11 +352,11 @@ ${params.tags?.length ? `Tags: ${params.tags.join(', ')}` : ''}
       updateProgress(20, { description: 'Preparing to generate content...', seoTitle: '', seoDescription: '' });
       
       if (this.provider === 'anthropic' && this.anthropic) {
-        // Use Claude 3.5 Sonnet as specified
+        // Use Claude Sonnet 4.5 as specified
         const completion = await this.retryWithBackoff(async () => {
           updateProgress(30, { description: 'Connecting to AI service...', seoTitle: '', seoDescription: '' });
           return await this.anthropic!.messages.create({
-            model: 'claude-3-5-sonnet-20241022',
+            model: 'claude-sonnet-4-5-20250929',
             messages: [{ role: 'user', content: userPrompt }],
             system: systemPrompt,
             max_tokens: 8000,  // Increased to prevent truncation of comprehensive descriptions
@@ -456,7 +456,7 @@ Return as JSON with these exact keys:
           
           if (this.provider === 'anthropic' && this.anthropic) {
             const completion = await this.anthropic.messages.create({
-              model: 'claude-3-5-sonnet-20241022',
+              model: 'claude-sonnet-4-5-20250929',
               messages: [{ role: 'user', content: improvementPrompt }],
               system: systemPrompt,
               max_tokens: 6000,  // Increased to handle comprehensive improvements without truncation
@@ -1165,7 +1165,7 @@ Return JSON with scores and specific improvement suggestions:
       
       if (this.provider === 'anthropic' && this.anthropic) {
         const completion = await this.anthropic.messages.create({
-          model: 'claude-3-5-sonnet-20241022',
+          model: 'claude-sonnet-4-5-20250929',
           messages: [{ role: 'user', content: evaluationPrompt }],
           max_tokens: 2000,  // Increased for detailed evaluation feedback
           temperature: 0.3,
@@ -1241,7 +1241,7 @@ Return only the adjusted description.`;
       
       if (this.provider === 'anthropic' && this.anthropic) {
         const completion = await this.anthropic.messages.create({
-          model: 'claude-3-5-sonnet-20241022',
+          model: 'claude-sonnet-4-5-20250929',
           messages: [{ role: 'user', content: alignmentPrompt }],
           max_tokens: 4000,  // Increased for comprehensive voice alignment
           temperature: 0.5,
